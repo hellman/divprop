@@ -1,6 +1,11 @@
 #pragma once
 
 #include <bits/stdc++.h>
+#include <string>
+#include <vector>
+#include <unordered_set>
+#include <unordered_map>
+
 #include <assert.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -85,4 +90,11 @@ inline u64 GF_MUL(u64 x, u64 y, int n, u64 poly) {
         y >>= 1;
     }
     return res;
+}
+
+inline void ensure(int cond) {
+    if (!cond) {
+        fprintf(stderr, "fail at %s:%d\n", __FILE__, __LINE__);
+        exit(1);
+    }
 }
