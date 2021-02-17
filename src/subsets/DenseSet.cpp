@@ -17,7 +17,7 @@ DenseSet DenseSet::copy() const {
 }
 void DenseSet::free() {
     data.clear();
-    n = -1;
+    n = 0;
 }
 void DenseSet::reset() {
     data.assign(1ull << (n - 6), 0);
