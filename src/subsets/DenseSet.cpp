@@ -269,7 +269,7 @@ u64 DenseSet::get_hash() const {
     u64 h = -1ull;
     for (auto v: data) {
         h ^= v;
-        h *= 0xdeadbeef;
+        h *= 0xcaffee1234abcdefull;
         h ^= h >> 12;
         h += v;
         h ^= h >> 17;
@@ -277,12 +277,12 @@ u64 DenseSet::get_hash() const {
     return h;
 }
 string DenseSet::info(const char *name) const {
-    string sname = name ? name : "";
+    string sname = name ? name : "?";
     char buf[4096];
     sprintf(
         buf,
-        "Set[%016lx] %15s n=%d wt=%lu |",
-        get_hash(), sname.c_str(), n, get_weight()
+        "%s:%016lx n=%d wt=%lu |",
+        sname.c_str(), get_hash(), n, get_weight()
     );
 
     string ret = buf;
