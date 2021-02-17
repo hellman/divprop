@@ -8,7 +8,7 @@ DenseSet::DenseSet() {
     n = 0;
 }
 DenseSet::DenseSet(int _n) {
-    assert(_n >= 6 and _n <= 64); // not supported
+    ensure(_n >= 6 and _n <= 64); // not supported
     n = _n;
     data.assign(1ull << (n - 6), 0);
 }
@@ -52,32 +52,32 @@ void DenseSet::do_Sweep(u64 mask) {
 // Basic
 // ========================================
 DenseSet & DenseSet::operator|=(const DenseSet & b) {
-    assert(n == b.n);
-    assert(data.size() == b.data.size());
+    ensure(n == b.n);
+    ensure(data.size() == b.data.size());
     fori (i, data.size()) {
         data[i] |= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator^=(const DenseSet & b) {
-    assert(n == b.n);
-    assert(data.size() == b.data.size());
+    ensure(n == b.n);
+    ensure(data.size() == b.data.size());
     fori (i, data.size()) {
         data[i] ^= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator&=(const DenseSet & b) {
-    assert(n == b.n);
-    assert(data.size() == b.data.size());
+    ensure(n == b.n);
+    ensure(data.size() == b.data.size());
     fori (i, data.size()) {
         data[i] &= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator-=(const DenseSet & b) {
-    assert(n == b.n);
-    assert(data.size() == b.data.size());
+    ensure(n == b.n);
+    ensure(data.size() == b.data.size());
     fori (i, data.size()) {
         data[i] &= ~b.data[i];
     }
@@ -133,9 +133,9 @@ vector<u64> DenseSet::get_counts_by_weight() const {
 }
 
 DenseSet DenseSet::get_head_fixed(int h, u64 value) {
-    assert(value < (1ull << h));
-    assert(h >=0 && h <= n);
-    assert(n - h >= 6);
+    ensure(value < (1ull << h));
+    ensure(h >=0 && h <= n);
+    ensure(n - h >= 6);
     DenseSet result(n - h);
     u64 start = value << (n - h - 6);
     u64 end = (value + 1) << (n - h - 6);
@@ -164,7 +164,7 @@ void DenseSet::do_Not(u64 mask) {
     else {
         fori (i, data.size()) {
             u64 j = i ^ HI(mask);
-            assert(j < data.size());
+            ensure(j < data.size());
             if (j < u64(i))
                 continue;
             GenericSweepWord<SWAP<u64>>(data[i], mask); // LO(mask)
@@ -233,7 +233,7 @@ void DenseSet::save_to_file(const char *filename) const {
     vector<u64> supp = get_support();
 
     FILE *fd = fopen(filename, "w");
-    assert(fd);
+    ensure(fd);
 
     u64 vn = n;
     u64 vl = supp.size();
@@ -246,7 +246,7 @@ void DenseSet::save_to_file(const char *filename) const {
 }
 DenseSet DenseSet::load_from_file(const char *filename) {
     FILE *fd = fopen(filename, "r");
-    // assert(fd);
+    // ensure(fd);
 
     u64 vl;
     u64 vn;
