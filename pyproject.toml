@@ -5,7 +5,9 @@ description = "Manipulation on sets of binary vectors"
 authors = ["hellman"]
 license = "MIT"
 build = "build.py"
-
+include = [
+    {path = "src/subsets/*.so", format = "wheel"}
+]
 
 [tool.poetry.dependencies]
 python = "^3.7"
