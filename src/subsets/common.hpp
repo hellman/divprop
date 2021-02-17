@@ -92,7 +92,7 @@ inline u64 GF_MUL(u64 x, u64 y, int n, u64 poly) {
     return res;
 }
 
-inline void ensure(int cond) {
+TTi void ensure(T cond) {
     if (!cond) {
         fprintf(stderr, "fail at %s:%d\n", __FILE__, __LINE__);
         exit(1);
