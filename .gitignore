@@ -1,0 +1,8 @@
+build
+dist
+__pycache__
+*.egg-info
+poetry.lock
+*.so
+*_wrap.*
+subsets/lib.py
