@@ -1,5 +1,8 @@
 lib:
 	poetry build && python3 -m pip install -U .
+	make test
+
+test:
 	pytest tests/
 
 clean:
