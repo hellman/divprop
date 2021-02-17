@@ -1,6 +1,7 @@
 %module(package="subsets") lib
 
 %include "std_vector.i"
+%include "std_string.i"
 %include "stdint.i"
 
 %typedef uint64_t u64;

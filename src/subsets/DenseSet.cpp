@@ -276,15 +276,24 @@ u64 DenseSet::get_hash() const {
     }
     return h;
 }
-void DenseSet::log_info(const char *name) const {
-    string nm = name;
-    while (nm.size() < 15) {
-        nm += " ";
-    }
-    fprintf(stderr, "Set[%016lx] %s n=%u wt=%lu |", get_hash(), nm.c_str(), n, get_weight());
+string DenseSet::info(const char *name) const {
+    string sname = name ? name : "";
+    char buf[4096];
+    sprintf(
+        buf,
+        "Set[%016lx] %15s n=%d wt=%lu |",
+        get_hash(), sname.c_str(), n, get_weight()
+    );
+
+    string ret = buf;
+
     auto by_wt = get_counts_by_weight();
     fori (i, n+1) {
-        fprintf(stderr, " %lu:%lu", i, by_wt[i]);
-    }
-    fprintf(stderr, "\n");
+        sprintf(buf, " %lu:%lu", i, by_wt[i]);
+        ret += buf;
+    };
+    return ret;
+}
+void DenseSet::log_info(const char *name) const {
+    fprintf(stderr, "%s\n", info(name).c_str(), "\n");
 }
