@@ -13,8 +13,8 @@ struct DenseSet {
     DenseSet();
     DenseSet(int _n);
     DenseSet copy() const;
-    void free();
-    void reset();
+    void free(); // set to empty set with n=0
+    void clear(); // set to empty set, keep n
 
     // ========================================
     // Read/Write & info

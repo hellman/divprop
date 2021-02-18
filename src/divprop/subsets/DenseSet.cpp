@@ -9,9 +9,9 @@ DenseSet::DenseSet() {
     n = 0;
 }
 DenseSet::DenseSet(int _n) {
-    ensure(_n >= 6 and _n <= 64); // not supported
+    ensure(_n >= 0 and _n <= 64, "supported set dimension is between 1 and 64"); // not supported
     n = _n;
-    data.assign(1ull << (n - 6), 0);
+    clear();
 }
 DenseSet DenseSet::copy() const {
     return *this;
@@ -20,8 +20,8 @@ void DenseSet::free() {
     data.clear();
     n = 0;
 }
-void DenseSet::reset() {
-    data.assign(1ull << (n - 6), 0);
+void DenseSet::clear() {
+    data.assign(HICEIL(1ull << n), 0);
 }
 
 // ========================================
@@ -44,12 +44,17 @@ void DenseSet::set(u64 x, u64 value) {
 // ========================================
 template<auto func>
 void DenseSet::do_Sweep(u64 mask) {
+    mask &= (1ull << n)-1;
     // we can use GenericSweep
     // pretending we have bit-slice 64 parallel sets in our array
-    GenericSweep<func>(data, HI(mask));
+    if (HI(mask)) {
+        GenericSweep<func>(data, HI(mask));
+    }
     // and then it's only left to Sweep each word
-    fori (i, data.size()) {
-        GenericSweepWord<func>(data[i], LO(mask));
+    if (LO(mask)) {
+        fori (i, data.size()) {
+            GenericSweepWord<func>(data[i], LO(mask));
+        }
     }
 }
 // for python low-level API
@@ -190,8 +195,9 @@ void DenseSet::do_Mobius(u64 mask) {
     do_Sweep<XOR_up<u64>>(mask);
 }
 void DenseSet::do_Complement() {
+    u64 mask = n >= 6 ? -1ull : ((1ull << (1ull << n)) - 1ull);
     fori (i, data.size()) {
-        data[i] = ~data[i];
+        data[i] = mask ^ data[i];
     }
 }
 void DenseSet::do_Not(u64 mask) {
