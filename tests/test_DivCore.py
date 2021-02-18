@@ -30,11 +30,16 @@ def test_DivCore():
     # assert dc.MinDPPT().get_support() == \
     #     (3, 4, 7, 15, 17, 19, 20, 27, 28, 34, 35, 36, 43, 44, 48, 49, 50, 57, 58)
 
-    a = DenseSet(6)
+def test_Not():
+    a = DenseSet(10)
     a.set(0)
-    print(a.get_support())
-    a.do_Not(0x3f)
-    print(a.get_support())
+    assert a.get_support() == (0,)
+    a.do_Not(1)
+    assert a.get_support() == (1,)
+    a.do_Not(2)
+    assert a.get_support() == (3,)
+    a.do_Not(9)
+    assert a.get_support() == (515,)
 
 
 def test_DPPT():
