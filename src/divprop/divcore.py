@@ -5,7 +5,14 @@ def mask(m):
     return (1 << m) - 1
 
 
-class DivCore:
+class DenseDivCore:
+    """
+    Division Core of the S-Box = reduced DPPT of its graph (as a dense set).
+
+    Notation: vectors (u, v), with bit-length (n, m).
+
+    Wrapper for DenseSet, stored in :attr:`data`.
+    """
     def __init__(self, data, n, m):
         assert isinstance(data, DenseSet)
         assert data.n == n + m
@@ -39,24 +46,40 @@ class DivCore:
 
         return cls(graph, n, m)
 
-    def LB(self):
+    def LB(self) -> DenseSet:
+        """
+        Lower bound for MinDPPT,
+        in the form of MaxSet of invalid vectors
+        (ones that are a bit lower than vectors from divcore)
+        """
         ret = self.data.copy()
         ret.do_ComplementU2L()
         return ret
 
-    def UB(self):
+    def UB(self) -> DenseSet:
+        """
+        Upper bound for MinDPPT,
+        in the form of MinSet of redundant vectors
+        (ones that are a bit upper in (v) than reduced vectors from divcore)
+        """
         ret = self.data.copy()
         ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
         ret.do_MinSet()
         return ret
 
-    def FullDPPT(self):
+    def FullDPPT(self) -> DenseSet:
+        """
+        DenseSet of all valid transitions, including redundant ones.
+        """
         ret = self.data.copy()
         ret.do_UpperSet()
         ret.do_Not(self.mask_u)
         return ret
 
-    def MinDPPT(self):
+    def MinDPPT(self) -> DenseSet:
+        """
+        DenseSet of all valid reduced transitions.
+        """
         ret = self.data.copy()
         ret.do_UpperSet(self.mask_u)
         ret.do_MinSet(self.mask_v)

@@ -1,12 +1,12 @@
 from binteger import Bin
 from divprop.subsets import Sbox2GI, DenseSet
-from divprop.divcore import DivCore
+from divprop.divcore import DenseDivCore
 
 
 def test_DivCore():
     s = [1, 2, 3, 4, 0, 7, 6, 5]
     n = m = 3
-    dc = DivCore.from_sbox(s, n, m, log=True)
+    dc = DenseDivCore.from_sbox(s, n, m, log=True)
 
     assert dc.data.info("divcore") == \
         "dfa780cfc382387a:divcore n=6 wt=12 | 2:3 3:9"
@@ -77,7 +77,7 @@ def check_one_DPPT(sbox, n, m, dppt):
             mindppt1.add((u << m) | v)
     mindppt1 = tuple(sorted(mindppt1))
 
-    dc = DivCore.from_sbox(sbox, n, m, log=True)
+    dc = DenseDivCore.from_sbox(sbox, n, m, log=True)
     assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
     assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
 
