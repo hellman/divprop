@@ -1,6 +1,10 @@
 from divprop.subsets import Sbox2GI, DenseSet
 
 
+def mask(m):
+    return (1 << m) - 1
+
+
 class DivCore:
     def __init__(self, data, n, m):
         assert isinstance(data, DenseSet)
@@ -8,6 +12,8 @@ class DivCore:
         self.data = data
         self.n = int(n)
         self.m = int(m)
+        self.mask_u = mask(n) << m
+        self.mask_v = mask(m)
 
     @classmethod
     def from_sbox(cls, sbox, n, m, log=False):
@@ -32,3 +38,27 @@ class DivCore:
             graph.log_info("not-anf-max")
 
         return cls(graph, n, m)
+
+    def LB(self):
+        ret = self.data.copy()
+        ret.do_ComplementU2L()
+        return ret
+
+    def UB(self):
+        ret = self.data.copy()
+        ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
+        ret.do_MinSet()
+        return ret
+
+    def FullDPPT(self):
+        ret = self.data.copy()
+        ret.do_UpperSet()
+        ret.do_Not(self.mask_u)
+        return ret
+
+    def MinDPPT(self):
+        ret = self.data.copy()
+        ret.do_UpperSet(self.mask_u)
+        ret.do_MinSet(self.mask_v)
+        ret.do_Not(self.mask_u)
+        return ret
