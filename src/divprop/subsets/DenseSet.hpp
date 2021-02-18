@@ -68,8 +68,15 @@ struct DenseSet {
     #endif
 
     std::vector<uint64_t> get_support() const;
+    #ifdef SWIG
+    %pythoncode %{
+        def __iter__(self):
+            return iter(self.get_support())
+    %}
+    #endif
 
     uint64_t get_weight() const;
+    uint64_t __len__() const;
 
     std::vector<uint64_t> get_counts_by_weight() const;
 

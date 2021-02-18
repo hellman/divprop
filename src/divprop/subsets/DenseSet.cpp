@@ -172,6 +172,9 @@ u64 DenseSet::get_weight() const {
     }
     return cnt;
 }
+u64 DenseSet::__len__() const {
+    return get_weight();
+}
 
 vector<u64> DenseSet::get_counts_by_weight() const {
     vector<u64> res(n+1);
