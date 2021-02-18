@@ -1,10 +1,12 @@
+PYTHON = pypy3
+
 lib:
 	poetry build 
-	python3 -m pip install -U .
+	$(PYTHON) -m pip install -U .
 	make test
 
 test:
-	pytest tests/
+	$(PYTHON) -m pytest tests/
 
 clean:
 	rm -rf build setup.py *.egg-info __pycache__
