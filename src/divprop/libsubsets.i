@@ -1,4 +1,4 @@
-%module(package="subsets") lib
+%module(package="divprop") libsubsets
 
 %include "std_vector.i"
 %include "std_string.i"
@@ -15,10 +15,12 @@
 %typedef int8_t i8;
 
 %template(MyVector_u64) std::vector<uint64_t>;
+%template(MyVector_u32) std::vector<uint32_t>;
+%template(MyVector_u16) std::vector<uint16_t>;
 %template(MyVector_u8) std::vector<uint8_t>;
 %template(MyVector_int) std::vector<int>;
 
-%include "DenseSet.hpp"
+%include "subsets/DenseSet.hpp"
 
 %{
 #include "DenseSet.hpp"

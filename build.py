@@ -2,15 +2,18 @@ from distutils.core import Extension
 
 ext_modules = [
     Extension(
-        "subsets._lib",
-        include_dirs=["./src/subsets/"],
+        "divprop._libsubsets",
+        include_dirs=[
+            "./src/",
+            "./src/divprop/common/",
+            "./src/divprop/subsets/",
+        ],
         sources=[
-            "./src/subsets/lib.i",
-            "./src/subsets/DenseSet.cpp",
-            # "./src/subsets/common.cpp",
+            "./src/divprop/libsubsets.i",
+            "./src/divprop/subsets/DenseSet.cpp",
         ],
         swig_opts=["-c++", "-DSWIGWORDSIZE64"],  # https://github.com/swig/swig/issues/568
-        extra_compile_args=["-std=c++2a", "-O3"],
+        extra_compile_args=["-std=c++2a", "-O0"],
     ),
 ]
 

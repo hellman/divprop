@@ -1,4 +1,4 @@
-from subsets.lib import DenseSet
+from divprop.subsets import DenseSet
 
 
 def test_DenseSet():

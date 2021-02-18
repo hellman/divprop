@@ -1,13 +1,16 @@
 [tool.poetry]
-name = "subsets"
+name = "divprop"
 version = "0.1.0"
-description = "Manipulation on sets of binary vectors"
+description = "Tools for Division Property Cryptanalysis"
 authors = ["hellman"]
 license = "MIT"
 build = "build.py"
 include = [
-    {path = "src/subsets/*.so", format = "wheel"}
+    {path = "src/divprop/subsets/*.so", format = "wheel"}
 ]
+
+#[tool.poetry.build]
+#generate-setup-file = false
 
 [tool.poetry.dependencies]
 python = "^3.7"

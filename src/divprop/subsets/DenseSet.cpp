@@ -4,6 +4,7 @@
 
 #include "DenseSet.hpp"
 
+
 DenseSet::DenseSet() {
     n = 0;
 }
@@ -22,6 +23,10 @@ void DenseSet::free() {
 void DenseSet::reset() {
     data.assign(1ull << (n - 6), 0);
 }
+
+// ========================================
+// Single bit get/set
+// ========================================
 
 int DenseSet::get(u64 x) const {
     return (data[HI(x)] >> LO(x)) & 1;
@@ -49,7 +54,7 @@ void DenseSet::do_Sweep(u64 mask) {
 }
 
 // ========================================
-// Basic
+// Bitwise
 // ========================================
 DenseSet & DenseSet::operator|=(const DenseSet & b) {
     ensure(n == b.n);
@@ -83,6 +88,21 @@ DenseSet & DenseSet::operator-=(const DenseSet & b) {
     }
     return *this;
 }
+
+DenseSet DenseSet::get_head_fixed(int h, u64 value) {
+    ensure(value < (1ull << h));
+    ensure(h >=0 && h <= n);
+    ensure(n - h >= 6);
+    DenseSet result(n - h);
+    u64 start = value << (n - h - 6);
+    u64 end = (value + 1) << (n - h - 6);
+    result.data = vector<u64>(data.begin() + start, data.begin() + end);
+    return result;
+}
+
+// ========================================
+// Support
+// ========================================
 
 void DenseSet::iter_support(function<void(u64)> const & func) const {
     fori (hi, data.size()) {
@@ -130,17 +150,6 @@ vector<u64> DenseSet::get_counts_by_weight() const {
     auto func = [&] (u64 v) -> void { res[hw(v)] += 1; };
     iter_support(func);
     return res;
-}
-
-DenseSet DenseSet::get_head_fixed(int h, u64 value) {
-    ensure(value < (1ull << h));
-    ensure(h >=0 && h <= n);
-    ensure(n - h >= 6);
-    DenseSet result(n - h);
-    u64 start = value << (n - h - 6);
-    u64 end = (value + 1) << (n - h - 6);
-    result.data = vector<u64>(data.begin() + start, data.begin() + end);
-    return result;
 }
 
 // ========================================
