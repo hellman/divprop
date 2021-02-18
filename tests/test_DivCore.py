@@ -7,28 +7,30 @@ def test_DivCore():
     s = [1, 2, 3, 4, 0, 7, 6, 5]
     n = m = 3
     dc = DivCore.from_sbox(s, n, m, log=True)
+
     assert dc.data.info("divcore") == \
         "dfa780cfc382387a:divcore n=6 wt=12 | 2:3 3:9"
     assert dc.data.get_support() == \
         (7, 11, 12, 19, 20, 25, 35, 36, 42, 49, 50, 56)
 
-    # assert dc.LB().info("LB") == \
-    #     "33a2da8e790ed608:LB n=6 wt=6 | 2:4 3:2"
-    # assert dc.UB().info("UB") == \
-    #     "d9b50b14e32cdfbf:UB n=6 wt=7 | 3:2 4:5"
-    # assert dc.FullDPPT().info("FullDPPT") == \
-    #     "e885dc949174397d:FullDPPT n=6 wt=43 | 1:1 2:8 3:12 4:15 5:6 6:1"
-    # assert dc.MinDPPT().info("MinDPPT") == \
-    #     "bfa4e74eb6755b1a:MinDPPT n=6 wt=19 | 1:1 2:6 3:7 4:5"
+    assert dc.LB().info("LB") == \
+        "9fe09c93bbcdbb87:LB n=6 wt=8 | 2:6 3:2"
+    assert dc.UB().info("UB") == \
+        "60f7fb1d9a638a50:UB n=6 wt=12 | 3:6 4:6"
+    assert dc.FullDPPT().info("FullDPPT") == \
+        "b712d2af3b433a45:FullDPPT n=6 wt=43 | 0:1 1:3 2:10 3:13 4:12 5:3 6:1"
+    assert dc.MinDPPT().info("MinDPPT") == \
+        "ff7ce5b30da61490:MinDPPT n=6 wt=15 | 0:1 2:7 3:3 4:3 6:1"
 
-    # assert dc.LB().get_support() == \
-    #     (9, 10, 18, 28, 33, 44)
-    # assert dc.UB().get_support() == \
-    #     (15, 27, 28, 43, 44, 57, 58)
-    # assert dc.FullDPPT().get_support() == \
-    #     (3, 4, 5, 6, 7, 15, 17, 19, 20, 21, 22, 23, 27, 28, 29, 30, 31, 34, 35, 36, 37, 38, 39, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 57, 58, 59, 60, 61, 62, 63)
-    # assert dc.MinDPPT().get_support() == \
-    #     (3, 4, 7, 15, 17, 19, 20, 27, 28, 34, 35, 36, 43, 44, 48, 49, 50, 57, 58)
+    assert dc.LB().get_support() == \
+        (3, 5, 6, 17, 26, 34, 41, 48)
+    assert dc.UB().get_support() == \
+        (13, 14, 21, 22, 27, 37, 38, 43, 51, 57, 58, 60)
+    assert dc.FullDPPT().get_support() == \
+        (0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 27, 28, 29, 30, 31, 33, 35, 36, 37, 38, 39, 43, 44, 45, 46, 47, 51, 52, 53, 54, 55, 63)
+    assert dc.MinDPPT().get_support() == \
+        (0, 9, 10, 12, 18, 20, 27, 28, 33, 36, 43, 44, 51, 52, 63)
+
 
 def test_Not():
     a = DenseSet(10)
@@ -38,7 +40,7 @@ def test_Not():
     assert a.get_support() == (1,)
     a.do_Not(2)
     assert a.get_support() == (3,)
-    a.do_Not(9)
+    a.do_Not(512)
     assert a.get_support() == (515,)
 
 
