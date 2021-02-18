@@ -92,9 +92,17 @@ inline u64 GF_MUL(u64 x, u64 y, int n, u64 poly) {
     return res;
 }
 
-TTi void ensure(T cond) {
+#define GET_MACRO2(_1, _2, NAME, ...) NAME
+#define ensure1(cond) _ensure(cond, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, NULL)
+#define ensure2(cond, err) _ensure(cond, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, err)
+#define ensure(...) GET_MACRO2(__VA_ARGS__, ensure2, ensure1)(__VA_ARGS__)
+
+TTi void _ensure(T cond, const char *file, int lno, const char *func, const char *condstr, const char * err) {
     if (!cond) {
-        fprintf(stderr, "fail at %s:%d\n", __FILE__, __LINE__);
+        if (err) {
+            fprintf(stderr, "error: %s\n", err);
+        }
+        fprintf(stderr, "at %s:%d %s (in %s)\n", file, lno, condstr, func);
         exit(1);
     }
 }
