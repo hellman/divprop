@@ -288,8 +288,8 @@ u64 DenseSet::get_hash() const {
 string DenseSet::info(const char *name) const {
     string sname = name ? name : "?";
     char buf[4096];
-    sprintf(
-        buf,
+    snprintf(
+        buf, 4000,
         "%016lx:%s n=%d wt=%lu |",
         get_hash(), sname.c_str(), n, get_weight()
     );
@@ -299,7 +299,7 @@ string DenseSet::info(const char *name) const {
     auto by_wt = get_counts_by_weight();
     fori (i, n+1) {
         if (by_wt[i]) {
-            sprintf(buf, " %lu:%lu", i, by_wt[i]);
+            snprintf(buf, 4000, " %lu:%lu", i, by_wt[i]);
             ret += buf;
         }
     };
