@@ -21,7 +21,11 @@
 %template(MyVector_int) std::vector<int>;
 
 %include "subsets/DenseSet.hpp"
+%include "subsets/SboxGraph.hpp"
+
+%template(Sbox2GI) Sbox2GraphIndicator<uint64_t>;
 
 %{
 #include "DenseSet.hpp"
+#include "SboxGraph.hpp"
 %}

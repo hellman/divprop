@@ -6,4 +6,4 @@ poetry.lock
 *.so
 *_wrap.*
 setup.py
-src/subsets/lib.py
+src/divprop/libsubsets.py

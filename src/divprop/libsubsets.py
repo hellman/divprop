@@ -757,4 +757,7 @@ def DenseSet_load_from_file(filename):
     return _libsubsets.DenseSet_load_from_file(filename)
 
 
+def Sbox2GI(sbox, n, m):
+    return _libsubsets.Sbox2GI(sbox, n, m)
+
 

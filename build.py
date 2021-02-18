@@ -8,9 +8,13 @@ ext_modules = [
             "./src/divprop/common/",
             "./src/divprop/subsets/",
         ],
+        depends=[
+            "./src/divprop/common/common.hpp",
+        ],
         sources=[
             "./src/divprop/libsubsets.i",
             "./src/divprop/subsets/DenseSet.cpp",
+            "./src/divprop/subsets/SboxGraph.cpp",
         ],
         swig_opts=["-c++", "-DSWIGWORDSIZE64"],  # https://github.com/swig/swig/issues/568
         extra_compile_args=["-std=c++2a", "-O0"],

@@ -6,11 +6,8 @@ authors = ["hellman"]
 license = "MIT"
 build = "build.py"
 include = [
-    {path = "src/divprop/subsets/*.so", format = "wheel"}
+    {path = "src/divprop/*.so", format = "wheel"}
 ]
-
-#[tool.poetry.build]
-#generate-setup-file = false
 
 [tool.poetry.dependencies]
 python = "^3.7"
