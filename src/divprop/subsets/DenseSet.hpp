@@ -39,6 +39,16 @@ struct DenseSet {
     template<auto func>
     void do_Sweep(uint64_t mask = -1ull);
     #endif
+    // for python low-level API
+    void do_Sweep_OR_up(uint64_t mask = -1ull);
+    void do_Sweep_OR_down(uint64_t mask = -1ull);
+    void do_Sweep_XOR_up(uint64_t mask = -1ull);
+    void do_Sweep_XOR_down(uint64_t mask = -1ull);
+    void do_Sweep_AND_up(uint64_t mask = -1ull);
+    void do_Sweep_AND_down(uint64_t mask = -1ull);
+    void do_Sweep_SWAP(uint64_t mask = -1ull);
+    void do_Sweep_LESS_up(uint64_t mask = -1ull);
+    void do_Sweep_MORE_down(uint64_t mask = -1ull);
 
     // ========================================
     // Bitwise ops

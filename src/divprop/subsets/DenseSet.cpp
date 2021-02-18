@@ -52,6 +52,34 @@ void DenseSet::do_Sweep(u64 mask) {
         GenericSweepWord<func>(data[i], LO(mask));
     }
 }
+// for python low-level API
+void DenseSet::do_Sweep_OR_up(uint64_t mask) {
+    do_Sweep<OR_up<u64>>(mask);
+}
+void DenseSet::do_Sweep_OR_down(uint64_t mask) {
+    do_Sweep<OR_down<u64>>(mask);
+}
+void DenseSet::do_Sweep_XOR_up(uint64_t mask) {
+    do_Sweep<XOR_up<u64>>(mask);
+}
+void DenseSet::do_Sweep_XOR_down(uint64_t mask) {
+    do_Sweep<XOR_down<u64>>(mask);
+}
+void DenseSet::do_Sweep_AND_up(uint64_t mask) {
+    do_Sweep<AND_up<u64>>(mask);
+}
+void DenseSet::do_Sweep_AND_down(uint64_t mask) {
+    do_Sweep<AND_down<u64>>(mask);
+}
+void DenseSet::do_Sweep_SWAP(uint64_t mask) {
+    do_Sweep<SWAP<u64>>(mask);
+}
+void DenseSet::do_Sweep_LESS_up(uint64_t mask) {
+    do_Sweep<LESS_up<u64>>(mask);
+}
+void DenseSet::do_Sweep_MORE_down(uint64_t mask) {
+    do_Sweep<MORE_down<u64>>(mask);
+}
 
 // ========================================
 // Bitwise
