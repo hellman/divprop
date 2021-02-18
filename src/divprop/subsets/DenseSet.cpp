@@ -290,16 +290,18 @@ string DenseSet::info(const char *name) const {
     char buf[4096];
     sprintf(
         buf,
-        "%s:%016lx n=%d wt=%lu |",
-        sname.c_str(), get_hash(), n, get_weight()
+        "%016lx:%s n=%d wt=%lu |",
+        get_hash(), sname.c_str(), n, get_weight()
     );
 
     string ret = buf;
 
     auto by_wt = get_counts_by_weight();
     fori (i, n+1) {
-        sprintf(buf, " %lu:%lu", i, by_wt[i]);
-        ret += buf;
+        if (by_wt[i]) {
+            sprintf(buf, " %lu:%lu", i, by_wt[i]);
+            ret += buf;
+        }
     };
     return ret;
 }

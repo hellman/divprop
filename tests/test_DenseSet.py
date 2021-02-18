@@ -30,8 +30,8 @@ def test_DenseSet():
     assert b.get_support() == (0, 1, 2, 3, 5, 8)
     assert b.get_weight() == 6
 
-    assert b.info() == '?:f01a3338f076a640 n=6 wt=6 | 0:1 1:3 2:2 3:0 4:0 5:0 6:0'
-    assert b.info("SetB") == 'SetB:f01a3338f076a640 n=6 wt=6 | 0:1 1:3 2:2 3:0 4:0 5:0 6:0'
+    assert b.info() == 'f01a3338f076a640:? n=6 wt=6 | 0:1 1:3 2:2'
+    assert b.info("SetB") == 'f01a3338f076a640:SetB n=6 wt=6 | 0:1 1:3 2:2'
     print(a.info("SetA"))
     print(b.info("SetB"))
 
