@@ -50,15 +50,15 @@ typedef int8_t i8;
 #define rfori3(i, start, end, step) \
     for (int64_t __VAR(vstart) = (start), __VAR(vstep) = (step), i = __VAR(vstart) + (((end)-1-__VAR(vstart)) / __VAR(vstep)) * __VAR(vstep); i >= __VAR(vstart); i -= __VAR(vstep))
 
-inline int HI(u64 x) {
+inline u64 HI(u64 x) {
     return x >> 6;
 }
 
-inline int LO(u64 x) {
+inline u64 LO(u64 x) {
     return x & 0x3f;
 }
 
-inline int HICEIL(u64 x) {
+inline u64 HICEIL(u64 x) {
     return (x >> 6) + ((x & 0x3f) != 0);
 }
 

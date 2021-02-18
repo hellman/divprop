@@ -55,8 +55,6 @@ TTi void MORE_down(T &a, T &b) { a &= ~b; }
 //     }
 // }
 
-TTi void passive_AND_up(const T &a, const T &b, T &aa, T &bb) { bb &= a; }
-
 
 template<auto func, typename T>
 void GenericSweep(vector<T> &arr, uint64_t mask) {
@@ -67,32 +65,9 @@ void GenericSweep(vector<T> &arr, uint64_t mask) {
             continue;
         uint64_t halfstep = 1ull << k;
         uint64_t step = 2ull << k;
-        fori (i, size, step) {
+        fori (i, 0, size, step) {
             fori (j, halfstep) {
                 func(arr[i + j], arr[i + j + halfstep]);
-            }
-        }
-    }
-}
-
-template<auto func, typename T>
-void GenericSweepPassive(const vector<T> &src, vector<T> &dst, uint64_t mask) {
-    assert(src.size() == dst.size());
-
-    auto size = src.size();
-    int n = log2(size);
-
-    fori (k, n) {
-        if ((mask & (1ull << k)) == 0)
-            continue;
-        uint64_t halfstep = 1ull << k;
-        uint64_t step = 2ull << k;
-        fori (i, size, step) {
-            fori (j, halfstep) {
-                func(
-                    src[i + j], src[i + j + halfstep],
-                    dst[i + j], dst[i + j + halfstep]
-                );
             }
         }
     }

@@ -10,6 +10,7 @@ ext_modules = [
         ],
         depends=[
             "./src/divprop/common/common.hpp",
+            "./src/divprop/common/Sweep.hpp",
         ],
         sources=[
             "./src/divprop/libsubsets.i",
