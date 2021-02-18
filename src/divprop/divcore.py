@@ -35,7 +35,7 @@ class DivCore:
         graph.do_Not()
 
         if log:
-            graph.log_info("not-anf-max")
+            graph.log_info("divcore")
 
         return cls(graph, n, m)
 

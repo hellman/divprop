@@ -1,5 +1,6 @@
 lib:
-	poetry build && python3 -m pip install -U .
+	poetry build 
+	python3 -m pip install -U .
 	make test
 
 test:
