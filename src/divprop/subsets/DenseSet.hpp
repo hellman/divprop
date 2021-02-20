@@ -17,6 +17,7 @@ struct DenseSet {
     void clear(); // set to empty set, keep n
 
     bool is_empty() const;
+    bool __bool__() const;
     bool is_full() const;
 
     // ========================================
@@ -33,6 +34,7 @@ struct DenseSet {
     // Single bit get/set
     // ========================================
     int get(uint64_t x) const;
+    bool __contains__(uint64_t x) const;
     void set(uint64_t x);
     void set(uint64_t x, uint64_t value);
 

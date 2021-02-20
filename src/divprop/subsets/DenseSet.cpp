@@ -28,6 +28,9 @@ void DenseSet::clear() {
 bool DenseSet::is_empty() const {
     return get_weight() == 0;
 }
+bool DenseSet::__bool__() const {
+    return !is_empty();
+}
 bool DenseSet::is_full() const {
     return get_weight() == 1ull << n;
 }
@@ -37,7 +40,11 @@ bool DenseSet::is_full() const {
 // ========================================
 
 int DenseSet::get(u64 x) const {
+    // ensure(x < 1ull << n);
     return (data[HI(x)] >> LO(x)) & 1;
+}
+bool DenseSet::__contains__(u64 x) const {
+    return get(x) == 1;
 }
 void DenseSet::set(u64 x) {
     data[HI(x)] |= 1ull << LO(x);
