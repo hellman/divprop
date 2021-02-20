@@ -112,4 +112,16 @@ struct DenseSet {
     void do_ComplementU2L(bool is_upper=false, uint64_t mask = -1ull);
     void do_ComplementL2U(bool is_lower=false, uint64_t mask = -1ull);
     void do_UpperSet_Up1(bool is_minset=false, uint64_t mask = -1ull);
+
+    DenseSet Mobius(uint64_t mask = -1ull) const;
+    DenseSet Complement() const;
+    DenseSet Not(uint64_t mask = -1ull) const;
+    DenseSet UpperSet(uint64_t mask = -1ull) const;
+    DenseSet LowerSet(uint64_t mask = -1ull) const;
+    DenseSet MinSet(uint64_t mask = -1ull) const;
+    DenseSet MaxSet(uint64_t mask = -1ull) const;
+    DenseSet DivCore(uint64_t mask = -1ull) const;
+    DenseSet ComplementU2L(bool is_upper=false, uint64_t mask = -1ull) const;
+    DenseSet ComplementL2U(bool is_lower=false, uint64_t mask = -1ull) const;
+    DenseSet UpperSet_Up1(bool is_minset=false, uint64_t mask = -1ull) const;
 };

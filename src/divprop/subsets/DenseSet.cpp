@@ -364,6 +364,62 @@ void DenseSet::do_UpperSet_Up1(bool is_minset, u64 mask) {
     }
 }
 
+DenseSet DenseSet::Mobius(uint64_t mask) const {
+    auto ret = copy();
+    ret.do_Mobius(mask);
+    return ret;
+}
+DenseSet DenseSet::Complement() const {
+    auto ret = copy();
+    ret.do_Complement();
+    return ret;
+}
+DenseSet DenseSet::Not(uint64_t mask) const {
+    auto ret = copy();
+    ret.do_Not(mask);
+    return ret;
+}
+DenseSet DenseSet::UpperSet(uint64_t mask) const {
+    auto ret = copy();
+    ret.do_UpperSet(mask);
+    return ret;
+}
+DenseSet DenseSet::LowerSet(uint64_t mask) const {
+    auto ret = copy();
+    ret.do_LowerSet(mask);
+    return ret;
+}
+DenseSet DenseSet::MinSet(uint64_t mask) const {
+    auto ret = copy();
+    ret.do_MinSet(mask);
+    return ret;
+}
+DenseSet DenseSet::MaxSet(uint64_t mask) const {
+    auto ret = copy();
+    ret.do_MaxSet(mask);
+    return ret;
+}
+DenseSet DenseSet::DivCore(uint64_t mask) const {
+    auto ret = copy();
+    ret.do_DivCore(mask);
+    return ret;
+}
+DenseSet DenseSet::ComplementU2L(bool is_upper, uint64_t mask) const {
+    auto ret = copy();
+    ret.do_ComplementU2L(is_upper, mask);
+    return ret;
+}
+DenseSet DenseSet::ComplementL2U(bool is_lower, uint64_t mask) const {
+    auto ret = copy();
+    ret.do_ComplementL2U(is_lower, mask);
+    return ret;
+}
+DenseSet DenseSet::UpperSet_Up1(bool is_minset, uint64_t mask) const {
+    auto ret = copy();
+    ret.do_UpperSet_Up1(is_minset, mask);
+    return ret;
+}
+
 // ========================================
 // Stuff
 // ========================================
