@@ -89,33 +89,90 @@ void DenseSet::do_Sweep_MORE_down(uint64_t mask) {
 // ========================================
 // Bitwise
 // ========================================
+bool DenseSet::is_compatible_set(const DenseSet & b) const {
+    return n == b.n && data.size() == b.data.size();
+}
+bool DenseSet::operator==(const DenseSet & b) const {
+    ensure(is_compatible_set(b));
+    auto &data2 = b.data;
+    fori(i, data.size()) {
+        if (data[i] == data2[i]) continue;
+        return false;
+    }
+    return true;
+}
+bool DenseSet::operator!=(const DenseSet & b) const {
+    ensure(is_compatible_set(b));
+    auto &data2 = b.data;
+    fori(i, data.size()) {
+        if (data[i] == data2[i]) continue;
+        return true;
+    }
+    return false;
+}
+bool DenseSet::operator<(const DenseSet & b) const {
+    ensure(is_compatible_set(b));
+    auto &data2 = b.data;
+    fori(i, data.size()) {
+        if (data[i] == data2[i]) continue;
+        if ((data[i] & data2[i]) == data[i]) return true; // prec
+        return false;
+    }
+    return false;
+}
+bool DenseSet::operator>(const DenseSet & b) const {
+    ensure(is_compatible_set(b));
+    auto &data2 = b.data;
+    fori(i, data.size()) {
+        if (data[i] == data2[i]) continue;
+        if ((data[i] & data2[i]) == data2[i]) return true; // succ
+        return false;
+    }
+    return false;
+}
+bool DenseSet::operator<=(const DenseSet & b) const {
+    ensure(is_compatible_set(b));
+    auto &data2 = b.data;
+    fori(i, data.size()) {
+        if (data[i] == data2[i]) continue;
+        if ((data[i] & data2[i]) == data[i]) return true; // prec
+        return false;
+    }
+    return true;
+}
+bool DenseSet::operator>=(const DenseSet & b) const {
+    ensure(is_compatible_set(b));
+    auto &data2 = b.data;
+    fori(i, data.size()) {
+        if (data[i] == data2[i]) continue;
+        if ((data[i] & data2[i]) == data2[i]) return true; // succ
+        return false;
+    }
+    return true;
+}
 DenseSet & DenseSet::operator|=(const DenseSet & b) {
-    ensure(n == b.n);
-    ensure(data.size() == b.data.size());
+    ensure(is_compatible_set(b));
     fori (i, data.size()) {
         data[i] |= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator^=(const DenseSet & b) {
-    ensure(n == b.n);
-    ensure(data.size() == b.data.size());
+    ensure(is_compatible_set(b));
     fori (i, data.size()) {
         data[i] ^= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator&=(const DenseSet & b) {
-    ensure(n == b.n);
-    ensure(data.size() == b.data.size());
+    ensure(is_compatible_set(b));
     fori (i, data.size()) {
         data[i] &= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator-=(const DenseSet & b) {
-    ensure(n == b.n);
-    ensure(data.size() == b.data.size());
+    ensure(is_compatible_set(b));
     fori (i, data.size()) {
         data[i] &= ~b.data[i];
     }
@@ -322,7 +379,7 @@ u64 DenseSet::get_hash() const {
     }
     return h;
 }
-string DenseSet::info(const char *name) const {
+std::string DenseSet::info(const char *name) const {
     string sname = name ? name : "?";
     char buf[4096];
     snprintf(
@@ -341,6 +398,9 @@ string DenseSet::info(const char *name) const {
         }
     };
     return ret;
+}
+std::string DenseSet::__str__() const {
+    return info(NULL);
 }
 void DenseSet::log_info(const char *name) const {
     fprintf(stderr, "%s\n", info(name).c_str(), "\n");

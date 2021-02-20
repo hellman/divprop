@@ -23,6 +23,7 @@ struct DenseSet {
     static DenseSet load_from_file(const char *filename);
     uint64_t get_hash() const;
     std::string info(const char *name = NULL) const;
+    std::string __str__() const;
     void log_info(const char *name = NULL) const;
 
     // ========================================
@@ -53,6 +54,14 @@ struct DenseSet {
     // ========================================
     // Bitwise ops
     // ========================================
+    bool is_compatible_set(const DenseSet & b) const;
+    bool operator==(const DenseSet & b) const;
+    bool operator!=(const DenseSet & b) const;
+    bool operator<(const DenseSet & b) const;
+    bool operator<=(const DenseSet & b) const;
+    bool operator>(const DenseSet & b) const;
+    bool operator>=(const DenseSet & b) const;
+
     DenseSet & operator|=(const DenseSet & b);
     DenseSet & operator^=(const DenseSet & b);
     DenseSet & operator&=(const DenseSet & b);
