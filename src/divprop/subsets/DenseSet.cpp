@@ -24,6 +24,14 @@ void DenseSet::clear() {
     data.assign(HICEIL(1ull << n), 0);
 }
 
+
+bool DenseSet::is_empty() const {
+    return get_weight() == 0;
+}
+bool DenseSet::is_full() const {
+    return get_weight() == 1ull << n;
+}
+
 // ========================================
 // Single bit get/set
 // ========================================

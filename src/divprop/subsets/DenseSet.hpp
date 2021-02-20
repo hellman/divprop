@@ -16,6 +16,9 @@ struct DenseSet {
     void free(); // set to empty set with n=0
     void clear(); // set to empty set, keep n
 
+    bool is_empty() const;
+    bool is_full() const;
+
     // ========================================
     // Read/Write & info
     // ========================================
