@@ -66,6 +66,10 @@ struct DenseSet {
     DenseSet & operator^=(const DenseSet & b);
     DenseSet & operator&=(const DenseSet & b);
     DenseSet & operator-=(const DenseSet & b);
+    DenseSet operator|(const DenseSet & b) const;
+    DenseSet operator^(const DenseSet & b) const;
+    DenseSet operator&(const DenseSet & b) const;
+    DenseSet operator-(const DenseSet & b) const;
 
     DenseSet get_head_fixed(int h, uint64_t value);
 

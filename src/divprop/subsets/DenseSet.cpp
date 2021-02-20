@@ -150,6 +150,7 @@ bool DenseSet::operator>=(const DenseSet & b) const {
     }
     return true;
 }
+
 DenseSet & DenseSet::operator|=(const DenseSet & b) {
     ensure(is_compatible_set(b));
     fori (i, data.size()) {
@@ -177,6 +178,26 @@ DenseSet & DenseSet::operator-=(const DenseSet & b) {
         data[i] &= ~b.data[i];
     }
     return *this;
+}
+DenseSet DenseSet::operator|(const DenseSet & b) const {
+    auto res = copy();
+    res |= b;
+    return res;
+}
+DenseSet DenseSet::operator^(const DenseSet & b) const {
+    auto res = copy();
+    res ^= b;
+    return res;
+}
+DenseSet DenseSet::operator&(const DenseSet & b) const {
+    auto res = copy();
+    res &= b;
+    return res;
+}
+DenseSet DenseSet::operator-(const DenseSet & b) const {
+    auto res = copy();
+    res -= b;
+    return res;
 }
 
 DenseSet DenseSet::get_head_fixed(int h, u64 value) {
