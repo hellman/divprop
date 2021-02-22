@@ -145,11 +145,8 @@ def process_sbox(sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
         log.info(f"Starting type {typ}")
 
         if typ == "lb":
-            points_good = dclo.UpperSet()
-            points_bad = points_good.Complement()
-
-            points_good = points_good.MinSet()
-            points_bad = points_bad.MaxSet()
+            points_good = dc
+            points_bad = lb
             type_good = "upper"
         elif typ == "ubo":
             points_good = dcup.LowerSet()
