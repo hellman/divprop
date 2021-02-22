@@ -1,6 +1,5 @@
-import sys
 import logging
-from random import randint, choice, sample, shuffle, seed, randrange
+from random import randint, choice, shuffle
 from collections import Counter
 
 # sage/pure python compatibility
@@ -8,15 +7,12 @@ try:
     import sage.all
     from sage.numerical.mip import MixedIntegerLinearProgram
     from sage.numerical.mip import MIPSolverException
+    from sage.all import Polyhedron
+    is_sage = True
 except ImportError:
-    pass
+    is_sage = False
 
 from tqdm import tqdm
-
-from binteger import Bin
-
-from divprop.divcore import DenseDivCore
-
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -38,6 +34,15 @@ def satisfy(pt, eq):
 
 class LinearSeparator:
     """
+    Algorithm to separate a lower set from an upper set (must be disjoint)
+    by linear inequalities ("cuts").
+    Sets may be given by their extremes (maxset and minset).
+
+    Algorithm:
+        1. choose incrementally a set of bad points
+        2. try to find a linear functional separating them from good points
+           (solving linear inequalities over reals)
+
     Algorithm is implemented for removing 'lo' while keeping 'hi'.
     For the other way around, vectors are flipped and swapped and
     output inequalities are adapted.
@@ -131,107 +136,6 @@ class LinearSeparator:
         return sol, ret_covered
 
 
-def get_n(points):
-    for p in points:
-        return len(p)
-
-
-def check(points_good, points_bad, L):
-    for p in points_good:
-        assert all(satisfy(p, eq) for eq in L)
-    for p in points_bad:
-        assert any(not satisfy(p, eq) for eq in L)
-
-
-def maxes(itr):
-    cur_mx = -1
-    eqs = []
-    for val, eq in itr:
-        if val > cur_mx:
-            eqs = [eq]
-            cur_mx = val
-        elif val == cur_mx:
-            eqs.append(eq)
-    return eqs
-
-
-def choose_subset_greedy_iter(points_bad, L):
-    Lstar = set()
-    Lover = set(L)
-    itr = 0
-    B = points_bad
-    while B:
-        itr += 1
-        # print("itr", itr, len(B), "Lstar", len(Lstar), "Lover", len(Lover))
-        eqs = maxes(
-            (sum(1 for pt in B if not satisfy(pt, eq)), eq)
-            for eq in Lover
-        )
-        eq = choice(eqs)
-        B = [p for p in B if satisfy(p, eq)]
-        Lstar.add(eq)
-        Lover.remove(eq)
-    return Lstar
-
-
-def choose_subset_greedy(points_good, points_bad, L, iterations=5, output_file=None):
-    """
-    Algorithm 1 [AC:XZBL16]
-    https://eprint.iacr.org/2016/857
-    """
-    check(points_good, (), L)  # to avoid surprises
-    best = len(L), set(L)
-    for itr in tqdm(range(iterations)):
-        Lstar = choose_subset_greedy_iter(points_bad, L)
-
-        cur = len(Lstar), Lstar
-        if cur < best:
-            best = cur
-            print(f"new best: {cur[0]} inequalities")
-
-            check((), points_bad, Lstar)
-    return best[1]
-
-
-def choose_subset_milp(points_good, points_bad, Lcov, solver=None, output_file=None):
-    """
-    [SecITC:SasTod17]
-    Lcov: dict {ineq: covered bad points}
-    """
-
-    L = list(Lcov)
-    check(points_good, (), L)  # to avoid surprises
-    eq2i = {eq: i for i, eq in enumerate(L)}
-
-    model = MixedIntegerLinearProgram(maximization=False, solver=solver)
-    var = model.new_variable(binary=True, nonnegative=True)
-    n = len(L)
-
-    # xi = take i-th inequality?
-    take_eq = [var["take_eq%d" % i] for i in range(n)]
-
-    by_bad = {q: [] for q in points_bad}
-    for eq, (source, covered) in Lcov.items():
-        i = take_eq[eq2i[eq]]
-        for q in covered:
-            by_bad[q].append(i)
-
-    for q, lst in by_bad.items():
-        assert lst
-        model.add_constraint(sum(lst) >= 1)
-
-    model.set_objective(sum(take_eq))
-    print("solving model...", n, "variables", len(points_bad), "constraints")
-    model.solve(log=(n >= 10000))
-
-    Lstar = []
-    for take, eq in zip(take_eq, L):
-        if model.get_values(take):
-            Lstar.append(eq)
-    check(points_good, points_bad, Lstar)
-    return Lstar
-
-
 class InequalitiesPool:
     def __init__(self, points_good, points_bad, type_good=None):
         """
@@ -256,6 +160,43 @@ class InequalitiesPool:
         assert type_good in ("lower", "upper", None)
         self.type_good = type_good
 
+    def check_good(self, ineqs=None):
+        if ineqs is None:
+            ineqs = self.pool
+        for p in self.points_good:
+            assert all(satisfy(p, ineq) for ineq in ineqs)
+
+    def check_bad(self, ineqs=None):
+        if ineqs is None:
+            ineqs = self.pool
+        for p in self.points_bad:
+            assert any(not satisfy(p, ineq) for ineq in ineqs)
+
+    def check(self, ineqs=None):
+        self.check_good(ineqs)
+        self.check_bad(ineqs)
+
+    def log_stat(self, ineqs=None):
+        if ineqs is None:
+            ineqs = self.pool
+
+        log.info("-----------------------------------------------")
+        log.info(f"total: {len(ineqs)} ineqs")
+        cnt = Counter()
+        for ineq in ineqs:
+            source, covered = self.pool[ineq]
+            cnt[source] += 1
+
+        for source in sorted(cnt):
+            log.info(f"- {source:20}: {cnt[source]}")
+        log.info("-----------------------------------------------")
+
+    def log_algo(self, s):
+        log.info("")
+        log.info("===============================================")
+        log.info(s)
+        log.info("===============================================")
+
     def get_covered_by_ineq(self, ineq):
         return [p for p in self.points_bad if not satisfy(p, ineq)]
 
@@ -268,7 +209,7 @@ class InequalitiesPool:
                 if ineq not in self.pool:
                     self.pool[ineq] = (
                         source,
-                        covered,
+                        set(covered),
                     )
                     num_new += 1
                     covered_stat[len(covered)] += 1
@@ -280,7 +221,7 @@ class InequalitiesPool:
                     covered = self.get_covered_by_ineq(ineq)
                     self.pool[ineq] = (
                         source,
-                        covered,
+                        set(covered),
                     )
                     num_new += 1
                     covered_stat[len(covered)] += 1
@@ -292,8 +233,10 @@ class InequalitiesPool:
         """
         Note: SageMath uses PPL library for this.
         """
-        from sage.all import Polyhedron
-        p = Polyhedron(vertices=points_good)
+
+        self.log_algo("InequalitiesPool.generate_from_polyhedron")
+
+        p = Polyhedron(vertices=self.points_good)
         L = sorted(map(tuple, p.inequalities()))
         # https://twitter.com/SiweiSun2/status/1327973545666891777
         E = sorted(map(tuple, p.equations()))
@@ -306,7 +249,8 @@ class InequalitiesPool:
         L = [tuple(eq[1:] + eq[:1]) for eq in L]
         return self.pool_update(L, "sage.polyhedron")
 
-    def generate_random(self, num=1000, max_coef=100, take_best_ratio=None, take_best_num=None):
+    def generate_random(
+        self, num=1000, max_coef=100, take_best_ratio=None, take_best_num=None):
         """
         sign: -1 for lower set,
                1 for upper set
@@ -316,6 +260,13 @@ class InequalitiesPool:
         if take_best_ratio is None and take_best_num is None:
             take_best_ratio = 0.2
 
+        self.log_algo(
+            "InequalitiesPool.generate_random"
+            f"(num={num}, max_coef={max_coef}, "
+            f"take_best_ratio={take_best_ratio} "
+            f"take_best_num={take_best_num}"
+        )
+
         L = []
         sign = None
         if self.type_good == "lower":
@@ -323,19 +274,19 @@ class InequalitiesPool:
         elif self.type_good == "upper":
             sign = 1
 
-        print(f"generating {num} random inequalities with sign {sign}")
+        log.info(f"generating {num} random inequalities with sign {sign}")
         for _ in tqdm(range(num)):
             if sign is None:
-                eq = [randint(-max_coef, max_coef) for i in range(n)]
+                eq = [randint(-max_coef, max_coef) for i in range(self.n)]
             else:
-                eq = [sign * randint(0, max_coef) for i in range(n)]
+                eq = [sign * randint(0, max_coef) for i in range(self.n)]
 
-            ev_good = [inner(p, eq) for p in points_good]
+            ev_good = [inner(p, eq) for p in self.points_good]
             vmin = min(ev_good)
             vmax = max(ev_good)
 
-            covmin = [q for q in points_bad if inner(q, eq) < vmin]
-            covmax = [q for q in points_bad if inner(q, eq) > vmax]
+            covmin = [q for q in self.points_bad if inner(q, eq) < vmin]
+            covmax = [q for q in self.points_bad if inner(q, eq) > vmax]
 
             # covering 1 bad point is not interesting
             if len(covmin) >= max(2, len(covmax)):
@@ -353,14 +304,18 @@ class InequalitiesPool:
 
     def generate_linsep(self, num, by_maxsize=False, by_covered=False):
         assert self.type_good in ("lower", "upper")
+        self.log_algo(
+            "InequalitiesPool.generate_linsep"
+            f"(num={num}, by_maxsize={by_maxsize}, by_covered={by_covered}"
+        )
 
-        if type_good == "lower":
+        if self.type_good == "lower":
             gen = self.linsep = LinearSeparator(
                 lo=self.points_good,
                 hi=self.points_bad,
                 inverted=True,
             )
-        elif type_good == "upper":
+        elif self.type_good == "upper":
             gen = self.linsep = LinearSeparator(
                 lo=self.points_bad,
                 hi=self.points_good,
@@ -385,235 +340,95 @@ class InequalitiesPool:
             L[ineq] = covered
         return self.pool_update(L, source=source)
 
-    def log_stat(self, ineqs=None):
-        if ineqs is None:
-            ineqs = self.pool
+    def choose_subset_milp(self, solver=None):
+        """
+        [SecITC:SasTod17]
+        Choose subset optimally by optimizing MILP system.
 
-        log.info("-----------------------------------------------")
-        log.info(f"total: {len(ineqs)} ineqs")
-        cnt = Counter()
-        for ineq in ineqs:
-            source, covered = self.pool[ineq]
-            cnt[source] += 1
+        Lcov: dict {ineq: covered bad points}
+        """
+        self.log_algo(f"InequalitiesPool.choose_subset_milp(solver={solver})")
+        log.info(f"{len(self.pool)} ineqs {len(self.points_bad)} bad points")
 
-        for source in sorted(cnt):
-            log.info(f"- {source:20}: {cnt[source]}")
-        log.info("-----------------------------------------------")
+        L = list(self.pool)
+        self.check_good(L)  # to avoid surprises
+        eq2i = {eq: i for i, eq in enumerate(L)}
 
+        model = MixedIntegerLinearProgram(maximization=False, solver=solver)
+        var = model.new_variable(binary=True, nonnegative=True)
+        n = len(L)
 
-SEED = randrange(10**10)
-seed(SEED)
+        # xi = take i-th inequality?
+        take_eq = [var["take_eq%d" % i] for i in range(n)]
 
-print("SEED =", SEED)
+        by_bad = {q: [] for q in self.points_bad}
+        for eq, (source, covered) in self.pool.items():
+            v_take_eq = take_eq[eq2i[eq]]
+            for q in covered:
+                by_bad[q].append(v_take_eq)
 
-name = sys.argv[1].lower()
+        # each bad point is removed by at least one ineq
+        for q, lst in by_bad.items():
+            assert lst, "no solutions"
+            model.add_constraint(sum(lst) >= 1)
 
-num_random = {
-    4: 2_000_000,
-    5: 100_000,
-    8: 1_000,
-    9: 123,
-}
-num_random = {
-    4: 100_000,
-    5: 25_000,
-    8: 1_000,
-    9: 123,
-}
-
-from sage.crypto.sboxes import sboxes
-
-def get_sbox(name):
-    for k, v in sboxes.items():
-        if k.lower() == name.lower():
-            return v
-    raise KeyError()
-
-sbox = get_sbox(name)
-n = int(sbox.input_size())
-m = int(sbox.output_size())
-sbox = tuple(map(int, sbox))
-num_random = num_random[(n+m)//2]
-
-def get_UB(dc):
-    ret = dc.data.copy()
-    # mindppt
-    ret.do_UpperSet(dc.mask_u)
-    ret.do_MinSet(dc.mask_v)
-    # get upper
-    ret.do_LowerSet()
-    ret.do_Complement()
-    ret.do_MinSet()
-    return ret
-
-def get_UB_old(dc):
-    ret = dc.data.copy()
-    ret.do_UpperSet_Up1(True, dc.mask_v)  # is_minset=true
-    ret.do_MinSet()
-    return ret
-
-def prset(name, s):
-    print(name)
-    for a in s:
-        print("   ", Bin(a, n+m))
-
-print("name", name)
-
-dc = DenseDivCore.from_sbox(sbox, n, m)
-mid = dc.MinDPPT().Not(dc.mask_u)
-
-dclo = mid.MinSet()
-dcup = mid.MaxSet()
-
-lo = dc.LB().LowerSet()
-up = get_UB(dc).UpperSet()
-assert (lo & mid).is_empty()
-assert (up & mid).is_empty()
-# assert (lo & up).is_empty()
-print("lo & up complem", (lo & up))
-assert (lo | mid | up).is_full()
-
-lo = dc.LB().LowerSet()
-up = get_UB_old(dc).UpperSet()
-assert (lo & mid).is_empty()
-assert (up & mid).is_empty()
-print("lo & up    old", (lo & up))
-assert (lo | mid | up).is_full()
-
-lb = dc.LB()
-ub_compl = get_UB(dc)
-ub_old = get_UB_old(dc)
-
-print("dc    ", dc)
-print("lb    ", lb)
-print("mid   ", mid)
-print("ub_old", get_UB_old(dc))
-print("ub_com", get_UB(dc))
-# assert get_UB(dc) == get_UB_old(dc)
-# assert get_UB(dc) == get_UB_old(dc) == ub
-
-test = mid.UpperSet()
-test2 = lb.LowerSet()
-assert (test & test2).is_empty(), "mid + lb"
-assert (test | test2).is_full(), "mid + lb"
-
-test = mid.LowerSet()
-test2 = ub_compl.UpperSet()
-assert (test & test2).is_empty(), "mid + ub"
-assert (test | test2).is_full(), "mid + ub"
-
-test = mid.LowerSet()
-test2 = ub_old.UpperSet()
-assert (test & test2).is_empty(), "mid + ub"
-# assert (test | test2).is_full(), "mid + ub"
-
-
-def topts(st):
-    return [Bin(v, n+m).tuple for v in st]
-
-
-def section(name):
-    print()
-    print("=" * 50)
-    print("Section:", name)
-    print("=" * 50)
-
-
-for typ in "lb", "ubc", "ubo":
-    log.info("\n\n\n")
-    log.info(f"Starting type {typ}")
-    extremize = True
-    if typ == "lb":
-        points_good = dclo.UpperSet()
-        points_bad = points_good.Complement()
-
-        if extremize:
-            points_good = points_good.MinSet()
-            points_bad = points_bad.MaxSet()
-        type_good = "upper"
-
-    elif typ == "ubo":
-        selected_pts_ub = ub_old
-        points_good = dcup.LowerSet()
-        points_bad = points_good.Complement() - lb.LowerSet()
-
-        if extremize:
-            points_good = points_good.MaxSet()
-            points_bad = points_bad.MinSet()
-        type_good = "lower"
-    elif typ == "ubc":
-        selected_pts_ub = ub_compl
-        points_good = dcup.LowerSet()
-        points_bad = points_good.Complement()
-
-        if extremize:
-            points_good = points_good.MaxSet()
-            points_bad = points_bad.MinSet()
-        type_good = "lower"
-    else:
-        assert 0
-
-    print("points_good", points_good)
-    print("points_bad", points_bad)
-    print("inter", points_bad & points_good)
-
-    points_good = set(topts(points_good))
-    points_bad = set(topts(points_bad))
-
-    pool = InequalitiesPool(
-        points_good=points_good,
-        points_bad=points_bad,
-        type_good=type_good,
-    )
-
-    if 1:
-        section("Linear Separator")
-
-        pool.generate_linsep(num=250, by_covered=True)
-        pool.generate_linsep(num=50, by_maxsize=True)
-
-        check(points_good, points_bad, pool.pool)
-
-    if n + m < 16 and 1:
-        section("Sage Polyhedron")
-
-        pool.generate_from_polyhedron()
-
-        check(points_good, points_bad, pool.pool)
-
-    if 1:
-        section("Random")
-        pool.generate_random(
-            num=10000,
-            max_coef=100,
-            take_best_num=2500,
+        # minimize number of ineqs
+        model.set_objective(sum(take_eq))
+        log.info(
+            f"solving model with {n} variables, "
+            f"{len(self.points_bad)} constraints"
         )
 
-        check(points_good, points_bad, pool.pool)
+        # show log for large problems
+        model.solve(log=(n >= 10000))
 
-    pool.log_stat()
+        Lstar = []
+        for take, eq in zip(take_eq, L):
+            if model.get_values(take):
+                Lstar.append(eq)
+        self.check(Lstar)
+        return Lstar
 
-    if 0:
-        section("Choose Subset Greedy")
-        Lstar = choose_subset_greedy(
-            points_good,
-            points_bad,
-            pool.pool,
-            iterations=10,
+    def choose_subset_greedy_once(self):
+        Lstar = set()
+        Lover = set(self.pool)
+        B = {self.points_bad}
+        while B:
+            lst = [
+                (len(B & self.pool[ineq][1]), ineq)
+                for ineq in Lover
+            ]
+            max_remov, _ = max(lst)
+            lst = [
+                ineq for num_remov, ineq in lst
+                if num_remov == max_remov
+            ]
+            ineq = choice(lst)
+            B -= self.pool[ineq][1]
+            Lstar.add(ineq)
+            Lover.remove(ineq)
+        return Lstar
+
+    def choose_subset_greedy(self, iterations=10):
+        """
+        Algorithm 1 [AC:XZBL16]
+        https://eprint.iacr.org/2016/857
+        """
+        self.log_algo(
+            f"InequalitiesPool.choose_subset_greedy(iterations={iterations})"
         )
-    if 1:
-        section("Choose Subset OPT")
-        Lstar = choose_subset_milp(
-            points_good,
-            points_bad,
-            pool.pool,
-        )
+        log.info(f"{len(self.pool)} ineqs {len(self.points_bad)} bad points")
 
-    pool.log_stat(Lstar)
+        self.check_good()  # to avoid surprises
 
-    if 1:
-        filename = f"results/{name}_sbox.{typ}.%d_ineq" % len(Lstar)
-        with open(filename, "w") as f:
-            print(len(Lstar), file=f)
-            for eq in Lstar:
-                print(*eq, file=f)
+        best = len(self.pool), set(self.pool)
+        for itr in tqdm(range(iterations)):
+            Lstar = self._choose_subset_greedy_iter()
+
+            cur = len(Lstar), Lstar
+            if cur < best:
+                best = cur
+                log.info(f"new best: {cur[0]} inequalities")
+
+                self.check(Lstar)
+        return best[1]
