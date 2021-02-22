@@ -127,6 +127,10 @@ def process_sbox(sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
     assert 0 <= 2**(m-1) <= max(sbox) < 2**m
 
     if gens is DEFAULT_GENS and n + m >= LARGE:
+        log.warning(
+            "skipping polyhedron from default list, "
+            f"because the S-Box is too large ({n}+{m} >= {LARGE})"
+        )
         gens = DEFAULT_GENS_LARGE
 
     dc = DenseDivCore.from_sbox(sbox, n, m)
