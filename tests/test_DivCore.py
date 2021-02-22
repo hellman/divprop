@@ -1,3 +1,5 @@
+from functools import reduce
+
 from binteger import Bin
 from divprop.subsets import Sbox2GI, DenseSet
 from divprop.divcore import DenseDivCore
@@ -15,8 +17,10 @@ def test_DivCore():
 
     assert dc.LB().info("LB") == \
         "9fe09c93bbcdbb87:LB n=6 wt=8 | 2:6 3:2"
-    assert dc.UB().info("UB") == \
+    assert dc.UB(method="redundant").info("UB") == \
         "60f7fb1d9a638a50:UB n=6 wt=12 | 3:6 4:6"
+    assert dc.UB(method="complement").info("UB") == \
+        "449b201e8a75f016:UB n=6 wt=10 | 3:8 4:2"
     assert dc.FullDPPT().info("FullDPPT") == \
         "b712d2af3b433a45:FullDPPT n=6 wt=43 | 0:1 1:3 2:10 3:13 4:12 5:3 6:1"
     assert dc.MinDPPT().info("MinDPPT") == \
@@ -24,8 +28,10 @@ def test_DivCore():
 
     assert dc.LB().get_support() == \
         (3, 5, 6, 17, 26, 34, 41, 48)
-    assert dc.UB().get_support() == \
+    assert dc.UB("redundant").get_support() == \
         (13, 14, 21, 22, 27, 37, 38, 43, 51, 57, 58, 60)
+    assert dc.UB("complement").get_support() == \
+        (13, 14, 21, 22, 26, 37, 38, 41, 51, 60)
     assert dc.FullDPPT().get_support() == \
         (0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 27, 28, 29, 30, 31, 33, 35, 36, 37, 38, 39, 43, 44, 45, 46, 47, 51, 52, 53, 54, 55, 63)
     assert dc.MinDPPT().get_support() == \
@@ -58,6 +64,7 @@ def test_DPPT():
     n = m = 4
     sbox = [6, 5, 12, 10, 1, 14, 7, 9, 11, 0, 3, 13, 8, 15, 4, 2]
     dppt = [0], [1, 2, 4, 8], [1, 2, 4, 8], [1, 4, 10], [1, 2, 4, 8], [3, 4, 8], [3, 4, 8], [3, 4, 9], [1, 2, 4, 8], [3, 5, 6, 8], [2, 5, 8], [6, 11, 13], [3, 4, 8], [6, 10, 13], [3, 5, 8], [15]
+
     check_one_DPPT(sbox, n, m, dppt)
 
     print("AES")
@@ -87,7 +94,37 @@ def check_one_DPPT(sbox, n, m, dppt):
     assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
     assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
 
+    mid = dc.MinDPPT().Not(dc.mask_u)
+    lb = dc.LB()
+    ubr = dc.UB(method="redundant")
+    ubc = dc.UB(method="complement")
+
+    assert ubr.UpperSet() <= ubc.UpperSet()
+    assert not (ubr & mid)
+    assert not (ubc & mid)
+
+    assert form_partition(mid, lb.LowerSet() | ubc.UpperSet())
+    assert form_partition(lb.LowerSet(), mid, ubr.UpperSet())
+
+    assert ubr.UpperSet() == ~(mid.LowerSet() | lb.LowerSet())
+    assert ubc.UpperSet() == ~(mid.LowerSet())
+
+    print(
+        "LB", len(dc.LB()),
+        "UB", len(dc.UB()),
+        "MinDPPT", len(dc.MinDPPT()),
+        "FullDPPT", len(dc.FullDPPT()),
+    )
     print("---")
+
+
+def form_partition(*sets):
+    for s in sets:
+        break
+    return (
+        reduce(lambda a, b: a | b, sets).is_full()
+        and sum(map(len, sets)) == 2**s.n
+    )
 
 
 if __name__ == '__main__':
