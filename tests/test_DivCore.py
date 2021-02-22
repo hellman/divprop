@@ -1,4 +1,5 @@
 from functools import reduce
+from random import shuffle, randrange
 
 from binteger import Bin
 from divprop.subsets import Sbox2GI, DenseSet
@@ -78,6 +79,24 @@ def test_DPPT():
     sbox = [int(x + y + c >= 2)*2 + (x^y^c) for x in range(2) for y in range(2) for c in range(2)]
     dppt = [0], [1, 2], [1, 2], [2], [1, 2], [2], [2], [3]
     check_one_DPPT(sbox, n, m, dppt)
+    check_one_relations(sbox, n, m)
+
+    for n in range(4, 10):
+        for i in range(5):
+            m = n
+            sbox = list(range(2**n))
+            shuffle(sbox)
+            check_one_relations(sbox, n, m)
+
+    for n in range(4, 8):
+        for i in range(5):
+            m = n + 1
+            sbox = [randrange(2**m) for _ in range(2**n)]
+            check_one_relations(sbox, n, m)
+
+            m = n + 4
+            sbox = [randrange(2**m) for _ in range(2**n)]
+            check_one_relations(sbox, n, m)
 
 
 def check_one_DPPT(sbox, n, m, dppt):
@@ -93,6 +112,10 @@ def check_one_DPPT(sbox, n, m, dppt):
     dc = DenseDivCore.from_sbox(sbox, n, m, log=True)
     assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
     assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
+
+
+def check_one_relations(sbox, n, m):
+    dc = DenseDivCore.from_sbox(sbox, n, m, log=True)
 
     mid = dc.MinDPPT().Not(dc.mask_u)
     lb = dc.LB()
