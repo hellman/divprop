@@ -26,7 +26,7 @@ def main():
         help="S-Box (name or comma repr e.g. 2,1,0,3)",
     )
     parser.add_argument(
-        "generators", type=str, nargs="?",
+        "generators", type=str, nargs="*",
         help="Generators with options (available: linsep, random, polyhedron)",
     )
     parser.add_argument(
