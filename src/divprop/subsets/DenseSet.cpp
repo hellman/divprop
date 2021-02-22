@@ -214,6 +214,9 @@ DenseSet DenseSet::operator-(const DenseSet & b) const {
     res -= b;
     return res;
 }
+DenseSet DenseSet::operator~() const {
+    return Complement();
+}
 
 DenseSet DenseSet::get_head_fixed(int h, u64 value) {
     ensure(value < (1ull << h));
@@ -495,5 +498,5 @@ std::string DenseSet::__str__() const {
     return info(NULL);
 }
 void DenseSet::log_info(const char *name) const {
-    fprintf(stderr, "%s\n", info(name).c_str(), "\n");
+    fprintf(stderr, "%s\n", info(name).c_str());
 }
