@@ -63,11 +63,11 @@ void GenericSweep(vector<T> &arr, uint64_t mask) {
     fori (k, n) {
         if ((mask & (1ull << k)) == 0)
             continue;
-        uint64_t halfstep = 1ull << k;
-        uint64_t step = 2ull << k;
-        fori (i, 0, size, step) {
-            fori (j, halfstep) {
-                func(arr[i + j], arr[i + j + halfstep]);
+
+        uint64_t bit = (1ull << k);
+        fori (i, 1ull << n) {
+            if (i & bit) {
+                func(arr[i ^ bit], arr[i]);
             }
         }
     }
