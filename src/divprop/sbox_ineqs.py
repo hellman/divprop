@@ -23,16 +23,11 @@ except ImportError:
 
 DEFAULT_GENS = (
     "polyhedron",
-    "linsep:num=500,by_covered=1,solver=GLPK",
-    "linsep:num=250,by_maxsize=1,solver=GLPK",
+    "linsep:num=1000,solver=GLPK",
     "random:num=10000,max_coef=100,take_best_num=2500",
 )
 
-DEFAULT_GENS_LARGE = (
-    "linsep:num=250,by_covered=1,solver=GLPK",
-    "linsep:num=50,by_maxsize=1,solver=GLPK",
-    "random:num=10000,max_coef=100,take_best_num=2500",
-)
+DEFAULT_GENS_LARGE = DEFAULT_GENS[1:]
 
 LARGE = 12
 
@@ -213,6 +208,20 @@ def process_sbox(name, sbox, gens=DEFAULT_GENS, subset_method="milp", output=Non
                     print(*eq, file=f)
                     if len(Lstar) < 50:
                         print(eq, end=",\n")
+
+    if output:
+        if len(ret["ubc"]) < len(ret["ubo"]):
+            Lstar = ret["lb"] + ret["ubc"]
+        else:
+            Lstar = ret["lb"] + ret["ubo"]
+
+        filename = f"{output}.full.%d_ineq" % len(Lstar)
+        with open(filename, "w") as f:
+            print(len(Lstar), file=f)
+            for eq in Lstar:
+                print(*eq, file=f)
+                if len(Lstar) < 100:
+                    print(eq, end=",\n")
     return ret
 
 

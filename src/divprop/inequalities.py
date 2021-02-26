@@ -1,4 +1,5 @@
 import logging
+from binteger import Bin
 from random import randint, choice, shuffle
 from collections import Counter
 
@@ -47,7 +48,7 @@ class LinearSeparator:
     For the other way around, vectors are flipped and swapped and
     output inequalities are adapted.
     """
-    def __init__(self, lo, hi, inverted=False, solver="GLPK", method="varC"):
+    def __init__(self, lo, hi, inverted=False, solver="GLPK"):
         """
         pairwise is an old deprecated method
         where instead of having explicit separator constant c,
@@ -56,8 +57,6 @@ class LinearSeparator:
         Seems not be useful, as introducing 1 variable for c reduces the number
         of inequalities significantly.
         """
-        assert method in ("varC", "pairwise")
-        self.method = method
         self.inverted = inverted
         if self.inverted:
             self.lo = [tuple(a ^ 1 for a in p) for p in hi]
@@ -69,55 +68,47 @@ class LinearSeparator:
         self.n = len(self.lo[0])
         self.solver = solver
         self._prepare_constraints()
+        self.seen_sorts = set()
 
     def _prepare_constraints(self):
         self.model = MixedIntegerLinearProgram(solver=self.solver)
         self.var = self.model.new_variable(real=True, nonnegative=True)
         self.xs = [self.var["x%d" % i] for i in range(self.n)]
-        if self.method == "pairwise":
-            cs = {}
-            for q in self.lo:
-                csq = set()
-                for p in self.hi:
-                    eq = (inner(p, self.xs) - inner(q, self.xs)) >= 1  # > 0
-                    csq.add(eq)
-                cs[q] = csq
-        else:
-            self.c = self.var["c"]
-            for p in self.hi:
-                self.model.add_constraint(inner(p, self.xs) >= self.c)
-            cs = {}
-            for q in self.lo:
-                ineq = inner(q, self.xs) <= self.c - 1
-                cs[q] = (ineq,)
+        self.c = self.var["c"]
+
+        for p in self.hi:
+            self.model.add_constraint(inner(p, self.xs) >= self.c)
+
+        cs = {}
+        for q in self.lo:
+            cs[q] = inner(q, self.xs) <= self.c - 1
 
         self.cs_per_lo = cs
-        self.stat_covered = {q: 0 for q in self.lo}
-        self.stat_maxsize = {q: 0 for q in self.lo}
 
-    def generate_inequality(self, by_covered=False, by_maxsize=False):
+    def generate_inequality(self):
         LP = self.model.__copy__()
         covered_lo = []
 
         lstq = list(self.lo)
-        if by_covered:
-            lstq.sort(key=self.stat_covered.__getitem__)
-        elif by_maxsize:
-            lstq.sort(key=self.stat_maxsize.__getitem__)
-        else:
+        shuffle(lstq)
+
+        itr = 5
+        while tuple(lstq) in self.seen_sorts:
             shuffle(lstq)
+            itr -= 1
+            if itr == 0:
+                raise EOFError("exhausted")
+        self.seen_sorts.add(tuple(lstq))
 
         for i, q in enumerate(lstq):
-            n_start = LP.number_of_constraints()
-            for c in self.cs_per_lo[q]:
-                LP.add_constraint(c)
-            n_end = LP.number_of_constraints()
+            constr_id = LP.number_of_constraints()
+            LP.add_constraint(self.cs_per_lo[q])
 
             try:
                 LP.solve()
             except MIPSolverException:
                 assert i != 0
-                LP.remove_constraints(range(n_start, n_end))
+                LP.remove_constraint(constr_id)
             else:
                 # print(f"covering #{i}/{len(lstq)}: {q}")
                 covered_lo.append(q)
@@ -264,7 +255,17 @@ class InequalitiesPool:
 
         self.log_algo("InequalitiesPool.generate_from_polyhedron")
 
-        p = Polyhedron(vertices=self.points_good)
+        if self.type_good is None:
+            good = self.points_good
+        elif self.type_good == "upper":
+            good = upper_set(self.points_good, self.n)
+        elif self.type_good == "lower":
+            good = lower_set(self.points_good, self.n)
+        else:
+            assert 0
+
+        p = Polyhedron(vertices=good)
+
         L = sorted(map(tuple, p.inequalities()))
         # https://twitter.com/SiweiSun2/status/1327973545666891777
         E = sorted(map(tuple, p.equations()))
@@ -275,6 +276,39 @@ class InequalitiesPool:
             L.append(tuple(-v for v in eq))
         # Sage outputs constant term first, rotate
         L = [tuple(eq[1:] + eq[:1]) for eq in L]
+
+        # keep/force monotone useful eqs only
+        if 1 and self.type_good == "upper":
+            L2 = []
+            for ineq in L:
+                ineq2 = [v if v >= 0 else 0 for v in ineq[:-1]]
+                ineq2.append(ineq[-1])
+                if ineq2[-1] < 0:
+                    ineq2 = tuple(ineq2)
+                    L2.append(ineq2)
+                    if ineq != ineq2:
+                        log.warning(f"forcing monotone {ineq} -> {ineq2}")
+            L = L2
+        if 1 and self.type_good == "lower":
+            L2 = []
+            # a1*x1 -a2*x2 -a3*x3+ c >= 0
+
+            for ineq in L:
+                res = ineq[-1]
+                ineq2 = []
+                for v in ineq[:-1]:
+                    if v <= 0:
+                        ineq2.append(v)
+                    else:
+                        ineq2.append(0)
+                        # res += v
+                ineq2.append(res)
+                if ineq2[-1] > 0:
+                    ineq2 = tuple(ineq2)
+                    L2.append(ineq2)
+                    if ineq != ineq2:
+                        log.warning(f"forcing monotone {ineq} -> {ineq2}")
+            L = L2
         return self.pool_update(L, "sage.polyhedron")
 
     def generate_random(
@@ -338,13 +372,9 @@ class InequalitiesPool:
             L = L[:take_best_num]
         return self.pool_update(dict(L), source="random")
 
-    def generate_linsep(self, num, by_maxsize=False, by_covered=False, solver="GLPK"):
+    def generate_linsep(self, num, solver="GLPK"):
         assert self.type_good in ("lower", "upper")
-        self.log_algo(
-            "InequalitiesPool.generate_linsep("
-            f"num={num}, by_maxsize={by_maxsize}, by_covered={by_covered}"
-            ")"
-        )
+        self.log_algo(f"InequalitiesPool.generate_linsep(num={num})")
 
         if self.type_good == "lower":
             gen = self.linsep = LinearSeparator(
@@ -361,21 +391,14 @@ class InequalitiesPool:
                 solver=solver,
             )
 
-        assert not (by_maxsize and by_covered)
-        source = "linsep:"
-        if by_maxsize:
-            source += "by_maxsize"
-        elif by_covered:
-            source += "by_covered"
-        else:
-            source += "random"
+        source = "linsep:random"
 
         L = {}
         for i in tqdm(range(num)):
-            ineq, covered = gen.generate_inequality(
-                by_maxsize=by_maxsize,
-                by_covered=by_covered,
-            )
+            try:
+                ineq, covered = gen.generate_inequality()
+            except EOFError:
+                break
             L[ineq] = covered
         return self.pool_update(L, source=source)
 
@@ -471,3 +494,21 @@ class InequalitiesPool:
 
                 self.check(Lstar)
         return best[1]
+
+
+def upper_set(s, n):
+    from divprop.subsets import DenseSet
+    ds = DenseSet(n)
+    for c in s:
+        ds.set(Bin(c).int)
+    ds.do_UpperSet()
+    return set(Bin(v, n).tuple for v in ds)
+
+
+def lower_set(s, n):
+    from divprop.subsets import DenseSet
+    ds = DenseSet(n)
+    for c in s:
+        ds.set(Bin(c).int)
+    ds.do_LowerSet()
+    return set(Bin(v, n).tuple for v in ds)
