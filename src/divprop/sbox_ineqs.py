@@ -1,4 +1,5 @@
 import argparse
+from argparse import RawTextHelpFormatter
 import logging
 
 from binteger import Bin
@@ -19,8 +20,38 @@ except ImportError:
     is_sage = False
 
 
+DEFAULT_GENS = (
+    "polyhedron",
+    "linsep:num=500,by_covered=1,solver=GLPK",
+    "linsep:num=250,by_maxsize=1,solver=GLPK",
+    "random:num=10000,max_coef=100,take_best_num=2500",
+)
+
+DEFAULT_GENS_LARGE = (
+    "linsep:num=250,by_covered=1,solver=GLPK",
+    "linsep:num=50,by_maxsize=1,solver=GLPK",
+    "random:num=10000,max_coef=100,take_best_num=2500",
+)
+
+LARGE = 12
+
+
+DEFAULT_SUBSET = "milp:solver=GLPK"
+
+
 def main():
-    parser = argparse.ArgumentParser()
+    default_chain_str = " ".join(DEFAULT_GENS)
+    default_chain_large_str = " ".join(DEFAULT_GENS_LARGE)
+    parser = argparse.ArgumentParser(description=f"""
+Generate inequalities to model s-box division property propagation.
+Default chain:
+    {default_chain_str}
+Default chain for (n+m) >= {LARGE}:
+    {default_chain_large_str}
+Default subset method:
+    {DEFAULT_SUBSET}
+    """.strip(), formatter_class=RawTextHelpFormatter)
+
     parser.add_argument(
         "sbox", type=str,
         help="S-Box (name or comma repr e.g. 2,1,0,3)",
@@ -96,22 +127,6 @@ def parse_method(s):
     return s, args, kwargs
 
 
-DEFAULT_GENS = (
-    "polyhedron",
-    "linsep:num=250,by_covered=1",
-    "linsep:num=50,by_maxsize=1",
-    "random:num=10000,max_coef=100,take_best_num=2500",
-)
-
-DEFAULT_GENS_LARGE = (
-    "linsep:num=250,by_covered=1",
-    "linsep:num=50,by_maxsize=1",
-    "random:num=10000,max_coef=100,take_best_num=2500",
-)
-
-LARGE = 12
-
-
 def get_sbox(name):
     for k, v in sboxes.items():
         if k.lower() == name.lower():
@@ -145,7 +160,7 @@ def process_sbox(sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
         log.info(f"Starting type {typ}")
 
         if typ == "lb":
-            points_good = dc
+            points_good = dc.data
             points_bad = lb
             type_good = "upper"
         elif typ == "ubo":
@@ -193,7 +208,7 @@ def process_sbox(sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
 
 
 def separate_monotonic(
-        points_good, points_bad, type_good, gens, subset_method="milp"
+        points_good, points_bad, type_good, gens, subset_method=DEFAULT_SUBSET,
     ):
     assert type_good in ("lower", "upper", None)
     subset_method, subset_args, subset_kwargs = parse_method(subset_method)
