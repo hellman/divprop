@@ -2,6 +2,7 @@
 
 %include "std_vector.i"
 %include "std_string.i"
+%include "std_map.i"
 %include "stdint.i"
 
 %typedef uint64_t u64;
@@ -19,6 +20,7 @@
 %template(MyVector_u16) std::vector<uint16_t>;
 %template(MyVector_u8) std::vector<uint8_t>;
 %template(MyVector_int) std::vector<int>;
+%template(MyMap_PII_u64) std::map<std::pair<int,int>, uint64_t>;
 
 %include "subsets/DenseSet.hpp"
 %include "subsets/SboxGraph.hpp"

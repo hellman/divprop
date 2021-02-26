@@ -98,6 +98,7 @@ struct DenseSet {
     uint64_t __len__() const;
 
     std::vector<uint64_t> get_counts_by_weight() const;
+    std::map<std::pair<int,int>,u64> get_counts_by_weight_pairs(int n1, int n2) const;
 
     // ========================================
     // Main methods

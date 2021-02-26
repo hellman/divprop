@@ -283,6 +283,19 @@ vector<u64> DenseSet::get_counts_by_weight() const {
     iter_support(func);
     return res;
 }
+map<pair<int,int>,u64> DenseSet::get_counts_by_weight_pairs(int n1, int n2) const {
+    ensure(n == n1 + n2);
+
+    map<pair<int,int>, u64> res;
+    u64 mask2 = (1ull << n2)-1;
+    auto func = [&] (u64 v) -> void {
+        u64 l = v >> n2;
+        u64 r = v &mask2;
+        res[make_pair(hw(l),hw(r))] += 1;
+    };
+    iter_support(func);
+    return res;
+}
 
 // ========================================
 // Main methods
