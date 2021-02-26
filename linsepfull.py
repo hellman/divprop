@@ -68,12 +68,89 @@ class LinearSeparatorFull(LinearSeparator):
 
         print("did", n_checks, "checks")
         tops = set()
-        for v, sol in good.items():
+        sorter = lambda it: Bin(it[0], N).hw()
+        for v, sol in sorted(good.items(), key=sorter):
             if not any(up in good for up in neibs_up(v, N)):
                 # tops[Bin(v, N).tuple] = sol
                 print("top", Bin(v, N).str, "%3d" % Bin(v, N).hw(), sol)
                 tops.add(sol)
         return tops
+
+    def generate_dfs(self):
+        self.N = len(self.lo)
+
+        self.good = {0: None}
+        self.bad = {(1 << self.N) - 1}
+
+        # from the end we can get longer chains (large lower sets)
+        self.n_checks = 0
+        for i in reversed(range(self.N)):
+            self.dfs(1 << i)
+
+        print(
+            "final stat:",
+            "checks", self.n_checks,
+            "good max-set", len(self.good),
+            "bad min-set", len(self.bad)
+        )
+        tops = set()
+        sorter = lambda it: Bin(it[0], self.N).hw()
+        for v, sol in sorted(self.good.items(), key=sorter):
+            print("top", Bin(v, self.N).str, "%3d" % Bin(v, self.N).hw(), sol)
+            tops.add(sol)
+        # for v in self.bad:
+        #     print("bad", Bin(v, self.N).str, "%3d" % Bin(v, self.N).hw())
+        return tops
+
+    def dfs(self, v):
+        # print("visit", Bin(v, self.N).str)
+        # if inside good space - then is good
+        for u in self.good:
+            # v \preceq u
+            if u & v == v:
+                # print("is in good", Bin(u, self.N).str)
+                return
+        # if inside bad space - then is bad
+        for u in self.bad:
+            # v \succeq u
+            if u & v == u:
+                # print("is in bad", Bin(u, self.N).str)
+                return
+
+        grp = Bin(v, self.N).tuple
+        sol = self.check_group(grp)
+        self.n_checks += 1
+        # print("check is", sol)
+        # print()
+        if self.n_checks % 1000 == 0:
+            print(
+                "stat:",
+                "checks", self.n_checks,
+                "good max-set", len(self.good),
+                "bad min-set", len(self.bad)
+            )
+        if sol:
+            self.add_good(v, sol)
+            for j in range(self.N):
+                if (1 << j) > v:
+                    vv = v | (1 << j)
+                    self.dfs(vv)
+        else:
+            self.add_bad(v)
+
+    def add_good(self, v, sol):
+        # note: we know that v is surely not redundant itself
+        for u in list(self.good):
+            # u \preceq v
+            if u & v == u:
+                del self.good[u]
+        self.good[v] = sol
+
+    def add_bad(self, v):
+        # note: we know that v is surely not redundant itself
+        #                                  u \succeq v
+        self.bad = {u for u in self.bad if u & v != v}
+        self.bad.add(v)
 
     def check_group(self, bads):
         LP = self.model.__copy__()
@@ -89,13 +166,14 @@ class LinearSeparatorFull(LinearSeparator):
             return False
 
         val_xs = tuple(LP.get_values(x) for x in self.xs)
-        val_c = LP.get_values(self.c)
+        val_c = LP.get_values(self.c) + 0.5
         ineq = val_xs + (-val_c,)
         # ineq = [v*4 for v in ineq]
         # for v in ineq:
         #     # dunno why this hold, the vars are real
         #     assert abs(v - round(v)) < 0.01, ineq
-        # ineq = tuple(int(0.5 + v) for v in ineq)
+        ineq = tuple(int(0.5 + v) for v in ineq)
+        ineq = tuple(round(v, 6) for v in ineq)
         return ineq
 
 
@@ -159,7 +237,8 @@ for typ in "lb", "ubc", "ubo":
             solver=solver,
         )
 
-    ineqs = L = gen.generate()
+    # ineqs = L = gen.generate()
+    ineqs = L = gen.generate_dfs()
     print("got", len(L))
     for p in points_good:
         for ineq in ineqs:
@@ -173,7 +252,7 @@ for typ in "lb", "ubc", "ubo":
             if not satisfy(p, ineq):
                 break
         else:
-            print("bad point kept", p)
+            print("bad point kept", p, "index", gen.lo.index(p))
             # assert False, p
             # break
     break
