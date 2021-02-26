@@ -1,3 +1,4 @@
+from random import randrange
 from divprop.subsets import DenseSet
 
 
@@ -36,5 +37,17 @@ def test_DenseSet():
     print(b.info("SetB"))
 
 
+def test_properties():
+    for n in range(1, 12):
+        a = DenseSet(n)
+        for i in range(1000):
+            a.set(randrange(2**n))
+            assert a.LowerSet().Not() == a.Not().UpperSet()
+            assert a.UpperSet().Not() == a.Not().LowerSet()
+            assert a.MaxSet().Not() == a.Not().MinSet()
+            assert a.MinSet().Not() == a.Not().MaxSet()
+
+
 if __name__ == '__main__':
     test_DenseSet()
+    test_properties()
