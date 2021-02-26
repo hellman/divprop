@@ -296,18 +296,15 @@ class InequalitiesPool:
         )
 
         L = []
-        sign = None
-        if self.type_good == "lower":
-            sign = -1
-        elif self.type_good == "upper":
-            sign = 1
-
-        log.info(f"generating {num} random inequalities with sign {sign}")
+        log.info(
+            f"generating {num} random inequalities"
+            f"(type_good={self.type_good})"
+        )
         for _ in tqdm(range(num)):
-            if sign is None:
+            if self.type_good is None:
                 eq = [randint(-max_coef, max_coef) for i in range(self.n)]
             else:
-                eq = [sign * randint(0, max_coef) for i in range(self.n)]
+                eq = [randint(0, max_coef) for i in range(self.n)]
 
             ev_good = [inner(p, eq) for p in self.points_good]
             vmin = min(ev_good)
@@ -317,15 +314,25 @@ class InequalitiesPool:
             covmax = [q for q in self.points_bad if inner(q, eq) > vmax]
 
             # covering 1 bad point is not interesting
-            if len(covmin) >= max(2, len(covmax)):
-                ineq = tuple(eq + [-vmin])
-                L.append((ineq, covmin))
-            elif len(covmax) >= max(2, len(covmin)):
-                ineq = tuple([-a for a in eq] + [vmax])
-                L.append((ineq, covmax))
+            if self.type_good is None:
+                if len(covmin) >= max(2, len(covmax)):
+                    ineq = tuple(eq + [-vmin])
+                    L.append((ineq, covmin))
+                elif len(covmax) >= max(2, len(covmin)):
+                    ineq = tuple([-a for a in eq] + [vmax])
+                    L.append((ineq, covmax))
+            elif self.type_good == "upper":
+                if len(covmin) >= 2:
+                    ineq = tuple(eq + [-vmin])
+                    L.append((ineq, covmin))
+            elif self.type_good == "lower":
+                if len(covmax) >= 2:
+                    ineq = tuple([-a for a in eq] + [vmax])
+                    L.append((ineq, covmax))
+
         L.sort(reverse=True, key=lambda item: len(item[1]))
         if take_best_ratio is not None:
-            L = L[:int(take_best_ratio * len(L))]
+            L = L[:int(take_best_ratio * len(L) + 1)]
         else:
             L = L[:take_best_num]
         return self.pool_update(dict(L), source="random")
