@@ -183,6 +183,14 @@ class InequalitiesPool:
     def check_good(self, ineqs=None):
         if ineqs is None:
             ineqs = self.pool
+        if self.type_good == "upper":
+            for ineq in ineqs:
+                assert min(ineq[:-1]) >= 0
+                assert ineq[-1] <= 0
+        elif self.type_good == "upper":
+            for ineq in ineqs:
+                assert max(ineq[:-1]) <= 0
+                assert ineq[-1] >= 0
         for p in self.points_good:
             assert all(satisfy(p, ineq) for ineq in ineqs)
 
