@@ -47,7 +47,17 @@ class LinearSeparator:
     For the other way around, vectors are flipped and swapped and
     output inequalities are adapted.
     """
-    def __init__(self, lo, hi, inverted=False, solver="GLPK"):
+    def __init__(self, lo, hi, inverted=False, solver="GLPK", method="varC"):
+        """
+        pairwise is an old deprecated method
+        where instead of having explicit separator constant c,
+        the inequalities were <p,x> >= <q,x> for each p in good, q in bad
+        (quadratic number).
+        Seems not be useful, as introducing 1 variable for c reduces the number
+        of inequalities significantly.
+        """
+        assert method in ("varC", "pairwise")
+        self.method = method
         self.inverted = inverted
         if self.inverted:
             self.lo = [tuple(a ^ 1 for a in p) for p in hi]
@@ -64,13 +74,23 @@ class LinearSeparator:
         self.model = MixedIntegerLinearProgram(solver=self.solver)
         self.var = self.model.new_variable(real=True, nonnegative=True)
         self.xs = [self.var["x%d" % i] for i in range(self.n)]
-        cs = {}
-        for q in self.lo:
-            csq = set()
+        if self.method == "pairwise":
+            cs = {}
+            for q in self.lo:
+                csq = set()
+                for p in self.hi:
+                    eq = (inner(p, self.xs) - inner(q, self.xs)) >= 1  # > 0
+                    csq.add(eq)
+                cs[q] = csq
+        else:
+            self.c = self.var["c"]
             for p in self.hi:
-                eq = (inner(p, self.xs) - inner(q, self.xs)) >= 1  # > 0
-                csq.add(eq)
-            cs[q] = csq
+                self.model.add_constraint(inner(p, self.xs) >= self.c)
+            cs = {}
+            for q in self.lo:
+                ineq = inner(q, self.xs) <= self.c - 1
+                cs[q] = (ineq,)
+
         self.cs_per_lo = cs
         self.stat_covered = {q: 0 for q in self.lo}
         self.stat_maxsize = {q: 0 for q in self.lo}
