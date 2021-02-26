@@ -1,11 +1,12 @@
 import argparse
 from argparse import RawTextHelpFormatter
 import logging
+import hashlib
 
 from binteger import Bin
 
 from divprop.divcore import DenseDivCore
-from divprop.inequalities import InequalitiesPool
+from divprop.inequalities import InequalitiesPool, satisfy
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -75,7 +76,9 @@ Default subset method:
 
     if "," in args.sbox:
         sbox = tuple(map(int, args.sbox.split(",")))
+        name = "unknown%x" % hashlib.sha256(str(sbox).encode()).hexdigest()[:8]
     else:
+        name = args.sbox.lower()
         sbox = get_sbox(args.sbox)
 
     if not args.generators:
@@ -86,6 +89,7 @@ Default subset method:
     log.info(f"generators: {' '.join(generators)}")
 
     ret = process_sbox(
+        name=args.sbox.lower(),
         sbox=sbox,
         gens=generators,
         subset_method=args.subset,
@@ -128,25 +132,27 @@ def parse_method(s):
 
 
 def get_sbox(name):
-    for k, v in sboxes.items():
+    for k, sbox in sboxes.items():
         if k.lower() == name.lower():
-            return v
+            sbox = tuple(map(int, sbox))
+            n = int(len(sbox)-1).bit_length()
+            m = max(int(y).bit_length() for y in sbox)
+            assert len(sbox) == 2**n
+            assert 0 <= 2**(m-1) <= max(sbox) < 2**m
+            return sbox, n, m
     raise KeyError()
 
 
-def process_sbox(sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
-    sbox = tuple(map(int, sbox))
-    n = int(len(sbox)-1).bit_length()
-    m = max(int(y).bit_length() for y in sbox)
-    assert len(sbox) == 2**n
-    assert 0 <= 2**(m-1) <= max(sbox) < 2**m
-
+def process_sbox(name, sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
+    sbox, n, m = sbox
     if gens is DEFAULT_GENS and n + m >= LARGE:
         log.warning(
             "skipping polyhedron from default list, "
             f"because the S-Box is too large ({n}+{m} >= {LARGE})"
         )
         gens = DEFAULT_GENS_LARGE
+    if output == ".":
+        output = f"results/{name}_sbox"
 
     dc = DenseDivCore.from_sbox(sbox, n, m)
     mid = dc.MinDPPT().Not(dc.mask_u)
@@ -162,6 +168,7 @@ def process_sbox(sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
         if typ == "lb":
             points_good = dc.data
             points_bad = lb
+
             type_good = "upper"
         elif typ == "ubo":
             points_good = dcup.LowerSet()
@@ -169,6 +176,7 @@ def process_sbox(sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
 
             points_good = points_good.MaxSet()
             points_bad = points_bad.MinSet()
+
             type_good = "lower"
         elif typ == "ubc":
             points_good = dcup.LowerSet()
@@ -176,6 +184,7 @@ def process_sbox(sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
 
             points_good = points_good.MaxSet()
             points_bad = points_bad.MinSet()
+
             type_good = "lower"
         else:
             assert 0
@@ -240,5 +249,7 @@ def separate_monotonic(
     Lstar = METHODS[subset_method](*subset_args, **subset_kwargs)
 
     pool.log_stat(Lstar)
+
+    pool.check(Lstar)
 
     return Lstar
