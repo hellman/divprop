@@ -289,10 +289,11 @@ class InequalitiesPool:
             take_best_ratio = 0.2
 
         self.log_algo(
-            "InequalitiesPool.generate_random"
-            f"(num={num}, max_coef={max_coef}, "
+            "InequalitiesPool.generate_random("
+            f"num={num}, max_coef={max_coef}, "
             f"take_best_ratio={take_best_ratio} "
             f"take_best_num={take_best_num}"
+            ")"
         )
 
         L = []
@@ -340,8 +341,9 @@ class InequalitiesPool:
     def generate_linsep(self, num, by_maxsize=False, by_covered=False, solver="GLPK"):
         assert self.type_good in ("lower", "upper")
         self.log_algo(
-            "InequalitiesPool.generate_linsep"
-            f"(num={num}, by_maxsize={by_maxsize}, by_covered={by_covered}"
+            "InequalitiesPool.generate_linsep("
+            f"num={num}, by_maxsize={by_maxsize}, by_covered={by_covered}"
+            ")"
         )
 
         if self.type_good == "lower":
