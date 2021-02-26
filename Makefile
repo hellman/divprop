@@ -3,10 +3,12 @@ PYTHON = pypy3
 lib:
 	poetry build 
 	$(PYTHON) -m pip install -U .
+	sage -pip install .
 	make test
 
 test:
 	$(PYTHON) -m pytest tests/
+	sage -sh -c 'pytest tests/ tests_sage/'
 
 clean:
 	rm -rf build setup.py *.egg-info __pycache__
