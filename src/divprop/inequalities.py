@@ -146,6 +146,109 @@ class LinearSeparator:
         return sol, ret_covered
 
 
+class LinearSeparatorFull(LinearSeparator):
+    def generate(self):
+        self.N = len(self.lo)
+
+        self.good = {0: None}
+        self.bad = {(1 << self.N) - 1}
+
+        # from the end we can get longer chains (large lower sets)
+        self.n_checks = 0
+        for i in reversed(range(self.N)):
+            self.dfs(1 << i)
+
+        print(
+            "final stat:",
+            "checks", self.n_checks,
+            "good max-set", len(self.good),
+            "bad min-set", len(self.bad)
+        )
+        tops = {}
+        sorter = lambda it: Bin(it[0], self.N).hw()
+        for v, sol in sorted(self.good.items(), key=sorter):
+            v = Bin(v, self.N)
+            print("top", v.str, "%3d" % v.hw(), sol)
+            tops[sol] = [self.lo[i] for i in v.support()]
+        # for v in self.bad:
+        #     print("bad", Bin(v, self.N).str, "%3d" % Bin(v, self.N).hw())
+        return tops
+
+    def dfs(self, v):
+        # print("visit", Bin(v, self.N).str)
+        # if inside good space - then is good
+        for u in self.good:
+            # v \preceq u
+            if u & v == v:
+                # print("is in good", Bin(u, self.N).str)
+                return
+        # if inside bad space - then is bad
+        for u in self.bad:
+            # v \succeq u
+            if u & v == u:
+                # print("is in bad", Bin(u, self.N).str)
+                return
+
+        grp = Bin(v, self.N).tuple
+        sol = self.check_group(grp)
+        self.n_checks += 1
+        # print("check is", sol)
+        # print()
+        if self.n_checks % 1000 == 0:
+            print(
+                "stat:",
+                "checks", self.n_checks,
+                "good max-set", len(self.good),
+                "bad min-set", len(self.bad)
+            )
+        if sol:
+            self.add_good(v, sol)
+            for j in range(self.N):
+                if (1 << j) > v:
+                    vv = v | (1 << j)
+                    self.dfs(vv)
+        else:
+            self.add_bad(v)
+
+    def add_good(self, v, sol):
+        # note: we know that v is surely not redundant itself
+        for u in list(self.good):
+            # u \preceq v
+            if u & v == u:
+                del self.good[u]
+        self.good[v] = sol
+
+    def add_bad(self, v):
+        # note: we know that v is surely not redundant itself
+        #                                  u \succeq v
+        self.bad = {u for u in self.bad if u & v != v}
+        self.bad.add(v)
+
+    def check_group(self, bads):
+        LP = self.model.__copy__()
+
+        assert len(bads) == len(self.lo)
+        lstq = [q for take, q in zip(bads, self.lo) if take]
+        for i, q in enumerate(lstq):
+            LP.add_constraint(self.cs_per_lo[q])
+
+        try:
+            LP.solve()
+        except MIPSolverException:
+            return False
+
+        val_xs = tuple(LP.get_values(x) for x in self.xs)
+        val_c = LP.get_values(self.c) + 0.5
+        ineq = val_xs + (-val_c,)
+        # ineq = [v*4 for v in ineq]
+        # for v in ineq:
+        #     # dunno why this hold, the vars are real
+        #     assert abs(v - round(v)) < 0.01, ineq
+        ineq = tuple(int(0.5 + v) for v in ineq)
+        ineq = tuple(round(v, 6) for v in ineq)
+        return ineq
+
+
 class InequalitiesPool:
     def __init__(self, points_good, points_bad, type_good=None):
         """
@@ -400,6 +503,31 @@ class InequalitiesPool:
                 break
             L[ineq] = covered
         return self.pool_update(L, source=source)
+
+    def generate_linsepfull(self, solver="GLPK"):
+        assert self.type_good in ("lower", "upper")
+        self.log_algo(f"InequalitiesPool.generate_linsepfull()")
+
+        if self.type_good == "lower":
+            gen = self.linsep = LinearSeparatorFull(
+                lo=self.points_good,
+                hi=self.points_bad,
+                inverted=True,
+                solver=solver,
+            )
+        elif self.type_good == "upper":
+            gen = self.linsep = LinearSeparatorFull(
+                lo=self.points_bad,
+                hi=self.points_good,
+                inverted=False,
+                solver=solver,
+            )
+
+        source = "linsepfull"
+
+        Lcov = gen.generate()
+
+        return self.pool_update(Lcov, source=source)
 
     def choose_subset_milp(self, solver=None):
         """

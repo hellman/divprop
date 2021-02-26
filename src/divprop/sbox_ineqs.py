@@ -22,12 +22,14 @@ except ImportError:
 
 
 DEFAULT_GENS = (
-    "polyhedron",
+    "linsepfull",
+)
+
+DEFAULT_GENS_LARGE = (
+    # "polyhedron",
     "linsep:num=1000,solver=GLPK",
     "random:num=10000,max_coef=100,take_best_num=2500",
 )
-
-DEFAULT_GENS_LARGE = DEFAULT_GENS[1:]
 
 LARGE = 12
 
