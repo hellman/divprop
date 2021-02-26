@@ -115,14 +115,16 @@ class LinearSeparator:
         LP.solve()
 
         func = tuple(LP.get_values(x) for x in self.xs)
-        for v in func:
-            # dunno why this hold, the vars are real
-            assert abs(v - round(v)) < 0.01, func
-        func = tuple(int(0.5 + v) for v in func)
+        # for v in func:
+        #     # dunno why this hold, the vars are real
+        #     assert abs(v - round(v)) < 0.01, func
+        # func = tuple(int(0.5 + v) for v in func)
 
         value_good = min(inner(p, func) for p in self.hi)
         value_bad = max(inner(p, func) for p in covered_lo)
-        assert value_bad < value_good
+        assert value_bad + 0.5 < value_good
+        value_good -= 0.5
+        # print(value_bad, value_good, LP.get_values(self.c))
 
         if self.inverted:
             # x1a1 + x2a2 + x3a3 >= t
@@ -141,9 +143,6 @@ class LinearSeparator:
         #     f"inequality coveres {len(covered_lo)}/{len(self.hi)}:",
         #     f"{func} >= {value_good}"
         # )
-        for q in covered_lo:
-            self.stat_covered[q] += 1
-            self.stat_maxsize[q] = max(self.stat_maxsize[q], len(covered_lo))
         return sol, ret_covered
 
 
