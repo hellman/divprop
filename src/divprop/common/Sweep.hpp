@@ -60,14 +60,14 @@ template<auto func, typename T>
 void GenericSweep(vector<T> &arr, uint64_t mask) {
     auto size = arr.size();
     int n = log2(size);
-    fori (k, n) {
-        if ((mask & (1ull << k)) == 0)
+    fori (i, n) {
+        if ((mask & (1ull << i)) == 0)
             continue;
 
-        uint64_t bit = (1ull << k);
-        fori (i, 1ull << n) {
-            if (i & bit) {
-                func(arr[i ^ bit], arr[i]);
+        uint64_t bit = (1ull << i);
+        fori (j, 1ull << n) {
+            if (j & bit) {
+                func(arr[j ^ bit], arr[j]);
             }
         }
     }
