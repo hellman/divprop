@@ -322,7 +322,7 @@ class InequalitiesPool:
             L = L[:take_best_num]
         return self.pool_update(dict(L), source="random")
 
-    def generate_linsep(self, num, by_maxsize=False, by_covered=False):
+    def generate_linsep(self, num, by_maxsize=False, by_covered=False, solver="GLPK"):
         assert self.type_good in ("lower", "upper")
         self.log_algo(
             "InequalitiesPool.generate_linsep"
@@ -334,12 +334,14 @@ class InequalitiesPool:
                 lo=self.points_good,
                 hi=self.points_bad,
                 inverted=True,
+                solver=solver,
             )
         elif self.type_good == "upper":
             gen = self.linsep = LinearSeparator(
                 lo=self.points_bad,
                 hi=self.points_good,
                 inverted=False,
+                solver=solver,
             )
 
         assert not (by_maxsize and by_covered)
