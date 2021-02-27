@@ -1,7 +1,8 @@
-import argparse
-from argparse import RawTextHelpFormatter
 import logging
 import hashlib
+
+import argparse
+from argparse import RawTextHelpFormatter
 
 from binteger import Bin
 
@@ -31,7 +32,7 @@ DEFAULT_GENS_LARGE = (
     "random:num=10000,max_coef=100,take_best_num=2500",
 )
 
-LARGE = 12
+LARGE = 17
 
 
 DEFAULT_SUBSET = "milp:solver=GLPK"
@@ -78,6 +79,11 @@ Default subset method:
         name = args.sbox.lower()
         sbox = get_sbox(args.sbox)
 
+    n = int(len(sbox)-1).bit_length()
+    m = max(int(y).bit_length() for y in sbox)
+    assert len(sbox) == 2**n
+    assert 0 <= 2**(m-1) <= max(sbox) < 2**m
+
     if not args.generators:
         generators = DEFAULT_GENS
     else:
@@ -87,7 +93,7 @@ Default subset method:
 
     ret = process_sbox(
         name=args.sbox.lower(),
-        sbox=sbox,
+        sbox=(sbox, n, m),
         gens=generators,
         subset_method=args.subset,
         output=args.output,
@@ -132,11 +138,7 @@ def get_sbox(name):
     for k, sbox in sboxes.items():
         if k.lower() == name.lower():
             sbox = tuple(map(int, sbox))
-            n = int(len(sbox)-1).bit_length()
-            m = max(int(y).bit_length() for y in sbox)
-            assert len(sbox) == 2**n
-            assert 0 <= 2**(m-1) <= max(sbox) < 2**m
-            return sbox, n, m
+            return sbox
     raise KeyError()
 
 
