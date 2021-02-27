@@ -1,5 +1,9 @@
 PYTHON = pypy3
 
+quick:
+	# python setup.py build
+	bash -c 'python setup.py install -f &>/dev/null'
+
 lib:
 	poetry build 
 	$(PYTHON) -m pip install -U .
@@ -15,3 +19,6 @@ clean:
 	rm -f src/divprop/subsets/*_wrap*
 	rm -f src/divprop/*_wrap*
 	rm -f src/divprop/libsubsets.py
+
+venv:
+	sage -python -m venv --system-site-packages .envsage/
