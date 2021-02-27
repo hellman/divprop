@@ -12,11 +12,12 @@ class LowerSetLearn:
     def __init__(self, n, oracle):
         self.n = int(n)
         self.oracle = oracle
+
+        assert oracle(Bin(0, self.n)), "trivial lowerset (empty)"
+        assert not oracle(Bin(2**self.n-1, self.n)), "trivial lowerset (full)"
+
         self.good = {0}
         self.bad = {2**n-1}
-
-        assert oracle(0), "trivial lowerset (empty)"
-        assert not oracle(2**n-1), "trivial lowerset (full)"
 
         self.n_checks = 0
 
@@ -29,7 +30,7 @@ class LowerSetLearn:
         assert self.n_checks == 0, "already ran?"
         self.n_checks = 0
 
-        log.info(f"starting with N = {self.N}")
+        log.info(f"starting with n = {self.n}")
 
         # order is crucial, with internal dfs order too
         for i in range(self.n):
@@ -49,23 +50,21 @@ class LowerSetLearn:
         for u in self.good:
             # v \preceq u
             if u & v == v:
-                # if dbg: print("is in good", Bin(u, self.N).str)
                 return
         # if inside bad space - then is bad
         for u in self.bad:
             # v \succeq u
             if u & v == u:
-                # if dbg: print("is in bad", Bin(u, self.N).str)
                 return
 
-        is_lower = self.oracle(Bin(v, self.N))
+        is_lower = self.oracle(Bin(v, self.n))
 
         self.n_checks += 1
         if self.n_checks % 10_000 == 0:
             wts = Counter(Bin(a).hw() for a in self.good)
             wts = " ".join(f"{wt}:{cnt}" for wt, cnt in sorted(wts.items()))
             log.debug(
-                f"stat: bit {self.cur_i+1}/{self.N}"
+                f"stat: bit {self.cur_i+1}/{self.n}"
                 f" checks {self.n_checks}"
                 f" good max-set {len(self.good)}"
                 f" bad min-set {len(self.bad)}"

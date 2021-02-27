@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 class GemCut(RandomGroupCut):
     def _oracle(self, v):
-        assert isinstance(v, Bin)
+        assert isinstance(v, Bin), v
         res = self.check_group(v.support())
         if res:
             self.sol[v] = res
@@ -29,7 +29,7 @@ class GemCut(RandomGroupCut):
 
         tops = {}
         for v in lowerset:
-            v = Bin(v, self.N)
+            v = Bin(v, n)
             sol = self.sol[v]
             covered = [self.lo[i] for i in v.support()]
             # print("top", v.str, "%3d" % v.hw(), v.support(), "|", sol)
