@@ -23,6 +23,7 @@ class GemCut(RandomGroupCut):
         self.n_checks = 0
         # order is crucial, with internal dfs order too
         for i in reversed(range(self.N)):
+            self.cur_i = i
             self.dfs(1 << i)
 
         log.info(
@@ -88,7 +89,7 @@ class GemCut(RandomGroupCut):
             wts = Counter(Bin(a).hw() for a in self.good)
             wts = " ".join(f"{wt}:{cnt}" for wt, cnt in sorted(wts.items()))
             log.info(
-                "stat:"
+                f"stat: bit {self.cur_i+1}/{self.N}"
                 f" checks {self.n_checks}"
                 f" good max-set {len(self.good)}"
                 f" bad min-set {len(self.bad)}"

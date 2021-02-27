@@ -6,6 +6,10 @@ try:
     from sage.all import Polyhedron
     is_sage = True
 except ImportError:
+    MixedIntegerLinearProgram = None
+    MIPSolverException = None
+    Polyhedron = None
+
     is_sage = False
 
 

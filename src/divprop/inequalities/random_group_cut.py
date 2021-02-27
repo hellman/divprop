@@ -92,29 +92,27 @@ class RandomGroupCut:
                 covered_lo.append(q)
         LP.solve()
 
-        func = tuple(LP.get_values(x) for x in self.xs)
-        # for v in func:
-        #     # dunno why this hold, the vars are real
-        #     assert abs(v - round(v)) < 0.01, func
-        # func = tuple(int(0.5 + v) for v in func)
-
-        value_good = min(inner(p, func) for p in self.hi)
-        value_bad = max(inner(p, func) for p in covered_lo)
-        assert value_bad + 0.5 < value_good
-        value_good -= 0.5
-        # print(value_bad, value_good, LP.get_values(self.c))
+        val_xs = tuple(LP.get_values(x) for x in self.xs)
+        if all(abs(v - round(v)) < 0.00001 for v in val_xs):
+            # is integral
+            val_xs = tuple(int(v + 0.5) for v in val_xs)
+            val_c = int(LP.get_values(self.c) + 0.5)
+        else:
+            # keep real
+            val_c = LP.get_values(self.c) - 0.5
 
         if self.inverted:
             # x1a1 + x2a2 + x3a3 >= t
             # =>
             # x1(1-a1) + x2(1-a2) + x3(1-a3) >= t
             # -x1a1 -x2a2 -x3a3 >= t-sum(x)
-            value = value_good - sum(func)
-            sol = tuple(-x for x in func) + (-value,)
+            value = val_c - sum(val_xs)
+            sol = tuple(-x for x in val_xs) + (-value,)
             ret_covered = [tuple(1 - a for a in q) for q in covered_lo]
         else:
             # x1a1 + x2a2 + x3a3 >= t
-            sol = func + (-value_good,)
+            value = val_c
+            sol = val_xs + (-value,)
             ret_covered = covered_lo
 
         # print(
