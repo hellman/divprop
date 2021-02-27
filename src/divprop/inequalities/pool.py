@@ -98,7 +98,7 @@ class InequalitiesPool:
                 if ineq not in self.pool:
                     # tbd: maybe remove later, because slowish
                     # currently useful for catching bugs
-                    assert covered == self.get_covered_by_ineq(ineq), \
+                    assert set(covered) == set(self.get_covered_by_ineq(ineq)),\
                         (covered, self.get_covered_by_ineq(ineq))
                     self.pool[ineq] = (
                         source,
