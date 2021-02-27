@@ -1,4 +1,5 @@
 import logging
+from collections import Counter
 
 from binteger import Bin
 
@@ -84,11 +85,14 @@ class GemCut(RandomGroupCut):
         # if dbg: print("check is", sol)
         # if dbg: print()
         if self.n_checks % 10_000 == 0:
+            wts = Counter(Bin(a).hw() for a in self.good)
+            wts = " ".join(f"{wt}:{cnt}" for wt, cnt in sorted(wts.items()))
             log.info(
                 "stat:"
                 f" checks {self.n_checks}"
                 f" good max-set {len(self.good)}"
                 f" bad min-set {len(self.bad)}"
+                f" | good max-set weights {wts}"
             )
         if sol:
             self.add_good(v, sol)
