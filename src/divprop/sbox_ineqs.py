@@ -22,29 +22,39 @@ except ImportError:
     is_sage = False
 
 
-DEFAULT_GENS = (
-    "linsepfull",
+DEFAULT_GENS_SMALL = (
+    "GemCut",
+)
+
+DEFAULT_GENS_MEDIUM = (
+    "polyhedron",
+    "RandomGroupCut:num=1000,solver=GLPK",
+    "RandomPlaneCut:num=10000,max_coef=100,take_best_num=2500",
 )
 
 DEFAULT_GENS_LARGE = (
     # "polyhedron",
-    "linsep:num=1000,solver=GLPK",
-    "random:num=10000,max_coef=100,take_best_num=2500",
+    "RandomGroupCut:num=1000,solver=GLPK",
+    "RandomPlaneCut:num=10000,max_coef=100,take_best_num=2500",
 )
 
-LARGE = 17
+MEDIUM = 9
+LARGE = 16
 
 
 DEFAULT_SUBSET = "milp:solver=GLPK"
 
 
 def main():
-    default_chain_str = " ".join(DEFAULT_GENS)
+    default_chain_small_str = " ".join(DEFAULT_GENS_SMALL)
+    default_chain_medium_str = " ".join(DEFAULT_GENS_MEDIUM)
     default_chain_large_str = " ".join(DEFAULT_GENS_LARGE)
     parser = argparse.ArgumentParser(description=f"""
 Generate inequalities to model s-box division property propagation.
 Default chain:
-    {default_chain_str}
+    {default_chain_small_str}
+Default chain for (n+m) >= {MEDIUM}:
+    {default_chain_medium_str}
 Default chain for (n+m) >= {LARGE}:
     {default_chain_large_str}
 Default subset method:
@@ -64,6 +74,10 @@ Default subset method:
         help="Subset algorithm ('milp' or 'greedy:n' where n is number of iter.)",
     )
     parser.add_argument(
+        "--convex", type=str, default="milp",
+        help="Subset algorithm ('milp' or 'greedy:n' where n is number of iter.)",
+    )
+    parser.add_argument(
         "-o", "--output", type=str, default=None,
         help="S-Box (name or comma repr e.g. 2,1,0,3)",
     )
@@ -79,13 +93,16 @@ Default subset method:
         name = args.sbox.lower()
         sbox = get_sbox(args.sbox)
 
-    n = int(len(sbox)-1).bit_length()
-    m = max(int(y).bit_length() for y in sbox)
-    assert len(sbox) == 2**n
-    assert 0 <= 2**(m-1) <= max(sbox) < 2**m
+    n, m = get_sbox_sizes(sbox)
 
     if not args.generators:
-        generators = DEFAULT_GENS
+        if n + m < MEDIUM:
+            generators = DEFAULT_GENS_SMALL
+        elif n + m < LARGE:
+            generators = DEFAULT_GENS_MEDIUM
+        else:
+            generators = DEFAULT_GENS_LARGE
+
     else:
         generators = args.generators
 
@@ -142,14 +159,16 @@ def get_sbox(name):
     raise KeyError()
 
 
-def process_sbox(name, sbox, gens=DEFAULT_GENS, subset_method="milp", output=None):
+def get_sbox_sizes(sbox):
+    n = int(len(sbox)-1).bit_length()
+    m = max(int(y).bit_length() for y in sbox)
+    assert len(sbox) == 2**n
+    assert 0 <= 2**(m-1) <= max(sbox) < 2**m
+    return n, m
+
+
+def process_sbox(name, sbox, gens=DEFAULT_GENS_LARGE, subset_method="milp", output=None):
     sbox, n, m = sbox
-    if gens is DEFAULT_GENS and n + m >= LARGE:
-        log.warning(
-            "skipping polyhedron from default list, "
-            f"because the S-Box is too large ({n}+{m} >= {LARGE})"
-        )
-        gens = DEFAULT_GENS_LARGE
     if output == ".":
         output = f"results/{name}_sbox"
 
@@ -243,14 +262,14 @@ def separate_monotonic(
     )
 
     GENERATORS = {
-        "linsep": pool.generate_linsep,
-        "linsepfull": pool.generate_linsepfull,
-        "random": pool.generate_random,
+        "gemcut": pool.generate_GemCut,
+        "randomgroupcut": pool.generate_RandomGroupCut,
+        "randomplanecut": pool.generate_RandomPlaneCut,
         "polyhedron": pool.generate_from_polyhedron,
     }
     for gen in gens:
         gen_name, gen_args, gen_kwargs = parse_method(gen)
-        GENERATORS[gen_name](*gen_args, **gen_kwargs)
+        GENERATORS[gen_name.lower()](*gen_args, **gen_kwargs)
 
     pool.log_stat()
 

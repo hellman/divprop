@@ -1,252 +1,20 @@
 import logging
-from binteger import Bin
-from random import randint, choice, shuffle
+from random import randint, choice
 from collections import Counter
 
-# sage/pure python compatibility
-try:
-    import sage.all
-    from sage.numerical.mip import MixedIntegerLinearProgram
-    from sage.numerical.mip import MIPSolverException
-    from sage.all import Polyhedron
-    is_sage = True
-except ImportError:
-    is_sage = False
-
 from tqdm import tqdm
+from binteger import Bin
 
-logging.basicConfig(level=logging.INFO)
+from .base import (
+    inner, satisfy,
+    MixedIntegerLinearProgram,
+    Polyhedron,
+)
+from .random_group_cut import RandomGroupCut
+from .gem_cut import GemCut
+
+
 log = logging.getLogger(__name__)
-
-
-def inner(a, b):
-    return sum(aa * bb for aa, bb in zip(a, b))
-
-
-def satisfy(pt, eq):
-    """
-    Inequality format:
-    (a0, a1, a2, ..., a_{n-1}, c)
-    a0*x0 + a1*x1 + ... + a_{n-1}*x_{n-1} + c >= 0
-    """
-    assert len(pt) + 1 == len(eq)
-    return inner(pt, eq) + eq[-1] >= 0
-
-
-class LinearSeparator:
-    """
-    Algorithm to separate a lower set from an upper set (must be disjoint)
-    by linear inequalities ("cuts").
-    Sets may be given by their extremes (maxset and minset).
-
-    Algorithm:
-        1. choose incrementally a set of bad points
-        2. try to find a linear functional separating them from good points
-           (solving linear inequalities over reals)
-
-    Algorithm is implemented for removing 'lo' while keeping 'hi'.
-    For the other way around, vectors are flipped and swapped and
-    output inequalities are adapted.
-    """
-    def __init__(self, lo, hi, inverted=False, solver="GLPK"):
-        """
-        pairwise is an old deprecated method
-        where instead of having explicit separator constant c,
-        the inequalities were <p,x> >= <q,x> for each p in good, q in bad
-        (quadratic number).
-        Seems not be useful, as introducing 1 variable for c reduces the number
-        of inequalities significantly.
-        """
-        self.inverted = inverted
-        if self.inverted:
-            self.lo = [tuple(a ^ 1 for a in p) for p in hi]
-            self.hi = [tuple(a ^ 1 for a in p) for p in lo]
-        else:
-            self.lo = [tuple(p) for p in lo]
-            self.hi = [tuple(p) for p in hi]
-        assert self.lo and self.hi
-        self.n = len(self.lo[0])
-        self.solver = solver
-        self._prepare_constraints()
-        self.seen_sorts = set()
-
-    def _prepare_constraints(self):
-        self.model = MixedIntegerLinearProgram(solver=self.solver)
-        self.var = self.model.new_variable(real=True, nonnegative=True)
-        self.xs = [self.var["x%d" % i] for i in range(self.n)]
-        self.c = self.var["c"]
-
-        for p in self.hi:
-            self.model.add_constraint(inner(p, self.xs) >= self.c)
-
-        cs = {}
-        for q in self.lo:
-            cs[q] = inner(q, self.xs) <= self.c - 1
-
-        self.cs_per_lo = cs
-
-    def generate_inequality(self):
-        LP = self.model.__copy__()
-        covered_lo = []
-
-        lstq = list(self.lo)
-        shuffle(lstq)
-
-        itr = 5
-        while tuple(lstq) in self.seen_sorts:
-            shuffle(lstq)
-            itr -= 1
-            if itr == 0:
-                raise EOFError("exhausted")
-        self.seen_sorts.add(tuple(lstq))
-
-        for i, q in enumerate(lstq):
-            constr_id = LP.number_of_constraints()
-            LP.add_constraint(self.cs_per_lo[q])
-
-            try:
-                LP.solve()
-            except MIPSolverException:
-                assert i != 0
-                LP.remove_constraint(constr_id)
-            else:
-                # print(f"covering #{i}/{len(lstq)}: {q}")
-                covered_lo.append(q)
-        LP.solve()
-
-        func = tuple(LP.get_values(x) for x in self.xs)
-        # for v in func:
-        #     # dunno why this hold, the vars are real
-        #     assert abs(v - round(v)) < 0.01, func
-        # func = tuple(int(0.5 + v) for v in func)
-
-        value_good = min(inner(p, func) for p in self.hi)
-        value_bad = max(inner(p, func) for p in covered_lo)
-        assert value_bad + 0.5 < value_good
-        value_good -= 0.5
-        # print(value_bad, value_good, LP.get_values(self.c))
-
-        if self.inverted:
-            # x1a1 + x2a2 + x3a3 >= t
-            # =>
-            # x1(1-a1) + x2(1-a2) + x3(1-a3) >= t
-            # -x1a1 -x2a2 -x3a3 >= t-sum(x)
-            value = value_good - sum(func)
-            sol = tuple(-x for x in func) + (-value,)
-            ret_covered = [tuple(1 - a for a in q) for q in covered_lo]
-        else:
-            # x1a1 + x2a2 + x3a3 >= t
-            sol = func + (-value_good,)
-            ret_covered = covered_lo
-
-        # print(
-        #     f"inequality coveres {len(covered_lo)}/{len(self.hi)}:",
-        #     f"{func} >= {value_good}"
-        # )
-        return sol, ret_covered
-
-
-class LinearSeparatorFull(LinearSeparator):
-    def generate(self):
-        self.N = len(self.lo)
-
-        self.good = {0: None}
-        self.bad = {(1 << self.N) - 1}
-
-        # from the end we can get longer chains (large lower sets)
-        self.n_checks = 0
-        for i in reversed(range(self.N)):
-            self.dfs(1 << i)
-
-        print(
-            "final stat:",
-            "checks", self.n_checks,
-            "good max-set", len(self.good),
-            "bad min-set", len(self.bad)
-        )
-        tops = {}
-        sorter = lambda it: Bin(it[0], self.N).hw()
-        for v, sol in sorted(self.good.items(), key=sorter):
-            v = Bin(v, self.N)
-            print("top", v.str, "%3d" % v.hw(), sol)
-            tops[sol] = [self.lo[i] for i in v.support()]
-        # for v in self.bad:
-        #     print("bad", Bin(v, self.N).str, "%3d" % Bin(v, self.N).hw())
-        return tops
-
-    def dfs(self, v):
-        # print("visit", Bin(v, self.N).str)
-        # if inside good space - then is good
-        for u in self.good:
-            # v \preceq u
-            if u & v == v:
-                # print("is in good", Bin(u, self.N).str)
-                return
-        # if inside bad space - then is bad
-        for u in self.bad:
-            # v \succeq u
-            if u & v == u:
-                # print("is in bad", Bin(u, self.N).str)
-                return
-
-        grp = Bin(v, self.N).tuple
-        sol = self.check_group(grp)
-        self.n_checks += 1
-        # print("check is", sol)
-        # print()
-        if self.n_checks % 1000 == 0:
-            print(
-                "stat:",
-                "checks", self.n_checks,
-                "good max-set", len(self.good),
-                "bad min-set", len(self.bad)
-            )
-        if sol:
-            self.add_good(v, sol)
-            for j in range(self.N):
-                if (1 << j) > v:
-                    vv = v | (1 << j)
-                    self.dfs(vv)
-        else:
-            self.add_bad(v)
-
-    def add_good(self, v, sol):
-        # note: we know that v is surely not redundant itself
-        for u in list(self.good):
-            # u \preceq v
-            if u & v == u:
-                del self.good[u]
-        self.good[v] = sol
-
-    def add_bad(self, v):
-        # note: we know that v is surely not redundant itself
-        #                                  u \succeq v
-        self.bad = {u for u in self.bad if u & v != v}
-        self.bad.add(v)
-
-    def check_group(self, bads):
-        LP = self.model.__copy__()
-
-        assert len(bads) == len(self.lo)
-        lstq = [q for take, q in zip(bads, self.lo) if take]
-        for i, q in enumerate(lstq):
-            LP.add_constraint(self.cs_per_lo[q])
-
-        try:
-            LP.solve()
-        except MIPSolverException:
-            return False
-
-        val_xs = tuple(LP.get_values(x) for x in self.xs)
-        val_c = LP.get_values(self.c) + 0.5
-        ineq = val_xs + (-val_c,)
-        # ineq = [v*4 for v in ineq]
-        # for v in ineq:
-        #     # dunno why this hold, the vars are real
-        #     assert abs(v - round(v)) < 0.01, ineq
-        ineq = tuple(int(0.5 + v) for v in ineq)
-        ineq = tuple(round(v, 6) for v in ineq)
-        return ineq
 
 
 class InequalitiesPool:
@@ -328,6 +96,10 @@ class InequalitiesPool:
             # ineq: list of covered
             for ineq, covered in inequalities.items():
                 if ineq not in self.pool:
+                    # tbd: maybe remove later, because slowish
+                    # currently useful for catching bugs
+                    assert covered == self.get_covered_by_ineq(ineq), \
+                        (covered, self.get_covered_by_ineq(ineq))
                     self.pool[ineq] = (
                         source,
                         set(covered),
@@ -413,7 +185,7 @@ class InequalitiesPool:
             L = L2
         return self.pool_update(L, "sage.polyhedron")
 
-    def generate_random(
+    def generate_RandomPlaneCut(
         self, num=1000, max_coef=100, take_best_ratio=None, take_best_num=None):
         """
         sign: -1 for lower set,
@@ -450,6 +222,12 @@ class InequalitiesPool:
             covmin = [q for q in self.points_bad if inner(q, eq) < vmin]
             covmax = [q for q in self.points_bad if inner(q, eq) > vmax]
 
+            # if 0:
+            #     ev_bad = [inner(p, eq) for p in self.points_bad]
+            #     qmin = min(ev_bad)
+            #     qmax = max(ev_bad)
+            #     print("random eq", eq, "vgood", vmin, vmax, "vbad", qmin, qmax, "cnt", len(covmin), len(covmax))
+
             # covering 1 bad point is not interesting
             if self.type_good is None:
                 if len(covmin) >= max(2, len(covmax)):
@@ -474,26 +252,26 @@ class InequalitiesPool:
             L = L[:take_best_num]
         return self.pool_update(dict(L), source="random")
 
-    def generate_linsep(self, num, solver="GLPK"):
+    def generate_RandomGroupCut(self, num, solver="GLPK"):
         assert self.type_good in ("lower", "upper")
-        self.log_algo(f"InequalitiesPool.generate_linsep(num={num})")
+        self.log_algo(f"InequalitiesPool.generate_RandomGroupCut(num={num})")
 
         if self.type_good == "lower":
-            gen = self.linsep = LinearSeparator(
+            gen = self.cutter = RandomGroupCut(
                 lo=self.points_good,
                 hi=self.points_bad,
                 inverted=True,
                 solver=solver,
             )
         elif self.type_good == "upper":
-            gen = self.linsep = LinearSeparator(
+            gen = self.cutter = RandomGroupCut(
                 lo=self.points_bad,
                 hi=self.points_good,
                 inverted=False,
                 solver=solver,
             )
 
-        source = "linsep:random"
+        source = "RandomGroupCut"
 
         L = {}
         for i in tqdm(range(num)):
@@ -504,26 +282,27 @@ class InequalitiesPool:
             L[ineq] = covered
         return self.pool_update(L, source=source)
 
-    def generate_linsepfull(self, solver="GLPK"):
+    def generate_GemCut(self, solver="GLPK"):
         assert self.type_good in ("lower", "upper")
-        self.log_algo(f"InequalitiesPool.generate_linsepfull()")
+        self.log_algo("InequalitiesPool.generate_GemCut()")
 
         if self.type_good == "lower":
-            gen = self.linsep = LinearSeparatorFull(
+            gen = self.linsep = GemCut(
                 lo=self.points_good,
                 hi=self.points_bad,
                 inverted=True,
                 solver=solver,
             )
         elif self.type_good == "upper":
-            gen = self.linsep = LinearSeparatorFull(
+            gen = self.linsep = GemCut(
                 lo=self.points_bad,
                 hi=self.points_good,
                 inverted=False,
                 solver=solver,
             )
+        self._last_gen = gen
 
-        source = "linsepfull"
+        source = "GemCut"
 
         Lcov = gen.generate()
 

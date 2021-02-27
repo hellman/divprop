@@ -1,4 +1,4 @@
-from divprop.sbox_ineqs import get_sbox
+from divprop.sbox_ineqs import get_sbox, get_sbox_sizes
 from divprop.divcore import DenseDivCore
 from divprop.inequalities import satisfy
 from binteger import Bin
@@ -15,7 +15,9 @@ def test_ineqs():
         "aes",
     )
     for name in todo:
-        sbox, n, m = get_sbox(name)
+        sbox = get_sbox(name)
+        n, m = get_sbox_sizes(sbox)
+
         print("checking sbox", name)
         check_sbox_full(name.lower(), sbox, n, m)
 
