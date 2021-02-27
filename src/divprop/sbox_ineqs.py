@@ -242,6 +242,7 @@ def separate_monotonic(
 
     GENERATORS = {
         "linsep": pool.generate_linsep,
+        "linsepfull": pool.generate_linsepfull,
         "random": pool.generate_random,
         "polyhedron": pool.generate_from_polyhedron,
     }
