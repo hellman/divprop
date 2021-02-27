@@ -6,39 +6,35 @@ from binteger import Bin
 from .base import satisfy, MIPSolverException
 from .random_group_cut import RandomGroupCut
 
+from divprop.learn import LowerSetLearn
+
 
 log = logging.getLogger(__name__)
 
 
 class GemCut(RandomGroupCut):
+    def _oracle(self, v):
+        assert isinstance(v, Bin)
+        res = self.check_group(v.support())
+        if res:
+            self.sol[v] = res
+        return bool(res)
+
     def generate(self):
-        self.N = len(self.lo)
+        n = len(self.lo)
+        self.sol = {}
 
-        self.good = {0: None}
-        self.bad = {(1 << self.N) - 1}
+        LSL = LowerSetLearn(n=n, oracle=self._oracle)
+        lowerset = LSL.learn()
 
-        # from the end we can get longer chains (large lower sets)
-        log.info(f"starting with N = {self.N}")
-
-        self.n_checks = 0
-        # order is crucial, with internal dfs order too
-        for i in reversed(range(self.N)):
-            self.cur_i = i
-            self.dfs(1 << i)
-
-        log.info(
-            "final stat:"
-            f" checks {self.n_checks}"
-            f" good max-set {len(self.good)}"
-            f" bad min-set {len(self.bad)}"
-        )
         tops = {}
-        sorter = lambda it: Bin(it[0], self.N).hw()
-        for v, sol in sorted(self.good.items(), key=sorter):
+        for v in lowerset:
             v = Bin(v, self.N)
+            sol = self.sol[v]
             covered = [self.lo[i] for i in v.support()]
             # print("top", v.str, "%3d" % v.hw(), v.support(), "|", sol)
 
+            # TODO: clean up asserts
             assert all(satisfy(q, sol) for q in self.hi)
             assert all(not satisfy(q, sol) for q in covered)
 
@@ -63,61 +59,6 @@ class GemCut(RandomGroupCut):
             assert all(not satisfy(q, sol) for q in covered)
             tops[sol] = covered
         return tops
-
-    def dfs(self, v):
-        # dbg = 0
-        # if dbg: print("visit", Bin(v, self.N).str, v)
-        # if inside good space - then is good
-        for u in self.good:
-            # v \preceq u
-            if u & v == v:
-                # if dbg: print("is in good", Bin(u, self.N).str)
-                return
-        # if inside bad space - then is bad
-        for u in self.bad:
-            # v \succeq u
-            if u & v == u:
-                # if dbg: print("is in bad", Bin(u, self.N).str)
-                return
-
-        grp = Bin(v, self.N).support()
-        sol = self.check_group(grp)
-        self.n_checks += 1
-        # if dbg: print("check is", sol)
-        # if dbg: print()
-        if self.n_checks % 10_000 == 0:
-            wts = Counter(Bin(a).hw() for a in self.good)
-            wts = " ".join(f"{wt}:{cnt}" for wt, cnt in sorted(wts.items()))
-            log.info(
-                f"stat: bit {self.cur_i+1}/{self.N}"
-                f" checks {self.n_checks}"
-                f" good max-set {len(self.good)}"
-                f" bad min-set {len(self.bad)}"
-                f" | good max-set weights {wts}"
-            )
-        if sol:
-            self.add_good(v, sol)
-            # order is crucial!
-            for j in reversed(range(self.N)):
-                if (1 << j) > v:
-                    vv = v | (1 << j)
-                    self.dfs(vv)
-        else:
-            self.add_bad(v)
-
-    def add_good(self, v, sol):
-        # note: we know that v is surely not redundant itself
-        for u in list(self.good):
-            # u \preceq v
-            if u & v == u:
-                del self.good[u]
-        self.good[v] = sol
-
-    def add_bad(self, v):
-        # note: we know that v is surely not redundant itself
-        #                                  u \succeq v
-        self.bad = {u for u in self.bad if u & v != v}
-        self.bad.add(v)
 
     def check_group(self, bads):
         LP = self.model.__copy__()
