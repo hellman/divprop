@@ -7,3 +7,6 @@ poetry.lock
 *_wrap.*
 setup.py
 src/divprop/libsubsets.py
+.envsage
+actisage
+results/
