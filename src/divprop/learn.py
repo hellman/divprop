@@ -13,20 +13,27 @@ class LowerSetLearn:
         self.n = int(n)
         self.oracle = oracle
 
-        assert oracle(Bin(0, self.n)), "trivial lowerset (empty)"
-        assert not oracle(Bin(2**self.n-1, self.n)), "trivial lowerset (full)"
-
-        self.good = {0}
-        self.bad = {2**n-1}
-
         self.n_checks = 0
 
-    def learn(self):
+    def learn(self, check_trivial=True):
         """
         returns max-set of the learnt lower set
         the min-set of the complementary upperset can be retrieved from
         .bad attribute
         """
+        if check_trivial:
+            if not self.oracle(Bin(0, self.n)):
+                self.good = ()
+                self.bad = tuple(2**i for i in range(self.n))
+                return tuple(Bin(v, self.n) for v in self.good)
+            if self.oracle(Bin(2**self.n-1, self.n)):
+                self.good = 2**self.n-1,
+                self.bad = tuple(2**self.n-1-2**i for i in range(self.n))
+                return tuple(Bin(v, self.n) for v in self.good)
+
+        self.good = {0}
+        self.bad = {2**self.n-1}
+
         assert self.n_checks == 0, "already ran?"
         self.n_checks = 0
 
@@ -60,7 +67,7 @@ class LowerSetLearn:
         is_lower = self.oracle(Bin(v, self.n))
 
         self.n_checks += 1
-        if self.n_checks % 10_000 == 0:
+        if self.n_checks % 250_000 == 0:
             wts = Counter(Bin(a).hw() for a in self.good)
             wts = " ".join(f"{wt}:{cnt}" for wt, cnt in sorted(wts.items()))
             log.debug(
