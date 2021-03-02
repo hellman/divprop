@@ -128,30 +128,31 @@ bool DenseSet::operator!=(const DenseSet & b) const {
 bool DenseSet::operator<(const DenseSet & b) const {
     ensure(is_compatible_set(b));
     auto &data2 = b.data;
+    bool not_equal = 0;
     fori(i, data.size()) {
         if (data[i] == data2[i]) continue;
-        if ((data[i] & data2[i]) == data[i]) return true; // prec
-        return false;
+        not_equal = 1;
+        if ((data[i] & data2[i]) != data[i]) return false; // prec
     }
-    return false;
+    return not_equal;
 }
 bool DenseSet::operator>(const DenseSet & b) const {
     ensure(is_compatible_set(b));
     auto &data2 = b.data;
+    bool not_equal = 0;
     fori(i, data.size()) {
         if (data[i] == data2[i]) continue;
-        if ((data[i] & data2[i]) == data2[i]) return true; // succ
-        return false;
+        not_equal = 1;
+        if ((data[i] & data2[i]) != data2[i]) return false; // succ
     }
-    return false;
+    return not_equal;
 }
 bool DenseSet::operator<=(const DenseSet & b) const {
     ensure(is_compatible_set(b));
     auto &data2 = b.data;
     fori(i, data.size()) {
         if (data[i] == data2[i]) continue;
-        if ((data[i] & data2[i]) == data[i]) return true; // prec
-        return false;
+        if ((data[i] & data2[i]) != data[i]) return false;
     }
     return true;
 }
@@ -160,7 +161,7 @@ bool DenseSet::operator>=(const DenseSet & b) const {
     auto &data2 = b.data;
     fori(i, data.size()) {
         if (data[i] == data2[i]) continue;
-        if ((data[i] & data2[i]) == data2[i]) return true; // succ
+        if ((data[i] & data2[i]) != data2[i]) return false; // succ
         return false;
     }
     return true;
