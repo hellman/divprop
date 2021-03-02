@@ -47,6 +47,11 @@ def test_properties():
             assert a.MaxSet().Not() == a.Not().MinSet()
             assert a.MinSet().Not() == a.Not().MaxSet()
 
+            assert a.LowerSet() == a.Not().UpperSet().Not()
+            assert a.UpperSet() == a.Not().LowerSet().Not()
+            assert a.MaxSet() == a.Not().MinSet().Not()
+            assert a.MinSet() == a.Not().MaxSet().Not()
+
 
 if __name__ == '__main__':
     test_DenseSet()
