@@ -55,6 +55,11 @@ TTi void MORE_down(T &a, T &b) { a &= ~b; }
 //     }
 // }
 
+TTi void ZERO_up(T &a, T &b) { b = 0; }
+TTi void ZERO_down(T &a, T &b) { a = 0; }
+TTi void ONE_up(T &a, T &b) { b = 1; }
+TTi void ONE_down(T &a, T &b) { a = 1; }
+
 
 template<auto func, typename T>
 void GenericSweep(vector<T> &arr, uint64_t mask) {
@@ -83,12 +88,22 @@ static inline void GenericSweepWordBit(uint64_t &word, int shift, uint64_t mask)
     func(lo, hi);
     word = (hi << shift) | lo;
 }
+
+const uint64_t MASK64_SINGLE[6] = {
+    0x5555555555555555ull,
+    0x3333333333333333ull,
+    0x0f0f0f0f0f0f0f0full,
+    0x00ff00ff00ff00ffull,
+    0x0000ffff0000ffffull,
+    0x00000000ffffffffull,
+};
+
 template<auto func>
 void GenericSweepWord(uint64_t &word, uint64_t mask) {
-    if (mask & (32)) GenericSweepWordBit<func>(word, 32, 0x00000000ffffffffull);
-    if (mask & (16)) GenericSweepWordBit<func>(word, 16, 0x0000ffff0000ffffull);
-    if (mask & ( 8)) GenericSweepWordBit<func>(word,  8, 0x00ff00ff00ff00ffull);
-    if (mask & ( 4)) GenericSweepWordBit<func>(word,  4, 0x0f0f0f0f0f0f0f0full);
-    if (mask & ( 2)) GenericSweepWordBit<func>(word,  2, 0x3333333333333333ull);
-    if (mask & ( 1)) GenericSweepWordBit<func>(word,  1, 0x5555555555555555ull);
+    if (mask & (32)) GenericSweepWordBit<func>(word, 32, MASK64_SINGLE[5]);
+    if (mask & (16)) GenericSweepWordBit<func>(word, 16, MASK64_SINGLE[4]);
+    if (mask & ( 8)) GenericSweepWordBit<func>(word,  8, MASK64_SINGLE[3]);
+    if (mask & ( 4)) GenericSweepWordBit<func>(word,  4, MASK64_SINGLE[2]);
+    if (mask & ( 2)) GenericSweepWordBit<func>(word,  2, MASK64_SINGLE[1]);
+    if (mask & ( 1)) GenericSweepWordBit<func>(word,  1, MASK64_SINGLE[0]);
 }

@@ -103,6 +103,11 @@ struct DenseSet {
     // ========================================
     // Main methods
     // ========================================
+    void do_UnsetUp(uint64_t mask = -1ull);
+    void do_UnsetDown(uint64_t mask = -1ull);
+    void do_SetUp(uint64_t mask = -1ull);
+    void do_SetDown(uint64_t mask = -1ull);
+
     void do_Mobius(uint64_t mask = -1ull);
     void do_Complement();
     void do_Not(uint64_t mask = -1ull);

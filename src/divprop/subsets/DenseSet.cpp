@@ -300,6 +300,19 @@ map<pair<int,int>,u64> DenseSet::get_counts_by_weight_pairs(int n1, int n2) cons
 // ========================================
 // Main methods
 // ========================================
+
+void DenseSet::do_UnsetUp(u64 mask) {
+    do_Sweep<ZERO_up<u64>>(mask);
+}
+void DenseSet::do_UnsetDown(u64 mask) {
+    do_Sweep<ZERO_down<u64>>(mask);
+}
+void DenseSet::do_SetUp(u64 mask) {
+    do_Sweep<ONE_up<u64>>(mask);
+}
+void DenseSet::do_SetDown(u64 mask) {
+    do_Sweep<ONE_down<u64>>(mask);
+}
 void DenseSet::do_Mobius(u64 mask) {
     do_Sweep<XOR_up<u64>>(mask);
 }
