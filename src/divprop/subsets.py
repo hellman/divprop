@@ -27,13 +27,16 @@ def QMC1(P, n=None):
     S = []
     for a in P:
         a = Bin(a, n).int
+
         # TBD: do in place and return orig P (dangereux?)
         X = P.copy()
         X.do_Not(a)
         X.do_Complement()
         X.do_UpperSet()
         X.do_Complement()
-        X.do_MaxSet()  # TBD set is lower=True
+
+        X.do_MaxSet()
+        X.do_UnsetUp(a)
         for u in X:
             S.append((a, u))
     return S
