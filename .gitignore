@@ -5,8 +5,9 @@ __pycache__
 poetry.lock
 *.so
 *_wrap.*
-setup.py
 src/divprop/libsubsets.py
 .envsage
 actisage
 results/
+logs/
+data/
