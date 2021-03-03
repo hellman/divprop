@@ -2,6 +2,12 @@
 
 #include "common.hpp"
 
+#ifdef SWIG
+%pythoncode %{
+from binteger import Bin
+%}
+#endif
+
 /*
 Working with single bit vector, represented as vector<uint64_t>.
 */
@@ -91,6 +97,10 @@ struct DenseSet {
     %pythoncode %{
         def __iter__(self):
             return iter(self.get_support())
+
+        def to_Bins(self):
+            n = int(self.n)
+            return {Bin(v, n) for v in self}
     %}
     #endif
 
