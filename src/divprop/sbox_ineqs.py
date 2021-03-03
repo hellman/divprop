@@ -1,5 +1,6 @@
-import logging
+import os
 import hashlib
+from datetime import datetime
 
 import argparse
 from argparse import RawTextHelpFormatter
@@ -8,8 +9,9 @@ from binteger import Bin
 
 from divprop.divcore import DenseDivCore
 from divprop.inequalities import InequalitiesPool, satisfy
+import divprop.logging as logging
 
-logging.basicConfig(level=logging.INFO)
+logging.setup(level="INFO")
 log = logging.getLogger(__name__)
 
 # sage/pure python compatibility
@@ -93,6 +95,10 @@ Default subset method:
         name = args.sbox.lower()
         sbox = get_sbox(args.sbox)
 
+    if os.path.exists("logs/.divprop"):
+        date = datetime.now().strftime("%Y-%m-%d.%H:%M:%S")
+        logging.addFileHandler(f"logs/{name}.{date}")
+
     n, m = get_sbox_sizes(sbox)
 
     if not args.generators:
@@ -107,6 +113,10 @@ Default subset method:
         generators = args.generators
 
     log.info(f"generators: {' '.join(generators)}")
+
+    output = args.output
+    if output is None and os.path.isfile("results/.divprop"):
+        output = f"results/{name}"
 
     ret = process_sbox(
         name=args.sbox.lower(),
