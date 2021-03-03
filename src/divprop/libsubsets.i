@@ -34,4 +34,14 @@
 #include "DivCore.hpp"
 %}
 
+%template(DivCore_StrongComposition8) tpl_DivCore_StrongComposition<uint8_t>;
+%template(DivCore_StrongComposition16) tpl_DivCore_StrongComposition<uint16_t>;
+%template(DivCore_StrongComposition32) tpl_DivCore_StrongComposition<uint32_t>;
+// 64-bit ver hardly useful...
+%template(DivCore_StrongComposition64) tpl_DivCore_StrongComposition<uint64_t>;
+
+%pythoncode %{
+DivCore_StrongComposition = DivCore_StrongComposition32;
+%}
+
 %template(MyVector_DenseSet) std::vector<DenseSet>;

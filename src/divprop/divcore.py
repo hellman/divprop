@@ -1,6 +1,12 @@
 from divprop.subsets import Sbox2GI, DenseSet
 
-from divprop.subsets import DivCore_StrongComposition
+from divprop.subsets import (
+    DivCore_StrongComposition,
+    DivCore_StrongComposition8,
+    DivCore_StrongComposition16,
+    DivCore_StrongComposition32,
+    DivCore_StrongComposition64,
+)
 
 
 def mask(m):

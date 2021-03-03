@@ -102,7 +102,7 @@ struct DenseSet {
 
         def to_Bins(self):
             n = int(self.n)
-            return {Bin(v, n) for v in self}
+            return [Bin(v, n) for v in self]
     %}
     #endif
 
