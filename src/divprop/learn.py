@@ -70,7 +70,7 @@ class LowerSetLearn:
         if self.n_checks % 250_000 == 0:
             wts = Counter(Bin(a).hw() for a in self.good)
             wts = " ".join(f"{wt}:{cnt}" for wt, cnt in sorted(wts.items()))
-            log.verbose(
+            log.debug(
                 f"stat: bit {self.cur_i+1}/{self.n}"
                 f" checks {self.n_checks}"
                 f" good max-set {len(self.good)}"
