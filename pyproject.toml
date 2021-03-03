@@ -14,9 +14,12 @@ include = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
+binteger = "^0.6.2"
+tqdm = "^4.58.0"
+coloredlogs = "^15.0"
 
 [tool.poetry.dev-dependencies]
 
 [build-system]
-requires = ["poetry-core>=1.0.0a9", "wheel", "setuptools", "binteger", "tqdm"]
+requires = ["poetry-core>=1.0.0a9", "wheel", "setuptools"]
 build-backend = "poetry.core.masonry.api"
