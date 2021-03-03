@@ -24,10 +24,14 @@
 
 %include "subsets/DenseSet.hpp"
 %include "subsets/SboxGraph.hpp"
+%include "divprop/DivCore.hpp"
 
 %template(Sbox2GI) Sbox2GraphIndicator<uint64_t>;
 
 %{
 #include "DenseSet.hpp"
 #include "SboxGraph.hpp"
+#include "DivCore.hpp"
 %}
+
+%template(MyVector_DenseSet) std::vector<DenseSet>;

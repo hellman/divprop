@@ -37,24 +37,32 @@ setup(
     entry_points=entry_points,
     python_requires='>=3.7,<4.0',
     ext_modules=[
+        # interaction between extensions is messy
+        # so let's put everything in one...
         Extension(
             "divprop._libsubsets",
             include_dirs=[
                 "./src/",
                 "./src/divprop/common/",
                 "./src/divprop/subsets/",
+                "./src/divprop/divprop/",
             ],
             depends=[
                 "./src/divprop/common/common.hpp",
                 "./src/divprop/common/Sweep.hpp",
+                "./src/divprop/subsets/DenseSet.hpp",
+                "./src/divprop/subsets/SboxGraph.hpp",
+                "./src/divprop/divprop/DivCore.hpp",
             ],
             sources=[
                 "./src/divprop/libsubsets.i",
                 "./src/divprop/subsets/DenseSet.cpp",
                 "./src/divprop/subsets/SboxGraph.cpp",
+                "./src/divprop/divprop/DivCore.cpp",
             ],
             swig_opts=["-c++", "-DSWIGWORDSIZE64"],  # https://github.com/swig/swig/issues/568
-            extra_compile_args=["-std=c++2a", "-O0"],
+            extra_compile_args=["-std=c++2a", "-O2", "-fopenmp"],
+            extra_link_args=["-fopenmp"],
         ),
     ]
 )

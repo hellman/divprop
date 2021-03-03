@@ -1,5 +1,7 @@
 from divprop.subsets import Sbox2GI, DenseSet
 
+from divprop.subsets import DivCore_StrongComposition
+
 
 def mask(m):
     return (1 << m) - 1

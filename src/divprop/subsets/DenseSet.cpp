@@ -4,6 +4,13 @@
 
 #include "DenseSet.hpp"
 
+static uint64_t __get_lo_mask(int n) {
+    ensure(n >= 0);
+    if (n >= 6) {
+        return -1ull;
+    }
+    return (1ull << (1 << n)) - 1;
+}
 
 DenseSet::DenseSet() {
     n = 0;
@@ -21,7 +28,20 @@ void DenseSet::free() {
     n = 0;
 }
 void DenseSet::clear() {
+    if (n == 0) {
+        data.clear();
+        return;
+    }
     data.assign(HICEIL(1ull << n), 0);
+}
+void DenseSet::fill() {
+    if (n == 0) {
+        return;
+    }
+    data.assign(HICEIL(1ull << n), -1ull);
+    if (n <= 6) {
+        data[0] &= __get_lo_mask(n);
+    }
 }
 
 
@@ -38,7 +58,6 @@ bool DenseSet::is_full() const {
 // ========================================
 // Single bit get/set
 // ========================================
-
 int DenseSet::get(u64 x) const {
     // ensure(x < 1ull << n);
     return (data[HI(x)] >> LO(x)) & 1;
@@ -235,13 +254,24 @@ DenseSet DenseSet::get_head_fixed(int h, u64 value) {
 // ========================================
 
 void DenseSet::iter_support(function<void(u64)> const & func) const {
-    fori (hi, data.size()) {
-        if (data[hi]) {
-            fori (lo, 64) {
-                if ((data[hi] >> lo) & 1) {
-                    u64 x = (hi << 6) | lo;
-                    func(x);
+    if (n >= 6) {
+        fori (hi, data.size()) {
+            if (data[hi]) {
+                fori (lo, 64) {
+                    if ((data[hi] >> lo) & 1) {
+                        u64 x = (hi << 6) | lo;
+                        func(x);
+                    }
                 }
+            }
+        }
+    }
+    else {
+        auto word = data[0];
+        word &= __get_lo_mask(n);
+        fori (lo, 64) {
+            if ((word >> lo) & 1) {
+                func((uint64_t)lo);
             }
         }
     }
@@ -252,25 +282,22 @@ void DenseSet::iter_support(function<void(u64)> const & func) const {
 // if it's large then working with DenseSet is better anyway...
 vector<u64> DenseSet::get_support() const {
     vector<u64> inds;
-    fori (hi, data.size()) {
-        if (data[hi]) {
-            fori (lo, 64) {
-                if ((data[hi] >> lo) & 1) {
-                    u64 ind = (hi << 6) | lo;
-                    inds.push_back(ind);
-                }
-            }
-        }
-    }
+    auto func = [&] (u64 v) -> void { inds.push_back(v); };
+    iter_support(func);
     return inds;
 }
 
 u64 DenseSet::get_weight() const {
     u64 cnt = 0;
-    for (auto word: data) {
-        if (word) {
-            cnt += hw(word);
+    if (n >= 6) {
+        for (auto word: data) {
+            if (word) {
+                cnt += hw(word);
+            }
         }
+    }
+    else {
+        return hw(data[0] & __get_lo_mask(n));
     }
     return cnt;
 }

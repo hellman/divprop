@@ -20,7 +20,9 @@ struct DenseSet {
     DenseSet(int _n);
     DenseSet copy() const;
     void free(); // set to empty set with n=0
+
     void clear(); // set to empty set, keep n
+    void fill(); // set to full set, keep n
 
     bool is_empty() const;
     bool __bool__() const;
