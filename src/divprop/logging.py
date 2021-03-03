@@ -2,10 +2,12 @@ import coloredlogs
 import logging
 
 
-def setup(level='INFO'):
+def setup(level='VERBOSE'):
+    coloredlogs.DEFAULT_FIELD_STYLES["levelname"]["color"] = 8
     coloredlogs.install(
         level=level,
-        fmt="%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s",
+        fmt="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        msecs=True,
     )
 
 

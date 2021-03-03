@@ -86,8 +86,6 @@ Default subset method:
 
     args = parser.parse_args()
 
-    log.info(args)
-
     if "," in args.sbox:
         sbox = tuple(map(int, args.sbox.split(",")))
         name = "unknown%x" % hashlib.sha256(str(sbox).encode()).hexdigest()[:8]
@@ -98,6 +96,8 @@ Default subset method:
     if os.path.exists("logs/.divprop"):
         date = datetime.now().strftime("%Y-%m-%d.%H:%M:%S")
         logging.addFileHandler(f"logs/{name}.{date}")
+
+    log.info(args)
 
     n, m = get_sbox_sizes(sbox)
 
@@ -117,6 +117,9 @@ Default subset method:
     output = args.output
     if output is None and os.path.isfile("results/.divprop"):
         output = f"results/{name}"
+        log.info(f"using auto output {output}")
+
+    log.info(f"using output file {output}")
 
     ret = process_sbox(
         name=args.sbox.lower(),
