@@ -12,8 +12,8 @@ qpypy:
 
 lib:
 	python setup.py bdist_wheel
-	#python -m pip install -U .
-	#make test
+	make
+	# make test
 
 test:
 	python -m pytest tests/

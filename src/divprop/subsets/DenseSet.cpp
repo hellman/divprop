@@ -4,6 +4,8 @@
 
 #include "DenseSet.hpp"
 
+bool DenseSet::QUIET = false;
+
 static uint64_t __get_lo_mask(int n) {
     ensure(n >= 0);
     if (n >= 6) {
@@ -58,17 +60,17 @@ bool DenseSet::is_full() const {
 // ========================================
 // Single bit get/set
 // ========================================
-int DenseSet::get(u64 x) const {
+int DenseSet::get(uint64_t x) const {
     // ensure(x < 1ull << n);
     return (data[HI(x)] >> LO(x)) & 1;
 }
-bool DenseSet::__contains__(u64 x) const {
+bool DenseSet::__contains__(uint64_t x) const {
     return get(x) == 1;
 }
-void DenseSet::set(u64 x) {
+void DenseSet::set(uint64_t x) {
     data[HI(x)] |= 1ull << LO(x);
 }
-void DenseSet::set(u64 x, u64 value) {
+void DenseSet::set(uint64_t x, uint64_t value) {
     data[HI(x)] &= ~(1ull << LO(x));
     data[HI(x)] |= (value & 1ull) << LO(x);
 }
@@ -77,7 +79,7 @@ void DenseSet::set(u64 x, u64 value) {
 // Tools
 // ========================================
 template<auto func>
-void DenseSet::do_Sweep(u64 mask) {
+void DenseSet::do_Sweep(uint64_t mask) {
     mask &= (1ull << n)-1;
     // we can use GenericSweep
     // pretending we have bit-slice 64 parallel sets in our array
@@ -93,31 +95,31 @@ void DenseSet::do_Sweep(u64 mask) {
 }
 // for python low-level API
 void DenseSet::do_Sweep_OR_up(uint64_t mask) {
-    do_Sweep<OR_up<u64>>(mask);
+    do_Sweep<OR_up<uint64_t>>(mask);
 }
 void DenseSet::do_Sweep_OR_down(uint64_t mask) {
-    do_Sweep<OR_down<u64>>(mask);
+    do_Sweep<OR_down<uint64_t>>(mask);
 }
 void DenseSet::do_Sweep_XOR_up(uint64_t mask) {
-    do_Sweep<XOR_up<u64>>(mask);
+    do_Sweep<XOR_up<uint64_t>>(mask);
 }
 void DenseSet::do_Sweep_XOR_down(uint64_t mask) {
-    do_Sweep<XOR_down<u64>>(mask);
+    do_Sweep<XOR_down<uint64_t>>(mask);
 }
 void DenseSet::do_Sweep_AND_up(uint64_t mask) {
-    do_Sweep<AND_up<u64>>(mask);
+    do_Sweep<AND_up<uint64_t>>(mask);
 }
 void DenseSet::do_Sweep_AND_down(uint64_t mask) {
-    do_Sweep<AND_down<u64>>(mask);
+    do_Sweep<AND_down<uint64_t>>(mask);
 }
 void DenseSet::do_Sweep_SWAP(uint64_t mask) {
-    do_Sweep<SWAP<u64>>(mask);
+    do_Sweep<SWAP<uint64_t>>(mask);
 }
 void DenseSet::do_Sweep_LESS_up(uint64_t mask) {
-    do_Sweep<LESS_up<u64>>(mask);
+    do_Sweep<LESS_up<uint64_t>>(mask);
 }
 void DenseSet::do_Sweep_MORE_down(uint64_t mask) {
-    do_Sweep<MORE_down<u64>>(mask);
+    do_Sweep<MORE_down<uint64_t>>(mask);
 }
 
 // ========================================
@@ -238,14 +240,14 @@ DenseSet DenseSet::operator~() const {
     return Complement();
 }
 
-DenseSet DenseSet::get_head_fixed(int h, u64 value) {
+DenseSet DenseSet::get_head_fixed(int h, uint64_t value) {
     ensure(value < (1ull << h));
     ensure(h >=0 && h <= n);
     ensure(n - h >= 6);
     DenseSet result(n - h);
-    u64 start = value << (n - h - 6);
-    u64 end = (value + 1) << (n - h - 6);
-    result.data = vector<u64>(data.begin() + start, data.begin() + end);
+    uint64_t start = value << (n - h - 6);
+    uint64_t end = (value + 1) << (n - h - 6);
+    result.data = vector<uint64_t>(data.begin() + start, data.begin() + end);
     return result;
 }
 
@@ -253,13 +255,13 @@ DenseSet DenseSet::get_head_fixed(int h, u64 value) {
 // Support
 // ========================================
 
-void DenseSet::iter_support(function<void(u64)> const & func) const {
+void DenseSet::iter_support(function<void(uint64_t)> const & func) const {
     if (n >= 6) {
         fori (hi, data.size()) {
             if (data[hi]) {
                 fori (lo, 64) {
                     if ((data[hi] >> lo) & 1) {
-                        u64 x = (hi << 6) | lo;
+                        uint64_t x = (hi << 6) | lo;
                         func(x);
                     }
                 }
@@ -280,15 +282,15 @@ void DenseSet::iter_support(function<void(u64)> const & func) const {
 // returns support of the function
 // 32-bit version useful? if support is small then 2x RAM does not matter
 // if it's large then working with DenseSet is better anyway...
-vector<u64> DenseSet::get_support() const {
-    vector<u64> inds;
-    auto func = [&] (u64 v) -> void { inds.push_back(v); };
+vector<uint64_t> DenseSet::get_support() const {
+    vector<uint64_t> inds;
+    auto func = [&] (uint64_t v) -> void { inds.push_back(v); };
     iter_support(func);
     return inds;
 }
 
-u64 DenseSet::get_weight() const {
-    u64 cnt = 0;
+uint64_t DenseSet::get_weight() const {
+    uint64_t cnt = 0;
     if (n >= 6) {
         for (auto word: data) {
             if (word) {
@@ -301,106 +303,139 @@ u64 DenseSet::get_weight() const {
     }
     return cnt;
 }
-u64 DenseSet::__len__() const {
+uint64_t DenseSet::__len__() const {
     return get_weight();
 }
 
-vector<u64> DenseSet::get_counts_by_weight() const {
-    vector<u64> res(n+1);
-    auto func = [&] (u64 v) -> void { res[hw(v)] += 1; };
+vector<uint64_t> DenseSet::get_counts_by_weights() const {
+    vector<uint64_t> res(n+1);
+    auto func = [&] (uint64_t v) -> void { res[hw(v)] += 1; };
     iter_support(func);
     return res;
 }
-map<pair<int,int>,u64> DenseSet::get_counts_by_weight_pairs(int n1, int n2) const {
+map<pair<int,int>,uint64_t> DenseSet::get_counts_by_weight_pairs(int n1, int n2) const {
     ensure(n == n1 + n2);
 
-    map<pair<int,int>, u64> res;
-    u64 mask2 = (1ull << n2)-1;
-    auto func = [&] (u64 v) -> void {
-        u64 l = v >> n2;
-        u64 r = v &mask2;
+    map<pair<int,int>, uint64_t> res;
+    uint64_t mask2 = (1ull << n2)-1;
+    auto func = [&] (uint64_t v) -> void {
+        uint64_t l = v >> n2;
+        uint64_t r = v &mask2;
         res[make_pair(hw(l),hw(r))] += 1;
     };
     iter_support(func);
     return res;
+}
+string DenseSet::str_stat_by_weights() const {
+    string ret;
+    char buf[4096] = "";
+    auto by_wt = get_counts_by_weights();
+    fori (i, n+1) {
+        if (by_wt[i]) {
+            snprintf(buf, 4000, "%lu:%lu ", i, by_wt[i]);
+            ret += buf;
+        }
+    };
+    if (ret.size()) {
+        ret.erase(ret.end() - 1);
+    }
+    return ret;
+}
+string DenseSet::str_stat_by_weight_pairs(int n1, int n2) const {
+    string ret;
+    char buf[4096] = "";
+    auto by_wt = get_counts_by_weight_pairs(n1, n2);
+    for (auto &p: by_wt) {
+        if (p.second) {
+            snprintf(
+                buf, 4000, "%d,%d:%lu ",
+                p.first.first, p.first.second, p.second
+            );
+            ret += buf;
+        }
+    };
+    if (ret.size()) {
+        ret.erase(ret.end() - 1);
+    }
+    return ret;
 }
 
 // ========================================
 // Main methods
 // ========================================
 
-void DenseSet::do_UnsetUp(u64 mask) {
-    do_Sweep<ZERO_up<u64>>(mask);
+void DenseSet::do_UnsetUp(uint64_t mask) {
+    do_Sweep<ZERO_up<uint64_t>>(mask);
 }
-void DenseSet::do_UnsetDown(u64 mask) {
-    do_Sweep<ZERO_down<u64>>(mask);
+void DenseSet::do_UnsetDown(uint64_t mask) {
+    do_Sweep<ZERO_down<uint64_t>>(mask);
 }
-void DenseSet::do_SetUp(u64 mask) {
-    do_Sweep<ONE_up<u64>>(mask);
+void DenseSet::do_SetUp(uint64_t mask) {
+    do_Sweep<ONE_up<uint64_t>>(mask);
 }
-void DenseSet::do_SetDown(u64 mask) {
-    do_Sweep<ONE_down<u64>>(mask);
+void DenseSet::do_SetDown(uint64_t mask) {
+    do_Sweep<ONE_down<uint64_t>>(mask);
 }
-void DenseSet::do_Mobius(u64 mask) {
-    do_Sweep<XOR_up<u64>>(mask);
+void DenseSet::do_Mobius(uint64_t mask) {
+    do_Sweep<XOR_up<uint64_t>>(mask);
 }
 void DenseSet::do_Complement() {
-    u64 mask = n >= 6 ? -1ull : ((1ull << (1ull << n)) - 1ull);
+    uint64_t mask = n >= 6 ? -1ull : ((1ull << (1ull << n)) - 1ull);
     fori (i, data.size()) {
         data[i] = mask ^ data[i];
     }
 }
-void DenseSet::do_Not(u64 mask) {
+void DenseSet::do_Not(uint64_t mask) {
     mask &= (1ull << n)-1;
     if (HI(mask) == 0) {
         fori (i, data.size()) {
-            GenericSweepWord<SWAP<u64>>(data[i], mask); // LO(mask)
+            GenericSweepWord<SWAP<uint64_t>>(data[i], mask); // LO(mask)
         }
     }
     else {
         fori (i, data.size()) {
-            u64 j = i ^ HI(mask);
+            uint64_t j = i ^ HI(mask);
             ensure(j < data.size());
-            if (j < u64(i))
+            if (j < uint64_t(i))
                 continue;
-            GenericSweepWord<SWAP<u64>>(data[i], mask); // LO(mask)
-            GenericSweepWord<SWAP<u64>>(data[j], mask); // LO(mask)
+            GenericSweepWord<SWAP<uint64_t>>(data[i], mask); // LO(mask)
+            GenericSweepWord<SWAP<uint64_t>>(data[j], mask); // LO(mask)
             swap(data[i], data[j]);
         }
     }
 }
-void DenseSet::do_UpperSet(u64 mask) {
-    do_Sweep<OR_up<u64>>(mask);
+void DenseSet::do_UpperSet(uint64_t mask) {
+    do_Sweep<OR_up<uint64_t>>(mask);
 }
-void DenseSet::do_LowerSet(u64 mask) {
-    do_Sweep<OR_down<u64>>(mask);
+void DenseSet::do_LowerSet(uint64_t mask) {
+    do_Sweep<OR_down<uint64_t>>(mask);
 }
-void DenseSet::do_MinSet(u64 mask) {
+void DenseSet::do_MinSet(uint64_t mask) {
     do_UpperSet(mask);
-    do_Sweep<LESS_up<u64>>(mask);
+    do_Sweep<LESS_up<uint64_t>>(mask);
 }
-void DenseSet::do_MaxSet(u64 mask) {
+void DenseSet::do_MaxSet(uint64_t mask) {
     do_LowerSet(mask);
-    do_Sweep<MORE_down<u64>>(mask);
+    do_Sweep<MORE_down<uint64_t>>(mask);
 }
-void DenseSet::do_DivCore(u64 mask) {
-    do_Sweep<XOR_up<u64>>(mask);
+void DenseSet::do_DivCore(uint64_t mask) {
+    do_Sweep<XOR_up<uint64_t>>(mask);
     do_MaxSet(mask);
     do_Not(mask);
 }
-void DenseSet::do_ComplementU2L(bool is_upper, u64 mask) {
+void DenseSet::do_ComplementU2L(bool is_upper, uint64_t mask) {
     if (!is_upper)
-        do_Sweep<OR_up<u64>>(mask);
+        do_Sweep<OR_up<uint64_t>>(mask);
     do_Complement();
     do_MaxSet(mask);
 }
-void DenseSet::do_ComplementL2U(bool is_lower, u64 mask) {
+void DenseSet::do_ComplementL2U(bool is_lower, uint64_t mask) {
     if (!is_lower)
-        do_Sweep<OR_down<u64>>(mask);
+        do_Sweep<OR_down<uint64_t>>(mask);
     do_Complement();
     do_MinSet(mask);
 }
-void DenseSet::do_UpperSet_Up1(bool is_minset, u64 mask) {
+void DenseSet::do_UpperSet_Up1(bool is_minset, uint64_t mask) {
     if (!is_minset)
         do_MinSet(-1ull);
 
@@ -413,7 +448,7 @@ void DenseSet::do_UpperSet_Up1(bool is_minset, u64 mask) {
          fori(i, n) {
             if ((mask & (1ull << i)) == 0)
                 continue;
-            u64 uv2 = uv | (1ull << i);
+            uint64_t uv2 = uv | (1ull << i);
             if (uv2 != uv) {
                 data[uv2 >> 6] |= 1ull << (uv2 & 0x3f);
             }
@@ -481,44 +516,87 @@ DenseSet DenseSet::UpperSet_Up1(bool is_minset, uint64_t mask) const {
 // Stuff
 // ========================================
 void DenseSet::save_to_file(const char *filename) const {
-    fprintf(stderr, "Saving DenseSet(n=%d) to %s\n", n, filename);
-    vector<u64> supp = get_support();
+    if (!QUIET) {
+        fprintf(stderr, "Saving DenseSet(n=%d) to %s\n", n, filename);
+    }
+    vector<uint64_t> supp = get_support();
 
     FILE *fd = fopen(filename, "w");
     ensure(fd);
 
-    u64 vn = n;
-    u64 vl = supp.size();
+    uint64_t header = DenseSet::VERSION1;
+    uint64_t vn = n;
+    uint64_t vl = supp.size();
+    uint64_t sz = 8;
+    if (n <= 8) {
+        sz = 1;
+    }
+    else if (n <= 16) {
+        sz = 2;
+    }
+    else if (n <= 32) {
+        sz = 4;
+    }
+    fwrite(&header, 8, 1, fd);
     fwrite(&vn, 8, 1, fd);
     fwrite(&vl, 8, 1, fd);
+    fwrite(&sz, 8, 1, fd);
+
     for (auto v: supp) {
-        fwrite(&v, 8, 1, fd);
+        fwrite(&v, sz, 1, fd);
     }
+
+    uint64_t marker = MARKER_END;
+    fwrite(&marker, 8, 1, fd);
     fclose(fd);
 }
 DenseSet DenseSet::load_from_file(const char *filename) {
     FILE *fd = fopen(filename, "r");
     // ensure(fd);
 
-    u64 vl;
-    u64 vn;
-    fread(&vn, 8, 1, fd);
-    fread(&vl, 8, 1, fd);
+    DenseSet res;
 
-    fprintf(stderr, "Loading DenseSet(n=%lu) with weight %lu from %s\n", vn, vl, filename);
+    uint64_t header;
+    fread(&header, 8, 1, fd);
 
-    DenseSet res(vn);
-    fori (i, vl) {
-        u64 v;
-        fread(&v, 8, 1, fd);
-        res.set(v);
+    if (header == VERSION1) {
+        uint64_t vl;
+        uint64_t vn;
+        uint64_t sz;
+        fread(&vn, 8, 1, fd);
+        fread(&vl, 8, 1, fd);
+        fread(&sz, 8, 1, fd);
+
+        if (!QUIET) {
+            fprintf(stderr,
+                "Loading DenseSet(n=%lu)"
+                " with weight %lu from %s"
+                " (%lu bytes per elem.)\n",
+                vn, vl, filename, sz
+            );
+        }
+
+        res = DenseSet(vn);
+        uint64_t v = 0;
+        fori (i, vl) {
+            fread(&v, sz, 1, fd);
+            res.set(v);
+        }
+
+        uint64_t marker;
+        fread(&marker, 8, 1, fd);
+        ensure(marker == MARKER_END);
+
+        fclose(fd);
     }
-    fclose(fd);
+    else {
+        ensure(0, "unknown version");
+    }
     return res;
 }
 
-u64 DenseSet::get_hash() const {
-    u64 h = -1ull;
+uint64_t DenseSet::get_hash() const {
+    uint64_t h = -1ull;
     for (auto v: data) {
         h ^= v;
         h *= 0xcaffee1234abcdefull;
@@ -533,20 +611,11 @@ std::string DenseSet::info(const char *name) const {
     char buf[4096];
     snprintf(
         buf, 4000,
-        "%016lx:%s n=%d wt=%lu |",
+        "%016lx:%s n=%d wt=%lu | ",
         get_hash(), sname.c_str(), n, get_weight()
     );
 
-    string ret = buf;
-
-    auto by_wt = get_counts_by_weight();
-    fori (i, n+1) {
-        if (by_wt[i]) {
-            snprintf(buf, 4000, " %lu:%lu", i, by_wt[i]);
-            ret += buf;
-        }
-    };
-    return ret;
+    return string(buf) + str_stat_by_weights();
 }
 std::string DenseSet::__str__() const {
     return info(NULL);

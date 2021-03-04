@@ -8,7 +8,7 @@ from binteger import Bin
 
 from divprop.divcore import DenseDivCore
 from divprop.inequalities import InequalitiesPool, satisfy
-import divprop.logging as logging
+import divprop.logs as logging
 
 from divprop.sbox import get_sbox, get_sbox_sizes
 

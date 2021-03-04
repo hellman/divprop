@@ -11,7 +11,6 @@ from binteger import Bin
 /*
 Working with single bit vector, represented as vector<uint64_t>.
 */
-
 struct DenseSet {
     int n; // n input bits
     std::vector<uint64_t> data; // n / 64 words of 64 bits
@@ -27,6 +26,10 @@ struct DenseSet {
     bool is_empty() const;
     bool __bool__() const;
     bool is_full() const;
+
+    static bool QUIET;  // set to true to disable stderr printing
+    static const uint64_t VERSION1 = 0xf1c674e0bf03fea6ull;
+    static const uint64_t MARKER_END = 0xc6891a2b5f8bb0b7ull;
 
     // ========================================
     // Read/Write & info
@@ -109,8 +112,10 @@ struct DenseSet {
     uint64_t get_weight() const;
     uint64_t __len__() const;
 
-    std::vector<uint64_t> get_counts_by_weight() const;
+    std::vector<uint64_t> get_counts_by_weights() const;
     std::map<std::pair<int,int>,u64> get_counts_by_weight_pairs(int n1, int n2) const;
+    std::string str_stat_by_weights() const;
+    std::string str_stat_by_weight_pairs(int n1, int n2) const;
 
     // ========================================
     // Main methods

@@ -16,6 +16,8 @@ install_requires = [
 entry_points = {
     'console_scripts': [
         'divprop.sbox_ineqs = divprop.sbox_ineqs:main',
+        'divprop.sbox2divcore = divprop.tools:tool_sbox2divcore',
+        'divprop.setinfo = divprop.tools:tool_setinfo',
     ]
 }
 

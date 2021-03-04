@@ -3,8 +3,9 @@ import hashlib
 import argparse
 
 from divprop.all_sboxes import sboxes
+from divprop.subsets import DenseSet
 from divprop.divcore import DenseDivCore
-import divprop.logging as logging
+import divprop.logs as logging
 
 
 logging.setup(level="INFO")
@@ -57,13 +58,49 @@ def tool_sbox2divcore():
     name, sbox, n, m = parse_sbox(args.sbox)
     output = args.output or f"data/divcore.{name}"
 
-    log.info("computing division core")
+    log.info(f"computing division core for '{name}', output to {output}")
     dc = DenseDivCore.from_sbox(sbox, n, m)
-    log.info("division core: {dc.data}")
-    pair_stat = dc.data.get_counts_by_weight_pairs()
-    pair_stat = " ".join("%d,%d:%d" for (u, v), cnt in pair_stat.items())
-    log.info("division core: {pair_stat}")
-    dc.data.save_to_file(output)
+
+    log.info(f"division core: {dc.data}")
+    log.info(f"by pairs: {dc.data.str_stat_by_weight_pairs(n, m)}")
+
+    dc.data.save_to_file(output + ".set")
+
+
+def tool_setinfo():
+    parser = argparse.ArgumentParser(
+        description="Print information about set (from file)."
+    )
+
+    parser.add_argument(
+        "filename", type=str,
+        help="File with set",
+    )
+    parser.add_argument(
+        "-p", "--print", action="store_true",
+        help="Print full set",
+    )
+    args = parser.parse_args()
+
+    s = DenseSet.load_from_file(args.filename)
+
+    log.info(s)
+
+    stat = s.get_counts_by_weights()
+
+    log.info("stat by weights:")
+    for u, cnt in enumerate(stat):
+        log.info(f"{u} : {cnt}")
+
+    if s.n % 2 == 0:
+        n = s.n // 2
+        pair_stat = s.get_counts_by_weight_pairs(n, n)
+        log.info("stat by pairs:")
+        for (u, v), cnt in sorted(pair_stat.items()):
+            log.info(f"{u} {v} : {cnt}")
+
+    if args.print:
+        print(*s)
 
 
 if __name__ == '__main__':
