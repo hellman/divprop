@@ -41,7 +41,6 @@ def test_QMC1_random():
         for a, u in S:
             Sa.setdefault(a, []).append(u)
 
-        assert len(Sa) == len(P)
         for a in Sa:
             # prec(u)
             U = DenseSet(n)
@@ -52,7 +51,7 @@ def test_QMC1_random():
             assert U <= P
 
 
-def test_something():
+def time_imp_diff():
     AES = [
         0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
         0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
@@ -144,6 +143,4 @@ def test_something():
 
 
 if __name__ == '__main__':
-    test_something()
-    # test_QMC1()
-    # test_QMC1_random()
+    time_imp_diff()
