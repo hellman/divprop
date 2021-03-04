@@ -52,7 +52,7 @@ def tool_sbox2divcore():
     )
     parser.add_argument(
         "-o", "--output", type=str, default=None,
-        help="Output file (default: data/divcore.{name}) (.set will be appended)",
+        help="Output file (default: data/sbox_{name}/divcore) (.set will be appended)",
     )
 
     parser.add_argument(
@@ -68,7 +68,7 @@ def tool_sbox2divcore():
     except FileExistsError:
         pass
 
-    output = args.output or f"data/{name}/divcore"
+    output = args.output or f"data/sbox_{name}/divcore"
 
     log.info(f"computing division core for '{name}', output to {output}")
     dc = DenseDivCore.from_sbox(sbox, n, m)
