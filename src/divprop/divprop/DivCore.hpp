@@ -19,7 +19,7 @@ struct tpl_DivCore_StrongComposition {
     std::vector<DenseSet> current;
     std::vector<T> tab1;
     std::vector<T> tab2;
-    std::vector<uint64_t> keys_left;
+    std::vector<T> keys_left;
     DenseSet _ones;
 
     DenseSet divcore;
@@ -31,11 +31,18 @@ struct tpl_DivCore_StrongComposition {
     ) :
     n(_n), r(_r), m(_m), tab1(_tab1), tab2(_tab2), _ones(n), divcore(n + m)
     {
+        ensure((uint64_t)n <= sizeof(T)*8);
+        ensure((uint64_t)r <= sizeof(T)*8);
+        ensure((uint64_t)m <= sizeof(T)*8);
         fori (k, 1ull << r) {
             keys_left.push_back(k);
         }
         _ones.fill();
         current.assign(1ull << m, DenseSet(n));
+    }
+
+    void set_keys(const std::vector<T> keys) {
+        keys_left = keys;
     }
 
     #ifdef SWIG
