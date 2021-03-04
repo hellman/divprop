@@ -37,7 +37,10 @@ def setup(level='INFO'):
     logger.info(f"starting at {now}")
 
 
-def addFileHandler(filename):
+def addFileHandler(filename, append_date=True):
+    if append_date:
+        date = datetime.now().strftime("%Y-%m-%d.%H:%M:%S")
+        filename += "." + date
     fh = logging.FileHandler(filename + '.debug.log')
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(DeltaTimeFormatter(
