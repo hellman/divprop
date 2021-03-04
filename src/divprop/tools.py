@@ -153,12 +153,16 @@ def tool_divcore2bounds():
 
     log.info("generating bounds...")
 
-    mid = dc.MinDPPT().Not(dc.mask_u)
+    mid = dc.MinDPPT()
+    log.info(f"min-dppt: {mid}")
+
+    mid.do_Not(dc.mask_u)
     lb = dc.LB()
     dclo = dc.data  # = mid.MinSet()
     dcup = mid.MaxSet()
 
     for typ in "lb", "ubc", "ubo":
+        log.info(f"")
         log.info(f"Type {typ}")
 
         if typ == "lb":
