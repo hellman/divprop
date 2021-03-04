@@ -1,6 +1,5 @@
 import os
 import hashlib
-from datetime import datetime
 
 import argparse
 from argparse import RawTextHelpFormatter
@@ -94,8 +93,7 @@ Default subset method:
         sbox = get_sbox(args.sbox)
 
     if os.path.exists("logs/.divprop"):
-        date = datetime.now().strftime("%Y-%m-%d.%H:%M:%S")
-        logging.addFileHandler(f"logs/{name}.{date}")
+        logging.addFileHandler(f"logs/sbox_ineqs.{name}")
 
     log.info(args)
 
@@ -115,8 +113,8 @@ Default subset method:
     log.info(f"generators: {' '.join(generators)}")
 
     output = args.output
-    if output is None and os.path.isfile("results/.divprop"):
-        output = f"results/{name}"
+    if output is None and os.path.isfile("data/.divprop"):
+        output = f"data/sbox_ineqs.{name}"
         log.info(f"using auto output {output}")
 
     log.info(f"using output file {output}")
@@ -237,7 +235,7 @@ def process_sbox(name, sbox, gens=DEFAULT_GENS_LARGE, subset_method="milp", outp
         )
 
         if output:
-            filename = f"{output}.{typ}.%d_ineq" % len(Lstar)
+            filename = f"{output}.{typ}.%d" % len(Lstar)
             with open(filename, "w") as f:
                 print(len(Lstar), file=f)
                 for eq in Lstar:
@@ -251,7 +249,7 @@ def process_sbox(name, sbox, gens=DEFAULT_GENS_LARGE, subset_method="milp", outp
         else:
             Lstar = ret["lb"] + ret["ubo"]
 
-        filename = f"{output}.full.%d_ineq" % len(Lstar)
+        filename = f"{output}.full.%d" % len(Lstar)
         with open(filename, "w") as f:
             print(len(Lstar), file=f)
             for eq in Lstar:
