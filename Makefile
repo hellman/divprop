@@ -21,8 +21,7 @@ test:
 	#sage -sh -c 'pytest tests/ tests_sage/'
 
 clean:
-	rm -rf build *.egg-info __pycache__
-	rm -f src/divprop/subsets/*_wrap*
+	rm -rf build dist *.egg-info __pycache__
 	rm -f src/divprop/*_wrap*
 	rm -f src/divprop/libsubsets.py
 	rm -f src/divprop/*.so
