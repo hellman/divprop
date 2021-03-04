@@ -10,6 +10,8 @@ from divprop.divcore import DenseDivCore
 from divprop.inequalities import InequalitiesPool, satisfy
 import divprop.logging as logging
 
+from divprop.sbox import get_sbox, get_sbox_sizes
+
 logging.setup(level="INFO")
 log = logging.getLogger(__name__)
 
@@ -51,7 +53,7 @@ def main():
     default_chain_medium_str = " ".join(DEFAULT_GENS_MEDIUM)
     default_chain_large_str = " ".join(DEFAULT_GENS_LARGE)
     parser = argparse.ArgumentParser(description=f"""
-Generate inequalities to model s-box division property propagation.
+Generate inequalities to model S-box division property propagation.
 Default chain:
     {default_chain_small_str}
 Default chain for (n+m) >= {MEDIUM}:
@@ -64,7 +66,7 @@ Default subset method:
 
     parser.add_argument(
         "sbox", type=str,
-        help="S-Box (name or comma repr e.g. 2,1,0,3)",
+        help="S-box (name or comma repr e.g. 2,1,0,3)",
     )
     parser.add_argument(
         "generators", type=str, nargs="*",
@@ -80,7 +82,7 @@ Default subset method:
     )
     parser.add_argument(
         "-o", "--output", type=str, default=None,
-        help="S-Box (name or comma repr e.g. 2,1,0,3)",
+        help="Output filename",
     )
 
     args = parser.parse_args()
@@ -160,22 +162,6 @@ def parse_method(s):
         args = []
         kwargs = {}
     return s, args, kwargs
-
-
-def get_sbox(name):
-    for k, sbox in sboxes.items():
-        if k.lower() == name.lower():
-            sbox = tuple(map(int, sbox))
-            return sbox
-    raise KeyError()
-
-
-def get_sbox_sizes(sbox):
-    n = int(len(sbox)-1).bit_length()
-    m = max(int(y).bit_length() for y in sbox)
-    assert len(sbox) == 2**n
-    assert 0 <= 2**(m-1) <= max(sbox) < 2**m
-    return n, m
 
 
 def process_sbox(name, sbox, gens=DEFAULT_GENS_LARGE, subset_method="milp", output=None):
