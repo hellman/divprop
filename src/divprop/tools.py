@@ -96,15 +96,25 @@ def tool_setinfo():
         "-p", "--print", action="store_true",
         help="Print full set",
     )
+    parser.add_argument(
+        "-s", "--short", action="store_true",
+        help="Print one-line description per set",
+    )
     args = parser.parse_args()
 
     log.info(args)
+    if args.short:
+        DenseSet.set_quiet()
 
+    mxlen = max(map(len, args.filename))
     for filename in args.filename:
-        log.info(f"set file {filename}")
+        if not args.short:
+            log.info(f"set file {filename}")
         s = DenseSet.load_from_file(filename)
 
-        log.info(s)
+        log.info(f"{filename.rjust(mxlen)}: {s}")
+        if args.short:
+            continue
 
         stat = s.get_counts_by_weights()
 

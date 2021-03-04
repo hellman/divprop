@@ -27,9 +27,11 @@ struct DenseSet {
     bool __bool__() const;
     bool is_full() const;
 
-    static bool QUIET;  // set to true to disable stderr printing
     static const uint64_t VERSION1 = 0xf1c674e0bf03fea6ull;
     static const uint64_t MARKER_END = 0xc6891a2b5f8bb0b7ull;
+    static bool QUIET;  // set to true to disable stderr printing
+
+    static void set_quiet(bool value=true);
 
     // ========================================
     // Read/Write & info
@@ -37,9 +39,8 @@ struct DenseSet {
     void save_to_file(const char *filename) const;
     static DenseSet load_from_file(const char *filename);
     uint64_t get_hash() const;
-    std::string info(const char *name = NULL) const;
+    std::string info() const;
     std::string __str__() const;
-    void log_info(const char *name = NULL) const;
 
     // ========================================
     // Single bit get/set

@@ -6,6 +6,10 @@
 
 bool DenseSet::QUIET = false;
 
+void DenseSet::set_quiet(bool value) {
+    DenseSet::QUIET = value;
+}
+
 static uint64_t __get_lo_mask(int n) {
     ensure(n >= 0);
     if (n >= 6) {
@@ -606,20 +610,15 @@ uint64_t DenseSet::get_hash() const {
     }
     return h;
 }
-std::string DenseSet::info(const char *name) const {
-    string sname = name ? name : "?";
+std::string DenseSet::info() const {
     char buf[4096];
     snprintf(
         buf, 4000,
-        "%016lx:%s n=%d wt=%lu | ",
-        get_hash(), sname.c_str(), n, get_weight()
+        "%016lx n=%d wt=%lu | ",
+        get_hash(), n, get_weight()
     );
-
     return string(buf) + str_stat_by_weights();
 }
 std::string DenseSet::__str__() const {
-    return info(NULL);
-}
-void DenseSet::log_info(const char *name) const {
-    fprintf(stderr, "%s\n", info(name).c_str());
+    return info();
 }
