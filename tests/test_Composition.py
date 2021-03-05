@@ -40,6 +40,13 @@ def check_one_DPPT(sbox, n, m, dppt):
     ans = DenseDivCore.from_sbox(sbox, n, m)
     assert test1.divcore == test2.divcore == ans.data
 
+    test = DivCore_StrongComposition(n, n, n, sbox, sbox)
+    test.set_keys([0])
+    test.process()
+    sbox2 = [sbox[y] for y in sbox]
+    ans = DenseDivCore.from_sbox(sbox2, n, m)
+    assert test.divcore == ans.data
+
 
 if __name__ == '__main__':
     test_DPPT()
