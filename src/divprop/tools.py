@@ -64,7 +64,7 @@ def tool_sbox2divcore():
 
     name, sbox, n, m = parse_sbox(args.sbox)
     try:
-        os.mkdir(f"data/{name}")
+        os.mkdir(f"data/sbox_{name}")
     except FileExistsError:
         pass
 
@@ -165,14 +165,16 @@ def tool_divcore2bounds():
 
     mid = dc.MinDPPT()
     log.info(f"min-dppt: {mid}")
-
     mid.do_Not(dc.mask_u)
+    log.info(f"     M_S: {mid}")
+
     lb = dc.LB()
+    assert mid.UpperSet().Complement().MaxSet() == lb
     dclo = dc.data  # = mid.MinSet()
     dcup = mid.MaxSet()
 
     for typ in "lb", "ubc", "ubo":
-        log.info(f"")
+        log.info("")
         log.info(f"Type {typ}")
 
         if typ == "lb":

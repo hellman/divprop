@@ -103,6 +103,7 @@ TTi void _ensure(T cond, const char *file, int lno, const char *func, const char
             fprintf(stderr, "error: %s\n", err);
         }
         fprintf(stderr, "at %s:%d %s (in %s)\n", file, lno, condstr, func);
+        perror("libc");
         exit(1);
     }
 }

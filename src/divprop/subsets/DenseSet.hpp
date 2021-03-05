@@ -87,7 +87,7 @@ struct DenseSet {
     DenseSet operator^(const DenseSet & b) const;
     DenseSet operator&(const DenseSet & b) const;
     DenseSet operator-(const DenseSet & b) const;
-    DenseSet operator~() const;
+    // DenseSet operator~() const;
 
     DenseSet get_head_fixed(int h, uint64_t value);
 

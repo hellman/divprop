@@ -11,7 +11,7 @@ void DenseSet::set_quiet(bool value) {
 }
 
 static uint64_t __get_lo_mask(int n) {
-    ensure(n >= 0);
+    ensure(n >= 0, "n must be non-negative");
     if (n >= 6) {
         return -1ull;
     }
@@ -133,7 +133,7 @@ bool DenseSet::is_compatible_set(const DenseSet & b) const {
     return n == b.n && data.size() == b.data.size();
 }
 bool DenseSet::operator==(const DenseSet & b) const {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     auto &data2 = b.data;
     fori(i, data.size()) {
         if (data[i] == data2[i]) continue;
@@ -142,7 +142,7 @@ bool DenseSet::operator==(const DenseSet & b) const {
     return true;
 }
 bool DenseSet::operator!=(const DenseSet & b) const {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     auto &data2 = b.data;
     fori(i, data.size()) {
         if (data[i] == data2[i]) continue;
@@ -151,7 +151,7 @@ bool DenseSet::operator!=(const DenseSet & b) const {
     return false;
 }
 bool DenseSet::operator<(const DenseSet & b) const {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     auto &data2 = b.data;
     bool not_equal = 0;
     fori(i, data.size()) {
@@ -162,7 +162,7 @@ bool DenseSet::operator<(const DenseSet & b) const {
     return not_equal;
 }
 bool DenseSet::operator>(const DenseSet & b) const {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     auto &data2 = b.data;
     bool not_equal = 0;
     fori(i, data.size()) {
@@ -173,7 +173,7 @@ bool DenseSet::operator>(const DenseSet & b) const {
     return not_equal;
 }
 bool DenseSet::operator<=(const DenseSet & b) const {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     auto &data2 = b.data;
     fori(i, data.size()) {
         if (data[i] == data2[i]) continue;
@@ -182,7 +182,7 @@ bool DenseSet::operator<=(const DenseSet & b) const {
     return true;
 }
 bool DenseSet::operator>=(const DenseSet & b) const {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     auto &data2 = b.data;
     fori(i, data.size()) {
         if (data[i] == data2[i]) continue;
@@ -193,28 +193,28 @@ bool DenseSet::operator>=(const DenseSet & b) const {
 }
 
 DenseSet & DenseSet::operator|=(const DenseSet & b) {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     fori (i, data.size()) {
         data[i] |= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator^=(const DenseSet & b) {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     fori (i, data.size()) {
         data[i] ^= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator&=(const DenseSet & b) {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     fori (i, data.size()) {
         data[i] &= b.data[i];
     }
     return *this;
 }
 DenseSet & DenseSet::operator-=(const DenseSet & b) {
-    ensure(is_compatible_set(b));
+    ensure(is_compatible_set(b), "sets have different dimensions");
     fori (i, data.size()) {
         data[i] &= ~b.data[i];
     }
@@ -240,9 +240,10 @@ DenseSet DenseSet::operator-(const DenseSet & b) const {
     res -= b;
     return res;
 }
-DenseSet DenseSet::operator~() const {
-    return Complement();
-}
+// ambigous...
+// DenseSet DenseSet::operator~() const {
+//     return Complement();
+// }
 
 DenseSet DenseSet::get_head_fixed(int h, uint64_t value) {
     ensure(value < (1ull << h));
@@ -526,7 +527,7 @@ void DenseSet::save_to_file(const char *filename) const {
     vector<uint64_t> supp = get_support();
 
     FILE *fd = fopen(filename, "w");
-    ensure(fd);
+    ensure(fd, "can not open file");
 
     uint64_t header = DenseSet::VERSION1;
     uint64_t vn = n;
@@ -556,7 +557,7 @@ void DenseSet::save_to_file(const char *filename) const {
 }
 DenseSet DenseSet::load_from_file(const char *filename) {
     FILE *fd = fopen(filename, "r");
-    // ensure(fd);
+    ensure(fd, "can not open file");
 
     DenseSet res;
 
@@ -589,12 +590,12 @@ DenseSet DenseSet::load_from_file(const char *filename) {
 
         uint64_t marker;
         fread(&marker, 8, 1, fd);
-        ensure(marker == MARKER_END);
+        ensure(marker == MARKER_END, "file format error");
 
         fclose(fd);
     }
     else {
-        ensure(0, "unknown version");
+        ensure(0, "unknown set file version");
     }
     return res;
 }

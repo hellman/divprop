@@ -11,23 +11,23 @@ from test_sboxes import get_sboxes
 def test_DivCore():
     s = [1, 2, 3, 4, 0, 7, 6, 5]
     n = m = 3
-    dc = DenseDivCore.from_sbox(s, n, m, log=True)
+    dc = DenseDivCore.from_sbox(s, n, m, debug=True)
 
-    assert dc.data.info("divcore") == \
-        "dfa780cfc382387a:divcore n=6 wt=12 | 2:3 3:9"
+    assert dc.data.info() == \
+        "dfa780cfc382387a n=6 wt=12 | 2:3 3:9"
     assert dc.data.get_support() == \
         (7, 11, 12, 19, 20, 25, 35, 36, 42, 49, 50, 56)
 
-    assert dc.LB().info("LB") == \
-        "9fe09c93bbcdbb87:LB n=6 wt=8 | 2:6 3:2"
-    assert dc.UB(method="redundant").info("UB") == \
-        "60f7fb1d9a638a50:UB n=6 wt=12 | 3:6 4:6"
-    assert dc.UB(method="complement").info("UB") == \
-        "449b201e8a75f016:UB n=6 wt=10 | 3:8 4:2"
-    assert dc.FullDPPT().info("FullDPPT") == \
-        "b712d2af3b433a45:FullDPPT n=6 wt=43 | 0:1 1:3 2:10 3:13 4:12 5:3 6:1"
-    assert dc.MinDPPT().info("MinDPPT") == \
-        "ff7ce5b30da61490:MinDPPT n=6 wt=15 | 0:1 2:7 3:3 4:3 6:1"
+    assert dc.LB().info() == \
+        "9fe09c93bbcdbb87 n=6 wt=8 | 2:6 3:2"
+    assert dc.UB(method="redundant").info() == \
+        "60f7fb1d9a638a50 n=6 wt=12 | 3:6 4:6"
+    assert dc.UB(method="complement").info() == \
+        "449b201e8a75f016 n=6 wt=10 | 3:8 4:2"
+    assert dc.FullDPPT().info() == \
+        "b712d2af3b433a45 n=6 wt=43 | 0:1 1:3 2:10 3:13 4:12 5:3 6:1"
+    assert dc.MinDPPT().info() == \
+        "ff7ce5b30da61490 n=6 wt=15 | 0:1 2:7 3:3 4:3 6:1"
 
     assert dc.LB().get_support() == \
         (3, 5, 6, 17, 26, 34, 41, 48)
@@ -86,14 +86,14 @@ def check_one_DPPT(sbox, n, m, dppt):
             mindppt1.add((u << m) | v)
     mindppt1 = tuple(sorted(mindppt1))
 
-    dc = DenseDivCore.from_sbox(sbox, n, m, log=True)
+    dc = DenseDivCore.from_sbox(sbox, n, m, debug=True)
     assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
     assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
     assert dc.FullDPPT() == dc.data.UpperSet().Not(dc.mask_u)
 
 
 def check_one_relations(sbox, n, m):
-    dc = DenseDivCore.from_sbox(sbox, n, m, log=True)
+    dc = DenseDivCore.from_sbox(sbox, n, m, debug=True)
 
     mid = dc.MinDPPT().Not(dc.mask_u)
     lb = dc.LB()
@@ -107,8 +107,8 @@ def check_one_relations(sbox, n, m):
     assert form_partition(mid, lb.LowerSet() | ubc.UpperSet())
     assert form_partition(lb.LowerSet(), mid, ubr.UpperSet())
 
-    assert ubr.UpperSet() == ~(mid.LowerSet() | lb.LowerSet())
-    assert ubc.UpperSet() == ~(mid.LowerSet())
+    assert ubr.UpperSet() == (mid.LowerSet() | lb.LowerSet()).Complement()
+    assert ubc.UpperSet() == (mid.LowerSet()).Complement()
 
     print(
         "LB", len(dc.LB()),

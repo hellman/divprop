@@ -8,6 +8,11 @@ from divprop.subsets import (
     DivCore_StrongComposition64,
 )
 
+import divprop.logs as logging
+
+
+log = logging.getLogger(__name__)
+
 
 def mask(m):
     return (1 << m) - 1
@@ -31,28 +36,57 @@ class DenseDivCore:
         self.mask_v = mask(m)
 
     @classmethod
-    def from_sbox(cls, sbox, n, m, log=False):
+    def from_sbox(cls, sbox, n, m, debug=False):
         graph = Sbox2GI(sbox, n, m)
 
-        if log:
-            graph.log_info("graph")
+        if debug:
+            log.info(f"  graph {graph}")
 
         graph.do_Mobius()
 
-        if log:
-            graph.log_info("anf")
+        if debug:
+            log.info(f"    anf {graph}")
 
         graph.do_MaxSet()
 
-        if log:
-            graph.log_info("anf-max")
+        if debug:
+            log.info(f"anf-max {graph}")
 
         graph.do_Not()
 
-        if log:
-            graph.log_info("divcore")
+        if debug:
+            log.info(f"divcore {graph}")
 
         return cls(graph, n, m)
+
+    def get_Invalid(self) -> DenseSet:
+        """Set I_S from the paper"""
+        return self.data.ComplementU2L()
+
+    def get_Minimal(self) -> DenseSet:
+        """Set M_S from the paper. = MinDPPT up to negating (u)."""
+        ret = self.data.copy()
+        ret.do_UpperSet(self.mask_u)
+        ret.do_MinSet(self.mask_v)
+        return ret
+
+    def get_Minimal_Bounds(self) -> (DenseSet, DenseSet):
+        """Set M_S from the paper, in the form of its (MinSet,Maxset)"""
+        ret = self.get_Minimal()
+        ret.do_MaxSet()
+        return self.data.copy(), ret
+
+    def get_Redundant(self) -> DenseSet:
+        ret = self.data.copy()
+        ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
+        ret.do_MinSet()
+        return ret
+
+    def get_RedundantAlternative(self) -> DenseSet:
+        ret = self.get_Minimal()
+        ret.do_MaxSet()
+        ret.do_ComplementL2U()
+        return ret
 
     def LB(self) -> DenseSet:
         """
@@ -83,8 +117,8 @@ class DenseDivCore:
             ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
             ret.do_MinSet()
         else:
-            #ret = self.MinDPPT()
-            #ret.do_Not(self.mask_u)
+            # ret = self.MinDPPT()
+            # ret.do_Not(self.mask_u)
             ret = self.data.copy()
             ret.do_UpperSet(self.mask_u)
             ret.do_MinSet(self.mask_v)
