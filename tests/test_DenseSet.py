@@ -34,6 +34,13 @@ def test_DenseSet():
     assert b.info() == 'f01a3338f076a640 n=6 wt=6 | 0:1 1:3 2:2'
     assert b.info() == 'f01a3338f076a640 n=6 wt=6 | 0:1 1:3 2:2'
 
+    try:
+        a.save_to_file("/NON-EXISTENT STUFF")
+    except RuntimeError as e:
+        print("exception good:", e)
+    else:
+        assert 0, "exception not raised"
+
 
 def test_properties():
     for n in range(1, 12):

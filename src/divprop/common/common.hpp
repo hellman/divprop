@@ -3,6 +3,7 @@
 #include <bits/stdc++.h>
 #include <string>
 #include <vector>
+#include <exception>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -99,11 +100,8 @@ inline u64 GF_MUL(u64 x, u64 y, int n, u64 poly) {
 
 TTi void _ensure(T cond, const char *file, int lno, const char *func, const char *condstr, const char * err) {
     if (!cond) {
-        if (err) {
-            fprintf(stderr, "error: %s\n", err);
-        }
-        fprintf(stderr, "at %s:%d %s (in %s)\n", file, lno, condstr, func);
-        perror("libc");
-        exit(1);
+        string res;
+        res = res + err + " (at " + file + ":" + to_string(lno) + ":" + func + " " + ", expression: " + condstr + " )";
+        throw std::runtime_error(res.c_str());
     }
 }
