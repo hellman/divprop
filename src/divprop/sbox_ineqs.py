@@ -10,15 +10,13 @@ from divprop.divcore import DenseDivCore
 from divprop.inequalities import InequalitiesPool, satisfy
 import divprop.logs as logging
 
-from divprop.sbox import get_sbox, get_sbox_sizes
+from divprop.tools import get_sbox, get_sbox_sizes
 
-logging.setup(level="INFO")
 log = logging.getLogger(__name__)
 
 # sage/pure python compatibility
 try:
     import sage.all
-    from sage.crypto.sboxes import sboxes
     is_sage = True
 except ImportError:
     logging.warning("running outside of SageMath")
@@ -49,6 +47,8 @@ DEFAULT_SUBSET = "milp:solver=GLPK"
 
 
 def main():
+    logging.setup(level="INFO")
+
     default_chain_small_str = " ".join(DEFAULT_GENS_SMALL)
     default_chain_medium_str = " ".join(DEFAULT_GENS_MEDIUM)
     default_chain_large_str = " ".join(DEFAULT_GENS_LARGE)
@@ -74,10 +74,6 @@ Default subset method:
     )
     parser.add_argument(
         "--subset", type=str, default="milp",
-        help="Subset algorithm ('milp' or 'greedy:n' where n is number of iter.)",
-    )
-    parser.add_argument(
-        "--convex", type=str, default="milp",
         help="Subset algorithm ('milp' or 'greedy:n' where n is number of iter.)",
     )
     parser.add_argument(

@@ -59,7 +59,8 @@ class InequalitiesPool:
         if ineqs is None:
             ineqs = self.pool
         for p in self.points_bad:
-            assert any(not satisfy(p, ineq) for ineq in ineqs)
+            assert any(not satisfy(p, ineq) for ineq in ineqs), \
+                "insufficient inequalities"
 
     def check(self, ineqs=None):
         self.check_good(ineqs)
