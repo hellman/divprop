@@ -1,5 +1,5 @@
 from binteger import Bin
-from divprop.subsets import DynamicLowerSet, DenseSet
+from divprop.subsets import DynamicLowerSet, DynamicUpperSet, DenseSet
 from random import randrange, seed
 
 
@@ -9,6 +9,7 @@ def test_Dynamic():
     n = 8
 
     for i in range(10):
+        # lower set
         sparse = DynamicLowerSet((), n)
         dense = DenseSet(n)
         for j in range(100):
@@ -23,7 +24,6 @@ def test_Dynamic():
 
             if i > 5:
                 v = randrange(2**n)
-                v = 1
                 # print()
                 # print(*sorted([Bin(v, n).str for v in sparse.set]))
                 # print(*sorted([Bin(v, n).str for v in dense]))
@@ -37,6 +37,29 @@ def test_Dynamic():
 
                 # print(*[Bin(v, n).str for v in sparse.set])
                 # print(*[Bin(v, n).str for v in dense])
+                assert sparse.set == set(dense)
+
+        # upper set
+        sparse = DynamicUpperSet((), n)
+        dense = DenseSet(n)
+        for j in range(100):
+            v = randrange(2**n)
+
+            dense.add(v)
+            dense.do_MinSet()
+
+            sparse.add_upper_singleton(v)
+
+            assert sparse.set == set(dense)
+
+            if i > 5 and 1:
+                v = randrange(2**n)
+
+                rem = DenseSet((v,), n).LowerSet()
+                dense = (dense.UpperSet() & rem.Complement()).MinSet()
+
+                sparse.remove_lower_singleton(v)
+
                 assert sparse.set == set(dense)
 
 
