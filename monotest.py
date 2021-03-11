@@ -1,12 +1,16 @@
-from divprop.inequalities.monopool import MonotoneInequalitiesPool
+from divprop.inequalities.monopool import MonotoneInequalitiesPool, LPbasedOracle
 from divprop.inequalities.base import satisfy, inner
 from divprop.subsets import DenseSet
 from divprop import logging
+from binteger import Bin
+
 
 logging.setup()
 log = logging.getLogger()
 
 fileprefix = "/work/division/workspace/data/sbox_skinny_4/divcore.lb"
+fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
+fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
 
 points_good = DenseSet.load_from_file(fileprefix + ".good.set")
 points_bad = DenseSet.load_from_file(fileprefix + ".bad.set")
@@ -34,6 +38,7 @@ pool = MonotoneInequalitiesPool(
     points_bad=points_bad.to_Bins(),
     type_good=type_good,
 )
+pool.oracle = LPbasedOracle(solver="GLPK")
 print(pool.oracle.n_calls)
 pool.LSL.log_info()
 
@@ -44,16 +49,27 @@ pool.LSL.log_info()
 pool.gen_dfs()
 
 print("calls", pool.oracle.n_calls)
+
 pool.LSL.log_info()
 
+from itertools import combinations
+for l in range(pool.N+1):
+    for t in combinations(range(pool.N), l):
+        t = pool.LSL.encode_fset(t)
+        test1 = pool.LSL.is_already_feasible(t)
+        test2 = pool.LSL.is_already_infeasible(t)
+        # print(t, test1, test2)
+        assert test1 ^ test2
 
-for fset in pool.LSL.infeasible:
+for fset in pool.LSL.infeasible.set:
     assert not pool.oracle.query(fset)
 
-for fset, data in pool.LSL.feasible.items():
-    print("fset", sorted(fset), "ineq", data.ineq)
-    assert all(satisfy(q, data.ineq) for q in pool.hi)
-    assert all(not satisfy(pool.i2lo[i], data.ineq) for i in fset)
+for fset in pool.LSL.feasible.set:
+    ineq = pool.LSL.solution[fset].ineq
+    fset = Bin(fset, pool.N).support()
+    print("fset", fset, "ineq", ineq)
+    assert all(satisfy(q, ineq) for q in pool.hi)
+    assert all(not satisfy(pool.i2lo[i], ineq) for i in fset)
 
 # fset [3, 8, 10, 11, 13, 14] ineq (5, 2, 1, 7, 3, 5, 4, 8, -11)
 # fset [8, 9, 11, 14, 15, 16] ineq (2, 1, 4, 3, 3, 5, 7, 8, -10)

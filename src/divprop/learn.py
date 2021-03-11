@@ -1,11 +1,19 @@
 import logging
 
+from random import choice, shuffle, randrange
+
 from collections import Counter
 from queue import PriorityQueue
 
 from binteger import Bin
 
-from divprop.subsets import DynamicLowerSet, DynamicUpperSet
+from divprop.subsets import (
+    DynamicLowerSet,
+    DynamicUpperSet,
+    OptDynamicUpperSet,
+    support_int_le,
+    antisupport_int_le,
+)
 
 log = logging.getLogger(__name__)
 
@@ -117,14 +125,16 @@ class DenseLowerSetLearn:
 
         self.solution = {}  # data for feasible
 
-        self.unknown_upper = DynamicUpperSet([0], n=self.N)
-        self.unknown_lower = DynamicLowerSet([2**self.N-1], n=self.N)
+        # self.unknown_upper = DynamicUpperSet([0], n=self.N)
+        self.unknown_upper = OptDynamicUpperSet([0], n=self.N)
+        # self.unknown_lower = DynamicLowerSet([2**self.N-1], n=self.N)
 
         # self.unknown_queue = PriorityQueue()
         # self.unknown_set = set()
 
     def finished(self):
-        return len(self.unknown_upper.set) == len(self.unknown_lower.set) == 0
+        # return len(self.unknown_upper.set) == len(self.unknown_lower.set) == 0
+        return len(self.unknown_upper.set) == 0
 
     def _clean_solution(self):
         todel = [k for k in self.solution if k not in self.feasible.set]
@@ -135,7 +145,7 @@ class DenseLowerSetLearn:
         log.info("stat:")
         for (name, s) in [
             ("unk upper", self.unknown_upper.set),
-            ("unk lower", self.unknown_lower.set),
+            # ("unk lower", self.unknown_lower.set),
             ("feasible", self.feasible.set),
             ("infeasible", self.infeasible.set),
         ]:
@@ -150,10 +160,10 @@ class DenseLowerSetLearn:
 
     def is_already_feasible(self, v):
         # quick check
-        if v in self.feasible:
+        if v in self.feasible.set:
             return True
         # is in feasible lowerset?
-        for u in self.feasible:
+        for u in self.feasible.set:
             # v <= u
             if v & u == v:
                 return True
@@ -161,10 +171,10 @@ class DenseLowerSetLearn:
 
     def is_already_infeasible(self, v):
         # quick check
-        if v in self.infeasible:
+        if v in self.infeasible.set:
             return True
         # is in infeasible upperset?
-        for u in self.infeasible:
+        for u in self.infeasible.set:
             # v >= u
             if v | u == v:
                 return True
@@ -173,15 +183,17 @@ class DenseLowerSetLearn:
     def add_feasible(self, v, sol=None, check=True):
         if check and v in self.feasible:
             return
-        assert v not in self.infeasible
+        # assert v not in self.infeasible
         self.feasible.add_lower_singleton(v, check=False)
-        self.unknown_lower.remove_lower_singleton_extremes(v)
+        # self.unknown_lower.remove_lower_singleton_extremes(v)
         self.unknown_upper.remove_lower_singleton(v)
         if 1:
             # can be replaced by check in pulling loop
             for u in self.unknown_upper._added_last:
-                if u not in self.unknown_lower:
+                if u in self.infeasible:
                     self.unknown_upper.set.remove(u)
+                # if u not in self.unknown_lower:
+                #     self.unknown_upper.set.remove(u)
 
         self.solution[v] = sol
         self._clean_solution()
@@ -189,34 +201,75 @@ class DenseLowerSetLearn:
     def add_infeasible(self, v, check=True):
         if check and v in self.infeasible:
             return
-        assert v not in self.feasible
+        # assert v not in self.feasible
         self.infeasible.add_upper_singleton(v, check=False)
-        self.unknown_upper.remove_upper_singleton_extremes(v)
-        self.unknown_lower.remove_upper_singleton(v)
-        for u in self.unknown_lower._added_last:
-            if u not in self.unknown_upper:
-                self.unknown_lower.set.remove(u)
+        # self.unknown_upper.remove_upper_singleton_extremes(v)
+        # self.unknown_lower.remove_upper_singleton(v)
+        # for u in self.unknown_lower._added_last:
+        #     if u not in self.unknown_upper:
+        #         self.unknown_lower.set.remove(u)
 
     def learn_simple(self, oracle, sol_encoder=lambda v: v):
         while not self.finished():
-            todel = set()
+            if oracle.n_calls % 100 == 0:
+                print("n_calls", oracle.n_calls)
+                self.log_info()
+
+            if 0:
+                for lo in self.unknown_upper.set:
+                    break
+                for hi in self.unknown_lower.set:
+                    if lo & hi == lo:  # lo <= hi
+                        break
+                inds = support_int_le(lo ^ hi, self.N)
+                shuffle(inds)
+                inds = inds[:len(inds)//4]
+                fset = lo + sum(1 << i for i in inds)
+
+            todel = []
             for fset in self.unknown_upper.set:
-                if fset not in self.unknown_lower:
-                    todel.add(fset)
+                if fset in self.infeasible:
+                    todel.append(fset)
                 else:
                     break
-            # if fset in self.feasible or fset in self.infeasible:
-            #     continue
+
+            if len(todel) > 1:
+                print("todel", len(todel))
+            for v in todel:
+                self.unknown_upper.set.remove(v)
+
+            r = randrange(10)
+            indexes = list(antisupport_int_le(fset, self.N))
+            shuffle(indexes)
+            for i in indexes[:r]:
+                fset2 = fset | i
+                if fset2 in self.infeasible:
+                    break
+                fset = fset2
+
+            #fset = sorted(self.unknown_upper.set, key=lambda v: Bin(v).hw())[choice((0, -1))]
+            # fset = sorted(self.unknown_upper.set, key=lambda v: Bin(v).hw())[-1]
+            # for fset in self.unknown_lower.set:
+            #     break
+            # todel = set()
+            # for fset in self.unknown_upper.set:
+            #     if fset not in self.unknown_lower:
+            #         todel.add(fset)
+            #     else:
+            #         break
+            # assert not todel
+
+
             # print("chose", Bin(fset, self.N).str, end="; ")
-            # print("feas", fset in self.feasible, end="; ")
-            # print("infe", fset in self.infeasible, end="; ")
-            # print("unku", fset in self.unknown_upper, end="; ")
-            # print("unkl", fset in self.unknown_lower, end="; ")
+            # print("feas", len(self.feasible.set), end="; ")  # fset in self.feasible, end="; ")
+            # print("infe", len(self.infeasible.set), end="; ")  # fset in self.infeasible, end="; ")
+            # print("unku", len(self.unknown_upper.set), end="; ")  # fset in self.unknown_upper, end="; ")
+            # print("unkl", len(self.unknown_lower.set), end="; ")  # fset in self.unknown_lower, end="; ")
             # print()
-            assert fset not in self.feasible
-            assert fset not in self.infeasible
-            assert fset in self.unknown_upper
-            assert fset in self.unknown_lower
+            # assert fset not in self.feasible
+            # assert fset not in self.infeasible
+            # assert fset in self.unknown_upper
+            # assert fset in self.unknown_lower
             ineq = oracle.query(Bin(fset, self.N))
             # print("visit", Bin(fset, self.N).str, ":", ineq)
             if not ineq:

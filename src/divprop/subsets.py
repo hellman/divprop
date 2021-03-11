@@ -69,6 +69,44 @@ def QMC1(P, n=None):
     return S
 
 
+def hw(v):
+    return bin(v).count("1")
+
+
+class WeightedSet:
+    def __init__(self, spec, n):
+        self.n = int(n)
+        self.sets = [set() for i in range(self.n+1)]
+        for v in spec:
+            self.add(v)
+
+    def add(self, v):
+        self.sets[hw(v)].add(v)
+
+    def iter_ge(self, w=0):
+        for s in self.sets[w:]:
+            yield from s
+
+    def iter_le(self, w=None):
+        if w is None:
+            w = self.n
+        for s in self.sets[:w+1]:
+            yield from s
+
+    def __iter__(self):
+        return iter(self.iter_ge())
+
+    def __contains__(self, v):
+        return v in self.sets[hw(v)]
+
+    def remove(self, v):
+        s = self.sets[hw(v)]
+        return s.remove(v)
+
+    def __len__(self):
+        return sum(len(v) for v in self.sets)
+
+
 class DynamicExtremeSet:
     def __init__(self, spec, n):
         self.set = set(spec)
@@ -98,6 +136,7 @@ class DynamicLowerSet(DynamicExtremeSet):
                 for i in inds:
                     to_add.add(u ^ (1 << i))
 
+        # print("to_add", len(to_add))
         self._added_last = set()
         for u in to_add:
             if u not in self:
@@ -141,6 +180,7 @@ class DynamicUpperSet(DynamicExtremeSet):
                 for i in inds:
                     to_add.add(u ^ (1 << i))
 
+        # print("to_add", len(to_add))
         self._added_last = set()
         for u in to_add:
             if u not in self:
@@ -162,6 +202,84 @@ class DynamicUpperSet(DynamicExtremeSet):
         if v in self.set:
             return True
         for u in self.set:
+            if v | u == v:  # v >= u
+                return True
+        return False
+
+
+class OptDynamicUpperSet:
+    def __init__(self, spec, n):
+        self.set = set(spec)
+        self.set = WeightedSet(spec, n)
+        self.n = int(n)
+
+    def to_DenseSet(self):
+        return DenseSet(tuple(self.set), self.n)
+
+    def remove_lower_singleton(self, v: int):
+        inds = antisupport_int_le(v, self.n)
+
+        self._added_last = set()
+        for w in range(hw(v) + 1):
+            to_split = set()
+            for u in self.set.sets[w]:
+                # v >= u?
+                if v | u == v:
+                    # intersection, split
+                    to_split.add(u)
+
+            for u in to_split:
+                self.set.sets[w].remove(u)
+                for i in inds:
+                    uu = u ^ (1 << i)
+                    if 0:
+                        self.set.sets[w+1].add(uu)
+                        self._added_last.add(uu)
+                    else:
+                        for vv in self.set.iter_le(w):
+                            if vv & uu == vv:
+                                break
+                        else:
+                            self.set.sets[w+1].add(uu)
+                            self._added_last.add(uu)
+
+            # for u in to_add:
+            #     good = 1
+            #     for ww in range(w):
+            #         for v in self.set.sets[ww]:
+            #             if v & u == v:
+            #                 good = 0
+            #                 break
+            #         if not good:
+            #             break
+            #     if good or 1:
+            #         self.set.sets[w+1].add(u)
+            #         pass
+            # print("to_add", len(to_add))
+            # for u in to_add:
+            #     if u not in self.set:
+            #         newset.add(u)
+
+    # def add_upper_singleton(self, v: int, check=True):
+    #     if check and v in self:
+    #         return False
+
+    #     for w in range(hw(v)+1, self.N+1):
+    #         todel = {u for u in self.set.sets[w] if u | v == u}
+    #         self.set.sets[w] -= todel
+
+    #     self.set.add(v)
+    #     return True
+
+    # def remove_upper_singleton_extremes(self, v: int):
+    #     """remove elements from the maxset that are >= v"""
+    #     self.set = {u for u in self.set if not (u | v == u)}
+
+    def __contains__(self, v: int):
+        if v in self.set:
+            return True
+        for u in self.set:
+        # for u in self.set.iter_ge(hw(v) + 1):
             if v | u == v:  # v >= u
                 return True
         return False
