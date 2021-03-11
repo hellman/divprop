@@ -35,6 +35,33 @@ def QMC1(P, n=None):
         X.do_UpperSet()
         X.do_Complement()
 
+        # interesting experiment
+        if 0:
+            AU = DenseSet(n)
+            nota = (2**n-1) ^ a
+            AU.set(nota)
+            AU.do_LowerSet()
+            test1 = X.MaxSet() & AU
+            test2 = (X & AU).MaxSet()
+            print("A", Bin(a, n))
+            if test1 != test2:
+                print("X", X)
+                for v in [Bin(v, n) for v in X]:
+                    print(v)
+                print("X & AU", X & AU)
+                for v in [Bin(v, n) for v in X & AU]:
+                    print(v)
+                print("X maxset", X.MaxSet())
+                for v in [Bin(v, n) for v in X.MaxSet()]:
+                    print(v)
+                print("X maxset & AU", test1)
+                for v in [Bin(v, n) for v in test1]:
+                    print(v)
+                print("X & AU -> maxset", test2)
+                for v in [Bin(v, n) for v in test2]:
+                    print(v)
+                quit()
+
         X.do_MaxSet()
         X.do_UnsetUp(a)
         for u in X:
