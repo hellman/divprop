@@ -8,7 +8,7 @@ from binteger import Bin
 
 from divprop.divcore import DenseDivCore
 from divprop.inequalities import InequalitiesPool, satisfy
-import divprop.logs as logging
+from divprop import logging
 
 from divprop.tools import get_sbox, get_sbox_sizes
 
@@ -19,7 +19,7 @@ try:
     import sage.all
     is_sage = True
 except ImportError:
-    logging.warning("running outside of SageMath")
+    log.warning("running outside of SageMath")
     is_sage = False
 
 
