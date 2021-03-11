@@ -11,6 +11,7 @@ log = logging.getLogger()
 fileprefix = "/work/division/workspace/data/sbox_skinny_4/divcore.lb"
 fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
 fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
+fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
 
 points_good = DenseSet.load_from_file(fileprefix + ".good.set")
 points_bad = DenseSet.load_from_file(fileprefix + ".bad.set")
@@ -38,13 +39,17 @@ pool = MonotoneInequalitiesPool(
     points_bad=points_bad.to_Bins(),
     type_good=type_good,
 )
-pool.oracle = LPbasedOracle(solver="GLPK")
-print(pool.oracle.n_calls)
-pool.LSL.log_info()
 
-# pool.gen_hats()
-# for i in range(1000):
-#     pool.gen_random_inequality()
+pool.gen_hats()
+for i in range(1000):
+    pool.gen_random_inequality()
+
+pool.oracle = LPbasedOracle(solver="GLPK")
+
+print("initial", pool.oracle.n_calls)
+pool.LSL.log_info()
+print()
+print()
 
 pool.gen_dfs()
 
@@ -53,13 +58,14 @@ print("calls", pool.oracle.n_calls)
 pool.LSL.log_info()
 
 from itertools import combinations
-for l in range(pool.N+1):
-    for t in combinations(range(pool.N), l):
-        t = pool.LSL.encode_fset(t)
-        test1 = pool.LSL.is_already_feasible(t)
-        test2 = pool.LSL.is_already_infeasible(t)
-        # print(t, test1, test2)
-        assert test1 ^ test2
+if pool.N <= 20:
+    for l in range(pool.N+1):
+        for t in combinations(range(pool.N), l):
+            t = pool.LSL.encode_fset(t)
+            test1 = pool.LSL.is_already_feasible(t)
+            test2 = pool.LSL.is_already_infeasible(t)
+            # print(t, test1, test2)
+            assert test1 ^ test2
 
 for fset in pool.LSL.infeasible.set:
     assert not pool.oracle.query(fset)

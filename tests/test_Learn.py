@@ -11,7 +11,7 @@ from divprop.learn import DenseLowerSetLearn
 
 
 def test_LSL():
-    seed(123)
+    # seed(123)
 
     for n in range(2, 12):
         a = DenseSet(n)
@@ -27,7 +27,7 @@ def test_LSL():
 
 
 def test_DenseLowerSetLearn():
-    seed(123)
+    # seed(123)
 
     for n in range(2, 12):
         a = DenseSet(n)

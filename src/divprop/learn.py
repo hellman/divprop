@@ -77,15 +77,18 @@ class LowerSetLearn:
         is_lower = self.oracle(Bin(v, self.n))
 
         self.n_checks += 1
-        if self.n_checks == 1000 or self.n_checks % 250_000 == 0:
+        if self.n_checks == 1000 or self.n_checks % 1_000 == 0:
             wts = Counter(Bin(a).hw() for a in self.good)
             wts = " ".join(f"{wt}:{cnt}" for wt, cnt in sorted(wts.items()))
+            wts2 = Counter(Bin(a).hw() for a in self.bad)
+            wts2 = " ".join(f"{wt}:{cnt}" for wt, cnt in sorted(wts2.items()))
             log.info(
                 f"stat: bit {self.cur_i+1}/{self.n}"
                 f" checks {self.n_checks}"
                 f" good max-set {len(self.good)}"
                 f" bad min-set {len(self.bad)}"
                 f" | good max-set weights {wts}"
+                f" | bad max-set weights {wts2}"
             )
 
         if is_lower:
@@ -210,6 +213,7 @@ class DenseLowerSetLearn:
         #         self.unknown_lower.set.remove(u)
 
     def learn_simple(self, oracle, sol_encoder=lambda v: v):
+        # for
         while not self.finished():
             if oracle.n_calls % 100 == 0:
                 print("n_calls", oracle.n_calls)
@@ -238,7 +242,7 @@ class DenseLowerSetLearn:
             for v in todel:
                 self.unknown_upper.set.remove(v)
 
-            r = randrange(10)
+            r = randrange(15)
             indexes = list(antisupport_int_le(fset, self.N))
             shuffle(indexes)
             for i in indexes[:r]:
@@ -412,3 +416,142 @@ class DenseLowerSetLearn:
 #         for i in range(self.N):
 #             if i not in fset:
 #                 yield fset | {i}
+
+
+class NewDenseLowerSetLearn:
+    """
+    fset = set of indexes of bits
+    TBD: switch to SparseSet from C++?
+    """
+    def __init__(self, N):
+        self.N = int(N)
+
+        self.feasible = DynamicLowerSet((), n=self.N)
+        self.infeasible = DynamicUpperSet((), n=self.N)
+        self.infeasible_cache = set()
+        self.feasible_cache = set()
+
+        self.solution = {}  # data for feasible
+
+    def finished(self):
+        xxx
+
+    def _clean_solution(self):
+        todel = [k for k in self.solution if k not in self.feasible.set]
+        for k in todel:
+            del self.solution[k]
+
+    def log_info(self):
+        log.info("stat:")
+        for (name, s) in [
+            ("feasible", self.feasible.set),
+            ("infeasible", self.infeasible.set),
+        ]:
+            freq = Counter(Bin(v).hw() for v in s)
+            freqstr = " ".join(
+                f"{sz}:{cnt}" for sz, cnt in sorted(freq.items())
+            )
+            log.info(f"   {name}: {len(s)}: {freqstr}")
+
+    def encode_fset(self, fset):
+        return sum(1 << (self.N - 1 - i) for i in fset)
+
+    def is_already_feasible(self, v):
+        # quick check
+        if v in self.feasible.set:
+            return True
+        # is in feasible lowerset?
+        for u in self.feasible.set:
+            # v <= u
+            if v & u == v:
+                return True
+        return False
+
+    def is_already_infeasible(self, v):
+        # quick check
+        if v in self.infeasible.set:
+            return True
+        # is in infeasible upperset?
+        for u in self.infeasible.set:
+            # v >= u
+            if v | u == v:
+                return True
+        return False
+
+    def add_feasible(self, v, sol=None, check=True):
+        if check and v in self.feasible:
+            return
+        # assert v not in self.infeasible
+        self.feasible.add_lower_singleton(v, check=False)
+        # self.unknown_lower.remove_lower_singleton_extremes(v)
+        self.unknown_upper.remove_lower_singleton(v)
+        if 1:
+            # can be replaced by check in pulling loop
+            for u in self.unknown_upper._added_last:
+                if u in self.infeasible:
+                    self.unknown_upper.set.remove(u)
+                # if u not in self.unknown_lower:
+                #     self.unknown_upper.set.remove(u)
+
+        self.solution[v] = sol
+        self._clean_solution()
+
+    def add_infeasible(self, v, check=True):
+        if check and v in self.infeasible:
+            return
+        # assert v not in self.feasible
+        self.infeasible.add_upper_singleton(v, check=False)
+        # self.unknown_upper.remove_upper_singleton_extremes(v)
+        # self.unknown_lower.remove_upper_singleton(v)
+        # for u in self.unknown_lower._added_last:
+        #     if u not in self.unknown_upper:
+        #         self.unknown_lower.set.remove(u)
+
+    def learn_simple(self, oracle, sol_encoder=lambda v: v):
+        while not self.finished():
+            if oracle.n_calls % 100 == 0:
+                print("n_calls", oracle.n_calls)
+                self.log_info()
+
+            if 0:
+                for lo in self.unknown_upper.set:
+                    break
+                for hi in self.unknown_lower.set:
+                    if lo & hi == lo:  # lo <= hi
+                        break
+                inds = support_int_le(lo ^ hi, self.N)
+                shuffle(inds)
+                inds = inds[:len(inds)//4]
+                fset = lo + sum(1 << i for i in inds)
+
+            todel = []
+            for fset in self.unknown_upper.set:
+                if fset in self.infeasible:
+                    todel.append(fset)
+                else:
+                    break
+
+            if len(todel) > 1:
+                print("todel", len(todel))
+            for v in todel:
+                self.unknown_upper.set.remove(v)
+
+            r = randrange(15)
+            indexes = list(antisupport_int_le(fset, self.N))
+            shuffle(indexes)
+            for i in indexes[:r]:
+                fset2 = fset | i
+                if fset2 in self.infeasible:
+                    break
+                fset = fset2
+
+            ineq = oracle.query(Bin(fset, self.N))
+            # print("visit", Bin(fset, self.N).str, ":", ineq)
+            if not ineq:
+                self.add_infeasible(fset)
+            else:
+                self.add_feasible(
+                    fset, sol=sol_encoder(ineq)
+                )
+
+        return {Bin(v, self.N) for v in self.feasible.set}
