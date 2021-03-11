@@ -18,7 +18,7 @@ struct DenseSet {
     DenseSet();
     DenseSet(int _n);
     DenseSet(const std::vector<uint64_t> &ints, int n);
-    DenseSet(const std::unordered_set<uint64_t> &ints, int n);
+    DenseSet(const std::set<uint64_t> &ints, int n);
 
     void resize(int n);
 

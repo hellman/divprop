@@ -31,7 +31,7 @@ DenseSet::DenseSet(const std::vector<uint64_t> &ints, int n) : DenseSet::DenseSe
         add(v);
     }
 }
-DenseSet::DenseSet(const std::unordered_set<uint64_t> &ints, int n) : DenseSet::DenseSet(n) {
+DenseSet::DenseSet(const std::set<uint64_t> &ints, int n) : DenseSet::DenseSet(n) {
     for (auto v: ints) {
         add(v);
     }
