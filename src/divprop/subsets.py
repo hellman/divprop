@@ -74,22 +74,23 @@ class DynamicExtremeSet:
         self.set = set(spec)
         self.n = int(n)
 
+    def to_DenseSet(self):
+        return DenseSet(tuple(self.set), self.n)
+
 
 class DynamicLowerSet(DynamicExtremeSet):
     def remove_upper_singleton(self, v: int):
         # complement of upperset({00 111 00})
         # is lowerset({11 011 11, 11 101 11, 11 110 11})
         # intersect with their union
-        inds = support_int(v)
-        for i in range(self.n):
-            if v & (1 << i):
-                inds.append(i)
+        inds = support_int_le(v, self.n)
 
         prevset = self.set
         self.set = set()
         to_add = set()
         for u in prevset:
-            if u & v != v:
+            # v <= u?
+            if v & u != v:
                 # no intersection, keep
                 self.set.add(u)
             else:
@@ -97,15 +98,22 @@ class DynamicLowerSet(DynamicExtremeSet):
                 for i in inds:
                     to_add.add(u ^ (1 << i))
 
+        self._added_last = set()
         for u in to_add:
             if u not in self:
                 self.set.add(u)
+                self._added_last.add(u)
 
-    def add_lower_singleton(self, v: int, check_new=True):
-        if check_new and v in self:
-            return
+    def add_lower_singleton(self, v: int, check=True):
+        if check and v in self:
+            return False
         self.set = {u for u in self.set if not (u & v == u)}
         self.set.add(v)
+        return True
+
+    def remove_lower_singleton_extremes(self, v: int):
+        """remove elements from the maxset that are <= v"""
+        self.set = {u for u in self.set if not (u & v == u)}
 
     def __contains__(self, v: int):
         if v in self.set:
@@ -117,11 +125,46 @@ class DynamicLowerSet(DynamicExtremeSet):
 
 
 class DynamicUpperSet(DynamicExtremeSet):
-    def remove_lower_singleton(self, v):
-        pass
+    def remove_lower_singleton(self, v: int):
+        inds = antisupport_int_le(v, self.n)
 
-    def add_upper_singleton(self, v):
-        pass
+        prevset = self.set
+        self.set = set()
+        to_add = set()
+        for u in prevset:
+            # v >= u?
+            if v | u != v:
+                # no intersection, keep
+                self.set.add(u)
+            else:
+                # intersection, split
+                for i in inds:
+                    to_add.add(u ^ (1 << i))
+
+        self._added_last = set()
+        for u in to_add:
+            if u not in self:
+                self.set.add(u)
+                self._added_last.add(u)
+
+    def add_upper_singleton(self, v: int, check=True):
+        if check and v in self:
+            return False
+        self.set = {u for u in self.set if not (u | v == u)}
+        self.set.add(v)
+        return True
+
+    def remove_upper_singleton_extremes(self, v: int):
+        """remove elements from the maxset that are >= v"""
+        self.set = {u for u in self.set if not (u | v == u)}
+
+    def __contains__(self, v: int):
+        if v in self.set:
+            return True
+        for u in self.set:
+            if v | u == v:  # v >= u
+                return True
+        return False
 
 
 def not_tuple(p):
@@ -144,12 +187,9 @@ def neibs_up_int(v, n):
             yield v | (1 << i)
 
 
-def support_int(v):
-    res = []
-    for i in range(v):
-        b = (1 << i)
-        if v & b:
-            res.append(i)
-        elif v < b:
-            break
-    return res
+def support_int_le(v, n):
+    return [i for i in range(n) if v & (1 << i)]
+
+
+def antisupport_int_le(v, n):
+    return [i for i in range(n) if v & (1 << i) == 0]
