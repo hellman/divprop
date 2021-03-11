@@ -17,6 +17,11 @@ struct DenseSet {
 
     DenseSet();
     DenseSet(int _n);
+    DenseSet(const std::vector<uint64_t> &ints, int n);
+    DenseSet(const std::unordered_set<uint64_t> &ints, int n);
+
+    void resize(int n);
+
     DenseSet copy() const;
     void free(); // set to empty set with n=0
 
@@ -46,9 +51,14 @@ struct DenseSet {
     // Single bit get/set
     // ========================================
     int get(uint64_t x) const;
-    bool __contains__(uint64_t x) const;
     void set(uint64_t x);
     void set(uint64_t x, uint64_t value);
+
+    // python set style
+    bool __contains__(uint64_t x) const;
+    void add(uint64_t x);
+    void remove(uint64_t x);
+    void discard(uint64_t x);
 
     // ========================================
     // Tools

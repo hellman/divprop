@@ -4,6 +4,7 @@
 %include <std_string.i>
 %include <exception.i>
 %include <std_map.i>
+%include <std_unordered_set.i>
 %include <stdint.i>
 
 %typedef uint64_t u64;
@@ -57,4 +58,3 @@ DivCore_StrongComposition = DivCore_StrongComposition32;
 %}
 
 %template(MyVector_DenseSet) std::vector<DenseSet>;
-

@@ -2,17 +2,23 @@ from random import randrange
 from divprop.subsets import DenseSet
 
 
+def assert_raises(f, err=RuntimeError):
+    try:
+        f()
+    except err as e:
+        print("exception good:", e)
+    else:
+        assert 0, f"exception {err} not raised"
+
+
 def test_DenseSet():
-    a = DenseSet(6)  # 6-bit vectors
-    a.set(1)
-    a.set(5)
-    a.set(7)
+    a = DenseSet(3)  # 3-bit vectors
+    a.add(1)
+    a.add(5)
+    a.add(7)
     assert a.get_support() == (1, 5, 7)
 
-    b = DenseSet(6)
-    b.set(2)
-    b.set(3)
-    b.set(4)
+    b = DenseSet((2, 3, 4, 5), 3)
     b.set(5)
     b.set(4, 0)
     assert b.get_support() == (2, 3, 5)
@@ -20,6 +26,8 @@ def test_DenseSet():
     a |= b
 
     assert a.get_support() == (1, 2, 3, 5, 7)
+
+    a.resize(6)
 
     b = a.copy()
     b.set(0, 1)
@@ -32,14 +40,14 @@ def test_DenseSet():
     assert b.get_weight() == 6
 
     assert b.info() == 'f01a3338f076a640 n=6 wt=6 | 0:1 1:3 2:2'
-    assert b.info() == 'f01a3338f076a640 n=6 wt=6 | 0:1 1:3 2:2'
+    assert DenseSet([1, 2, 4, 5, 7], 6) == a
 
-    try:
-        a.save_to_file("/NON-EXISTENT STUFF")
-    except RuntimeError as e:
-        print("exception good:", e)
-    else:
-        assert 0, "exception not raised"
+    assert_raises(
+        lambda: DenseSet([1, 2, 4, 5, 7], 2)
+    )
+    assert_raises(
+        lambda: a.save_to_file("/NON-EXISTENT STUFF")
+    )
 
 
 def test_properties():

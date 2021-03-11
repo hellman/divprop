@@ -22,9 +22,25 @@ DenseSet::DenseSet() {
     n = 0;
 }
 DenseSet::DenseSet(int _n) {
-    ensure(_n >= 0 and _n <= 64, "supported set dimension is between 1 and 64"); // not supported
+    ensure(_n >= 0 and _n <= 64, "supported set dimension is between 0 and 64");
     n = _n;
     clear();
+}
+DenseSet::DenseSet(const std::vector<uint64_t> &ints, int n) : DenseSet::DenseSet(n) {
+    for (auto v: ints) {
+        add(v);
+    }
+}
+DenseSet::DenseSet(const std::unordered_set<uint64_t> &ints, int n) : DenseSet::DenseSet(n) {
+    for (auto v: ints) {
+        add(v);
+    }
+}
+void DenseSet::resize(int _n) {
+    // WARNING: keeps only "small" values if n decreases
+    ensure(_n >= 0 and _n <= 64, "supported set dimension is between 0 and 64");
+    n = _n;
+    data.resize(HICEIL(1ull << n));
 }
 DenseSet DenseSet::copy() const {
     return *this;
@@ -65,19 +81,37 @@ bool DenseSet::is_full() const {
 // Single bit get/set
 // ========================================
 int DenseSet::get(uint64_t x) const {
-    // ensure(x < 1ull << n);
+    ensure(x < (1ull << n));
     return (data[HI(x)] >> LO(x)) & 1;
 }
 bool DenseSet::__contains__(uint64_t x) const {
     return get(x) == 1;
 }
 void DenseSet::set(uint64_t x) {
+    ensure(x < (1ull << n));
     data[HI(x)] |= 1ull << LO(x);
 }
 void DenseSet::set(uint64_t x, uint64_t value) {
+    ensure(x < (1ull << n));
     data[HI(x)] &= ~(1ull << LO(x));
     data[HI(x)] |= (value & 1ull) << LO(x);
 }
+void DenseSet::add(uint64_t x) {
+    ensure(x < (1ull << n));
+    data[HI(x)] |= 1ull << LO(x);
+}
+void DenseSet::remove(uint64_t x) {
+    ensure(x < (1ull << n));
+    uint64_t bit = 1ull << LO(x);
+    ensure(data[HI(x)] & bit);
+    data[HI(x)] ^= bit;
+}
+void DenseSet::discard(uint64_t x) {
+    ensure(x < (1ull << n));
+    uint64_t bit = 1ull << LO(x);
+    data[HI(x)] &= ~bit;
+}
+
 
 // ========================================
 // Tools
