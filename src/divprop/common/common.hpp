@@ -94,7 +94,7 @@ inline u64 GF_MUL(u64 x, u64 y, int n, u64 poly) {
 }
 
 #define GET_MACRO2(_1, _2, NAME, ...) NAME
-#define ensure1(cond) _ensure(cond, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, NULL)
+#define ensure1(cond) _ensure(cond, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, "")
 #define ensure2(cond, err) _ensure(cond, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, err)
 #define ensure(...) GET_MACRO2(__VA_ARGS__, ensure2, ensure1)(__VA_ARGS__)
 
