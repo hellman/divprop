@@ -1,15 +1,18 @@
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-from random import randrange
+from random import randrange, seed
 
 from binteger import Bin
 
 from divprop.subsets import DenseSet
 from divprop.learn import LowerSetLearn
+from divprop.learn import DenseLowerSetLearn
 
 
 def test_LSL():
+    seed(123)
+
     for n in range(2, 12):
         a = DenseSet(n)
         for i in range(200):
@@ -23,5 +26,34 @@ def test_LSL():
                 assert {v.int for v in test} == answer
 
 
+def test_DenseLowerSetLearn():
+    seed(123)
+
+    for n in range(2, 12):
+        a = DenseSet(n)
+        for i in range(200):
+            a.set(randrange(2**n))
+            if i % 10 == 0:
+                lower = set(a.LowerSet())
+                answer = set(a.MaxSet())
+                print("learning:", n, *[v.str for v in a.MaxSet().to_Bins()])
+
+                class Oracle:
+                    n_calls = 0
+
+                    def query(self, v):
+                        self.n_calls = self.n_calls + 1
+                        return v.int in lower
+
+                o = Oracle()
+                LSL = DenseLowerSetLearn(n)
+                test = LSL.learn_simple(oracle=o)
+
+                assert {v.int for v in test} == answer
+                print("learnt in", o.n_calls)
+                print()
+
+
 if __name__ == '__main__':
-    test_LSL()
+    # test_LSL()
+    test_DenseLowerSetLearn()
