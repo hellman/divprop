@@ -21,17 +21,18 @@ except ImportError:
 
 class MILP:
     BY_SOLVER = {}
-    EPS = 1e-12
+    EPS = 1e-9
+    debug = 0
 
     @classmethod
     def maximization(cls, solver="glpk"):
         assert cls is MILP
-        return cls.BY_SOLVER[solver.lower()](maximization=True)
+        return cls.BY_SOLVER[solver.lower()](maximization=True, solver=solver)
 
     @classmethod
     def minimization(cls, solver="glpk"):
         assert cls is MILP
-        return cls.BY_SOLVER[solver.lower()](maximization=False)
+        return cls.BY_SOLVER[solver.lower()](maximization=False, solver=solver)
 
     @classmethod
     def register(cls, name):
@@ -58,11 +59,17 @@ class MILP:
 @MILP.register("gurobi")  # need to be installed, commercial
 @MILP.register("cplex")  # need to be installed, commercial
 class SageMath_MixedIntegerLinearProgram(MILP):
-    def __init__(self, maximization):
+    def __init__(self, maximization, solver):
         assert has_sage
-        self.model = MixedIntegerLinearProgram(maximization=maximization)
-        self._var_int = self.model.new_variable(integer=True, nonnegative=False)
-        self._var_real = self.model.new_variable(real=True, nonnegative=False)
+        self.model = MixedIntegerLinearProgram(
+            maximization=maximization, solver=solver,
+        )
+        self._var_int = self.model.new_variable(
+            integer=True, nonnegative=False, name="I",
+        )
+        self._var_real = self.model.new_variable(
+            real=True, nonnegative=False, name="R",
+        )
         self.vars = []
         self.constraints = []
 
@@ -87,18 +94,20 @@ class SageMath_MixedIntegerLinearProgram(MILP):
         return res
 
     def add_constraint(self, c):
+        cid = id(c)
         n1 = self.model.number_of_constraints()
         self.model.add_constraint(c)
         n2 = self.model.number_of_constraints()
         assert n2 == n1 + 1
         assert len(self.constraints) == n1
-        self.constraints.append(id(c))
+        self.constraints.append(cid)
         assert len(self.constraints) == n2
-        return id(c)
+        return cid
 
     def remove_constraint(self, cid):
         assert isinstance(cid, int)
         for i, ccid in enumerate(self.constraints):
+            print(ccid)
             if ccid == cid:
                 del self.constraints[i]
                 self.model.remove_constraint(i)
@@ -109,7 +118,7 @@ class SageMath_MixedIntegerLinearProgram(MILP):
 
     def remove_constraints(self, cs):
         csids = set(map(int, cs))
-        inds = {}
+        inds = set()
         for i, cid in enumerate(self.constraints):
             if cid in csids:
                 inds.add(i)
@@ -117,37 +126,40 @@ class SageMath_MixedIntegerLinearProgram(MILP):
             c for i, c in enumerate(self.constraints)
             if i not in inds
         ]
-        self.model.remove_constraints(inds)
+        self.model.remove_constraints(sorted(inds))
         assert len(self.constraints) == self.model.number_of_constraints()
 
     def set_objective(self, obj):
         return self.model.set_objective(obj)
 
-    def copy(self):
-        obj = object.__new___(type(self))
-        obj.model = self.model.__copy__()
-        return obj
+    # def copy(self):
+    #     obj = object.__new__(type(self))
+    #     obj.model = self.model.__copy__()
+    #     obj.constraints = self.model.constraints[::]
+    #     obj.vars = self.model.vars[::]
+    #     return obj
 
     def optimize(self, solution_limit=None):
+        self.err = None
         try:
             obj = self.model.solve()
-        except MIPSolverException:
+        except MIPSolverException as err:
+            self.err = err
             return
         if solution_limit == 0:
             return obj
 
         # sagemath returns only 1 solution
-        vec = {v: self.model.get_values(v) for v in self.vars}
+        vec = {v: self.trunc(self.model.get_values(v)) for v in self.vars}
         self.solutions = vec,
         return obj
 
 
 @MILP.register("scip")
 class SCIP(MILP):
-    EPS = 1/1.0**6
-
-    def __init__(self, maximization):
+    def __init__(self, maximization, solver):
         assert has_scip
+        assert solver == "scip"
         self.model = SCIPModel()
         self.maximization = maximization
         self.vars = []
@@ -181,11 +193,11 @@ class SCIP(MILP):
         return self.model.addCons(c)
 
     def remove_constraint(self, c):
-        self.model.freeTransform()
+        # self.model.freeTransform()
         return self.model.delCons(c)
 
     def remove_constraints(self, cs):
-        self.model.freeTransform()
+        # self.model.freeTransform()
         for c in cs:
             return self.model.delCons(c)
 
@@ -195,8 +207,12 @@ class SCIP(MILP):
         else:
             return self.model.setObjective(obj, sense="minimize")
 
-    def copy(self):
-        return SCIPModel(sourceModel=self.model)
+    # def copy(self):
+    #     ret = object.__new__(type(self))
+    #     ret.model = SCIPModel(sourceModel=self.model)
+    #     ret.maximization = self.maximization
+    #     ret.vars = list(self.getVars())
+    #     return ret
 
     def optimize(self, solution_limit=1, log=None, only_best=True):
         if not log:
@@ -218,8 +234,8 @@ class SCIP(MILP):
                     continue
 
                 vec = IdResolver({
-                    id(v):
-                        self.trunc(self.model.getSolVal(sol, v)) for v in self.vars
+                    id(v): self.trunc(self.model.getSolVal(sol, v))
+                    for v in self.vars
                 })
                 self.solutions.append(vec)
                 if solution_limit and len(self.solutions) >= solution_limit:
