@@ -28,7 +28,7 @@ class MILP:
     debug = 0
 
     @classmethod
-    def maximization(cls, solver="glpk"):
+    def maximization(cls, *args, solver="glpk", **opts):
         assert cls is MILP
         return cls.BY_SOLVER[solver.lower()](maximization=True, solver=solver)
 
@@ -167,12 +167,14 @@ class SCIP(MILP):
         self.model = SCIPModel()
         self.maximization = maximization
         self.vars = []
-    #     self.reopt = False
-    #     self.allow_reopt()
+        self.reopt = False
 
-    # def allow_reopt(self):
-    #     self.model.enableReoptimization(True)
-    #     self.reopt = True
+    def set_reopt(self):
+        """
+        has to be called befor setting the problem
+        """
+        self.model.enableReoptimization(True)
+        self.reopt = True
 
     def set_lb(self, var, lb=None):
         self.model.chgVarLbGlobal(var, lb)
@@ -198,11 +200,11 @@ class SCIP(MILP):
         return self.model.addCons(c)
 
     def remove_constraint(self, c):
-        # self.model.freeTransform()
+        assert not self.reopt, "can not remove constraints in reopt..."
         return self.model.delCons(c)
 
     def remove_constraints(self, cs):
-        # self.model.freeTransform()
+        assert not self.reopt, "can not remove constraints in reopt..."
         for c in cs:
             return self.model.delCons(c)
 
@@ -226,6 +228,7 @@ class SCIP(MILP):
         else:
             self.model.hideOutput(False)
 
+        self.solutions = []
         self.model.optimize()
 
         status = self.model.getStatus()
@@ -235,7 +238,6 @@ class SCIP(MILP):
 
         obj = self.model.getObjVal()
         if solution_limit != 0:
-            self.solutions = []
             for sol in self.model.getSols():
                 solobj = self.model.getSolObjVal(sol)
                 if solobj + self.EPS < obj and only_best:
@@ -249,7 +251,14 @@ class SCIP(MILP):
                 if solution_limit and len(self.solutions) >= solution_limit:
                     break
 
-        self.model.freeTransform()
+        if self.reopt:
+            self.model.freeReoptSolve()
+            # self.model.chgReoptObjective(
+            #     self._obj,
+            #     sense="maximize" if self.maximization else "minimize",
+            # )
+        else:
+            self.model.freeTransform()
         return obj
 
 
