@@ -119,11 +119,13 @@ class SageMath_MixedIntegerLinearProgram(MILP):
         assert len(self.constraints) == self.model.number_of_constraints()
 
     def remove_constraints(self, cs):
-        csids = set(map(int, cs))
+        csids = set(map(str, cs))
         inds = set()
         for i, cid in enumerate(self.constraints):
             if cid in csids:
                 inds.add(i)
+                csids.remove(cid)
+        assert not csids, "not all constraints found"
         self.constraints = [
             c for i, c in enumerate(self.constraints)
             if i not in inds
