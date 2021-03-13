@@ -18,6 +18,9 @@ try:
 except ImportError:
     has_scip = False
 
+# from pyscipopt.scip import PY_SCIP_STAGE
+# print(PY_SCIP_STAGE.__dict__)
+
 
 class MILP:
     BY_SOLVER = {}
@@ -94,7 +97,7 @@ class SageMath_MixedIntegerLinearProgram(MILP):
         return res
 
     def add_constraint(self, c):
-        cid = id(c)
+        cid = str(c)
         n1 = self.model.number_of_constraints()
         self.model.add_constraint(c)
         n2 = self.model.number_of_constraints()
@@ -105,15 +108,14 @@ class SageMath_MixedIntegerLinearProgram(MILP):
         return cid
 
     def remove_constraint(self, cid):
-        assert isinstance(cid, int)
+        assert isinstance(cid, str)
         for i, ccid in enumerate(self.constraints):
-            print(ccid)
             if ccid == cid:
                 del self.constraints[i]
                 self.model.remove_constraint(i)
                 break
         else:
-            raise KeyError(f"unknown constraint id={cid}")
+            raise KeyError(f"unknown constraint str={cid}")
         assert len(self.constraints) == self.model.number_of_constraints()
 
     def remove_constraints(self, cs):
@@ -164,6 +166,7 @@ class SCIP(MILP):
         self.maximization = maximization
         self.vars = []
     #     self.reopt = False
+    #     self.allow_reopt()
 
     # def allow_reopt(self):
     #     self.model.enableReoptimization(True)
@@ -202,6 +205,7 @@ class SCIP(MILP):
             return self.model.delCons(c)
 
     def set_objective(self, obj):
+        self._obj = obj
         if self.maximization:
             return self.model.setObjective(obj, sense="maximize")
         else:
@@ -221,10 +225,12 @@ class SCIP(MILP):
             self.model.hideOutput(False)
 
         self.model.optimize()
+
         status = self.model.getStatus()
         assert status in ("optimal", "infeasible"), status
         if status == "infeasible":
             return
+
         obj = self.model.getObjVal()
         if solution_limit != 0:
             self.solutions = []
@@ -234,12 +240,13 @@ class SCIP(MILP):
                     continue
 
                 vec = IdResolver({
-                    id(v): self.trunc(self.model.getSolVal(sol, v))
+                    str(v): self.trunc(self.model.getSolVal(sol, v))
                     for v in self.vars
                 })
                 self.solutions.append(vec)
                 if solution_limit and len(self.solutions) >= solution_limit:
                     break
+
         self.model.freeTransform()
         return obj
 
@@ -252,7 +259,7 @@ class IdResolver:
         self.sol = sol
 
     def __getitem__(self, v):
-        return self.sol[id(v)]
+        return self.sol[str(v)]
 
     def items(self):
         return [(v, y) for v, y in self.sol.items()]
