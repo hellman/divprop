@@ -61,6 +61,20 @@ def check_solver(solver):
         for sol in milp.solutions:
             assert sol[y] == 2
 
+        c2 = milp.add_constraint(x + y == 10)
+
+        assert -9 == milp.optimize()
+        assert milp.solutions
+        for sol in milp.solutions:
+            assert sol[y] == 3
+
+        milp.remove_constraint(c2)
+        obj = milp.optimize()
+        assert -6 == obj, obj
+        assert milp.solutions
+        for sol in milp.solutions:
+            assert sol[y] == 2
+
 
 def test_scip_reopt():
     if not has_scip:
@@ -107,5 +121,5 @@ def test_scip_reopt():
 
 
 if __name__ == '__main__':
-    # test_milp()
+    test_milp()
     test_scip_reopt()

@@ -18,6 +18,10 @@ try:
 except ImportError:
     has_scip = False
 
+from divprop import logging
+
+log = logging.getLogger(__name__)
+
 # from pyscipopt.scip import PY_SCIP_STAGE
 # print(PY_SCIP_STAGE.__dict__)
 
@@ -26,14 +30,17 @@ class MILP:
     BY_SOLVER = {}
     EPS = 1e-9
     debug = 0
+    err = None
 
     @classmethod
     def maximization(cls, *args, solver="glpk", **opts):
+        log.info(f"MILP maximization with solver '{solver}'")
         assert cls is MILP
         return cls.BY_SOLVER[solver.lower()](maximization=True, solver=solver)
 
     @classmethod
     def minimization(cls, solver="glpk"):
+        log.info(f"MILP minimization with solver '{solver}'")
         assert cls is MILP
         return cls.BY_SOLVER[solver.lower()](maximization=False, solver=solver)
 
@@ -143,10 +150,10 @@ class SageMath_MixedIntegerLinearProgram(MILP):
     #     obj.vars = self.model.vars[::]
     #     return obj
 
-    def optimize(self, solution_limit=None):
+    def optimize(self, solution_limit=1, log=None, only_best=True):
         self.err = None
         try:
-            obj = self.model.solve()
+            obj = self.trunc(self.model.solve(log=log))
         except MIPSolverException as err:
             self.err = err
             return
@@ -237,7 +244,7 @@ class SCIP(MILP):
             self.model.freeTransform()
             return
 
-        obj = self.model.getObjVal()
+        obj = self.trunc(self.model.getObjVal())
         if solution_limit != 0:
             for sol in self.model.getSols():
                 solobj = self.model.getSolObjVal(sol)
