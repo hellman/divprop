@@ -1,10 +1,9 @@
 from divprop.inequalities.monopool import (
     InequalitiesPool, LPbasedOracle,
     LazySparseSystem,
-    CliqueMountainHills,
     IneqInfo,
 )
-from divprop.learn import NewDenseLowerSetLearn
+from divprop.learn import CliqueMountainHills
 
 from divprop.inequalities.base import satisfy, inner
 from divprop.subsets import DenseSet
@@ -12,7 +11,7 @@ from divprop import logging
 from binteger import Bin
 
 
-logging.setup()
+logging.setup(level="DEBUG")
 log = logging.getLogger()
 
 fileprefix = "/work/division/workspace/data/sbox_skinny_4/divcore.lb"
@@ -62,10 +61,12 @@ print()
 if 0:
     pool.gen_dfs()
 else:
-    CliqueMountainHills(solver="gurobi").learn_system(
+    CliqueMountainHills(
+        base_level=2,
+        solver="scip",
+    ).learn_system(
         system=pool.system,
         oracle=pool.oracle,
-        sol_encoder=lambda ineq: IneqInfo(ineq, "CMH"),
     )
 
 print("calls", pool.oracle.n_calls)

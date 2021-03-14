@@ -14,11 +14,11 @@ from divprop.subsets import (
     OptDynamicUpperSet,
     support_int_le,
     antisupport_int_le,
-    WeightedSet,
 )
 
-from sage.numerical.mip import MixedIntegerLinearProgram
-from sage.numerical.mip import MIPSolverException
+from divprop.milp import MILP
+from divprop.inequalities.monopool import IneqInfo
+
 
 log = logging.getLogger(__name__)
 
@@ -304,6 +304,7 @@ class DenseLowerSetLearn:
             # print()
         return {Bin(v, self.N) for v in self.feasible.set}
 
+
 # # TBD: base class interface, dense class for smallish N (<100? < 1000?)
 # class SparseLowerSetLearn:
 #     def __init__(self, N):
@@ -432,258 +433,215 @@ class DenseLowerSetLearn:
 #                 yield fset | {i}
 
 
-class NewDenseLowerSetLearn:
-    """
-    fset = set of indexes of bits
-    TBD: switch to SparseSet from C++?
-    """
-    def __init__(self, N):
-        self.N = int(N)
+class CliqueMountainHills:
+    def __init__(
+        self,
+        base_level=2,
+        max_mountains=0,
+        min_height=10,
+        max_repeated_streak=5,
+        solver="scip",
+    ):
+        assert base_level >= 2
+        self.base_level = int(base_level)
+        self.max_mountains = int(max_mountains)
+        self.min_height = int(min_height)
+        self.max_repeated_streak = int(max_repeated_streak)
+        self.solver = solver
+        self.log = logging.getLogger(f"{__name__}:{type(self).__name__}")
 
-        self.feasible = DynamicLowerSet((), n=self.N)
-        self.infeasible = DynamicUpperSet((), n=self.N)
+    def learn_system(self, system, oracle, sol_encoder=None):
+        if sol_encoder is None:
+            sol_encoder = lambda ineq: IneqInfo(ineq, "CMH")
+        self.sys = system
+        self.oracle = oracle
+        self.N = system.N
+        self.sol_encoder = sol_encoder
 
-        self.solution = {}  # data for feasible
+        n_calls0 = self.oracle.n_calls
 
-    def is_already_feasible(self, v):
-        return v in self.feasible
+        # =================================
 
-    def is_already_infeasible(self, v):
-        return v in self.infeasible
+        self.generate_base()
+        self.generate_cliques()
 
-    def add_feasible(self, v, sol=None, check=True):
-        if check and v in self.feasible:
-            return
-        self.feasible.add_lower_singleton(v, check=False)
-        self.solution[v] = sol
+        self.log.info("final statistics:")
+        self.log.info(
+            f"    {self.n_cliques} cliques enumerated: "
+            f"{self.n_good} good, {self.n_bad} bad (sub)cliques"
+        )
+        self.log.info(f"    {self.oracle.n_calls - n_calls0} oracle calls")
+        self.sys.log_info()
 
-    def add_infeasible(self, v, check=True):
-        if check and v in self.infeasible:
-            return
-        self.infeasible.add_upper_singleton(v, check=False)
+        self.sys.feasible.do_MaxSet()
+        self.sys.clean_solution()
 
-    def _clean_solution(self):
-        todel = [k for k in self.solution if k not in self.feasible.set]
-        for k in todel:
-            del self.solution[k]
+        self.log.info("after MaxSet")
+        self.sys.log_info()
 
-    def log_info(self):
-        log.info("stat:")
-        for (name, s) in [
-            ("feasible", self.feasible.set),
-            ("infeasible", self.infeasible.set),
-        ]:
-            freq = Counter(Bin(v).hw() for v in s)
-            freqstr = " ".join(
-                f"{sz}:{cnt}" for sz, cnt in sorted(freq.items())
+    def generate_base(self):
+        for i in range(self.N):
+            assert self.sys.encode_bad_subset([i]) in self.sys.feasible, \
+                "single-point removal inequalities must be present"
+            assert isinstance(self.sys.encode_bad_subset([i]), frozenset), \
+                "frozenset assumed"
+
+        for l in range(2, self.base_level+1):
+            self.log.info(
+                f"generating exhaustive base, height={l}/{self.base_level}"
             )
-            log.info(f"   {name}: {len(s)}: {freqstr}")
+            n_good = 0
+            n_total = 0
+            if l == 2:
+                # exhaust all pairs
+                for inds in combinations(range(self.N), l):
+                    fset = self.sys.encode_bad_subset(inds)
 
-    def encode_fset(self, fset):
-        return sum(1 << (self.N - 1 - i) for i in fset)
-
-    def learn_simple(self, oracle, sol_encoder=lambda v: v):
-        print("starting pairs")
-        good_pairs = []
-        bad_pairs = []
-        for i, j in combinations(range(self.N), 2):
-            fset = self.encode_fset((i, j))
-            ineq = oracle.query(Bin(fset, self.N))
-            # print("visit", Bin(fset, self.N).str, ":", ineq)
-            if not ineq:
-                self.infeasible.set.add(fset)
-                bad_pairs.append((i, j))
-            else:
-                self.feasible.add_lower_singleton(fset)
-                self.solution[fset] = sol_encoder(ineq)
-                good_pairs.append((i, j))
-
-        print("pairs done")
-        print("n_calls", oracle.n_calls)
-        self.log_info()
-        print()
-        known = 2
-        assert all(Bin(v).hw() == 2 for v in self.feasible.set)
-
-        if 0:
-            bad_triples = set()
-            for i, j in good_pairs:
-                for k in range(j+1, self.N):
-                    assert (i < j < k)
-
-                    fset_ik = self.encode_fset((i, k))
-                    if fset_ik not in self.feasible.set:
-                        continue
-                    fset_jk = self.encode_fset((j, k))
-                    if fset_jk not in self.feasible.set:
-                        continue
-
-                    fset = self.encode_fset((i, j, k))
-                    ineq = oracle.query(Bin(fset, self.N))
-                    if not ineq:
-                        self.infeasible.set.add(fset)
-                        bad_triples.add((i, j, k))
+                    ineq = self.oracle.query(Bin(fset, self.N))
+                    if ineq:
+                        self.sys.add_feasible(
+                            fset, sol=self.sol_encoder(ineq)
+                        )
+                        n_good += 1
                     else:
-                        self.feasible.set.add(fset)
-                        self.solution[fset] = sol_encoder(ineq)
+                        self.sys.add_infeasible(fset)
+                    n_total += 1
+            else:
+                # only extend feasible pairs/triples/etc.
+                for prev_fset in self.sys.feasible.cache[l-1]:
+                    for k in range(max(prev_fset)+1, self.N):
+                        fset = prev_fset | {k}
 
-            print("triples done", len(bad_triples), "bad triples")
-            print("n_calls", oracle.n_calls)
-            self.log_info()
-            print()
-            known = 3
-        print("===================================")
+                        ineq = self.oracle.query(Bin(fset, self.N))
+                        if ineq:
+                            self.sys.add_feasible(
+                                fset, sol=self.sol_encoder(ineq)
+                            )
+                            n_good += 1
+                        else:
+                            self.sys.add_infeasible(fset)
+                        n_total += 1
+            self.log.info(
+                f"exhaustive base, height={l}/{self.base_level}: "
+                f"feasible {n_good}/{n_total} "
+                f"(frac. {(n_good+1)/(n_total+1):.3f})"
+            )
 
-        # find cliques
-        solver = "scip"
-        # solver = "gurobi"
-        print("clique solver:", solver)
-        if solver == "scip":
-            from pyscipopt import Model
-            model = Model()
-            model.hideOutput()
+    def exclude_subcliques(self, fset):
+        self.milp.add_constraint(
+            sum(self.xs[i] for i in range(self.N) if i not in fset) >= 1
+        )
 
-            xs = [model.addVar("x%d" % i, vtype="B") for i in range(self.N)]
-            xsum = model.addVar("xsum", vtype="I", lb=known+1, ub=self.N)
-            model.addCons(xsum == sum(xs))
-            model.setObjective(xsum)
-            model.setMaximize()
-            m_add_cons = model.addCons
-            m_set_max = model.tightenVarUbGlobal
-            def m_solve():
-                model.optimize()
-                status = model.getStatus()
-                nsols = model.getNSols()
-                print("nsols", nsols)
-                assert status in ("optimal", "infeasible"), status
-                if status == "optimal":
-                    return model.getObjVal()
-                raise MIPSolverException()
-            m_get_val = model.getVal
-        else:
-            model = MixedIntegerLinearProgram(maximization=True, solver=solver)
+    def exclude_supercliques(self, fset):
+        self.milp.add_constraint(
+            sum(self.xs[i] for i in fset) <= len(fset) - 1
+        )
 
-            var = model.new_variable(binary=True)
-            xs = [var["x%d" % i] for i in range(self.N)]
-            xsum = model.new_variable(integer=True, nonnegative=True)["xsum"]
-            model.add_constraint(xsum == sum(xs))
-            model.set_min(xsum, known+1)
-            model.set_objective(xsum)
-            m_add_cons = model.add_constraint
-            m_set_max = model.set_max
-            m_solve = model.solve
-            m_get_val = model.get_values
+    def generate_cliques(self):
+        self.milp = MILP.maximization(solver=self.solver)
+        try:
+            # is buggy...
+            # self.milp.set_reopt()
+            pass
+        except AttributeError:
+            pass
 
-        for i, j in bad_pairs:
-            m_add_cons(xs[i] + xs[j] <= 1)
-        if known == 3:
-            for i, j, k in bad_triples:
-                m_add_cons(xs[i] + xs[j] + xs[k] <= 2)
+        self.xs = [self.milp.var_binary("x%d" % i) for i in range(self.N)]
+        self.xsum = self.milp.var_int("xsum", lb=self.base_level+1, ub=self.N)
+        self.milp.add_constraint(sum(self.xs) == self.xsum)
+        self.milp.set_objective(self.xsum)
 
-        # vs = 0, 1, 3, 13
-        # for i, j in combinations(vs, 2):
-        #     assert (i, j) in good_pairs
-        #     assert (i, j) not in bad_pairs
-        # for i, j, k in combinations(vs, 3):
-        #     assert (i, j, k) not in bad_triples
+        # exclude super-cliques of known infeasible ones
+        for l in range(2, self.base_level+1):
+            for fset in self.sys.infeasible.iter_wt(l):
+                self.exclude_supercliques(fset)
 
-        # # for v in vs:
-        # #     add_cons(xs[v] == 1)
-
-        bads = set()
-        goods = set()
-        n_cliques = 0
+        self.n_cliques = 0
+        self.n_bad = 0
+        self.n_good = 0
         while True:
-            try:
-                obj = m_solve()
-            except MIPSolverException as err:
-                print("exception (no solution?):", err)
+            size = self.milp.optimize(solution_limit=100, only_best=True)
+            if size is None:
+                self.log.info(f"no new cliques, milp.err: {self.milp.err}")
                 break
 
-            n_cliques += 1
+            assert isinstance(size, int), size
+            assert size > self.base_level + 0.5
 
-            log.info(f"clique #{n_cliques}: {obj} (bads: {len(bads)})")
+            assert self.milp.solutions
+            for sol in self.milp.solutions:
+                fset = self.sys.encode_bad_subset(
+                    i for i, x in enumerate(self.xs) if sol[x] > 0.5
+                )
+                self.log.info(
+                    f"clique #{self.n_cliques}, size {size}: "
+                    f"{tuple(fset)} (good: {self.n_good}, bads: {self.n_bad})"
+                )
+                assert fset
 
-            assert obj > known + 0.5
+                self.n_cliques += 1
 
-            val_xs = tuple(m_get_val(x) for x in xs)
-            assert all(abs(v - round(v)) < 0.00001 for v in val_xs)
-            val_xs = tuple(int(v + 0.5) for v in val_xs)
+                ineq = self.oracle.query(Bin(fset, self.N))
 
-            if solver == "scip":
-                model.freeTransform()
+                self.log.info(f"ineq: {ineq}")
+                if ineq:
+                    self.process_good_clique(fset, ineq)
+                else:
+                    self.process_bad_clique(fset)
 
-            fset = Bin(val_xs, self.N)
-            ineq = oracle.query(Bin(fset, self.N))
-            print("".join(map(str, val_xs)), ineq)
-            if ineq:
-                self.feasible.set.add(fset)
-                self.solution[fset] = sol_encoder(ineq)
-                for i in Bin(fset).support():
-                    print("%3d" % i, Bin(oracle.pool.i2lo[i]).str)
-                print()
+                self.milp.add_constraint(self.xsum <= size)
+                # self.milp.set_ub(self.xsum, size)
 
-                # exclude all subcliques
-                m_add_cons(sum(
-                    xs[i] for i, x in enumerate(val_xs) if x == 0
-                ) >= 1)
-                goods.add(fset)
+    def process_good_clique(self, fset, ineq):
+        self.sys.add_feasible(fset, sol=self.sol_encoder(ineq))
 
-                # take one mountain
-                # then hunt for the hills
-                if fset.hw() > 18:
-                    print("taken the mountain!", len(goods))
-                    for i in fset.support():
-                        m_set_max(xs[i], 0)
+        for i in fset:
+            self.log.debug(f"{i:4d} {Bin(self.oracle.pool.i2bad[i]).str}")
+        self.log.debug("")
+
+        self.exclude_subcliques(fset)
+
+        self.n_good += 1
+
+        # take mountains
+        # then hunt for the hills
+        if self.n_good <= self.max_mountains and len(fset) >= self.min_height:
+            self.log.info(
+                f"mountain #{self.n_good}/{self.max_mountains}, "
+                f"height {len(fset)}>={self.min_height}"
+            )
+            # exclude this variables (assume this points are already covered)
+            for i in fset:
+                self.milp.set_ub(self.xs[i], 0)
+
+    def process_bad_clique(self, fset):
+        # exclude this clique (& super-cliques)
+        orig = fset
+        repeated_streak = 0
+        for itr in range(200):  # hard limit
+            fset = orig
+            inds = list(orig)
+            shuffle(inds)
+            # print("exclude itr", itr)
+            for i in inds:
+                and_fset = fset - {i}
+
+                ineq = self.oracle.query(Bin(and_fset, self.N))
+                # print("exclude itr", itr, i, "ineq", ineq)
+                if ineq:
+                    self.sys.add_feasible(and_fset, sol=self.sol_encoder(ineq))
+                    break
+                else:
+                    fset = and_fset
+
+            if fset not in self.sys.infeasible.cache:
+                self.n_bad += 1
+                self.log.info(f"exclude wt={len(fset)}: {fset}")
+                # exclude this clique (&super-cliques since it's reduced)
+                self.exclude_subcliques(fset)
+                self.sys.add_infeasible(fset)
+                repeated_streak = 0
             else:
-                # exclude this clique (&overcliques)
-                orig = fset
-                for itr in range(100):
-                    fset = orig
-
-                    # print("removal itr", itr)
-                    inds = list(fset.support())
-                    shuffle(inds)
-
-                    for i in inds:
-                        and_fset = list(fset.tuple)
-                        and_fset[i] = 0
-                        and_fset = Bin(and_fset, self.N)
-
-                        ineq = oracle.query(and_fset)
-                        if ineq:
-                            # print("degraded to GOOD", and_fset.hw(), and_fset)
-                            self.feasible.set.add(and_fset)
-                            self.solution[and_fset] = sol_encoder(ineq)
-                        else:
-                            # print("degraded to  BAD", and_fset.hw(), and_fset)
-                            fset = and_fset
-
-                    if fset not in bads:
-                        print("exclude", fset.hw(), fset.support())
-                        # exclude this clique (&overcliques since it's reduced)
-                        m_add_cons(sum(
-                            xs[i] for i, x in enumerate(fset.tuple) if x == 1
-                        ) <= sum(fset.tuple) - 1)
-                        bads.add(fset)
-                    elif itr > 50:
-                        break
-
-            m_set_max(xsum, int(obj + 0.5))
-
-        print("cliques enumerated", n_cliques)
-        print("n_calls", oracle.n_calls)
-        self.log_info()
-        print()
-
-        ws = WeightedSet(self.feasible.set, self.N)
-        ws.do_MaxSet()
-        self.feasible.set = set(ws)
-
-        self._clean_solution()
-
-        print("clean")
-        print("n_calls", oracle.n_calls)
-        self.log_info()
-        print()
-        return {Bin(v, self.N) for v in self.feasible.set}
+                repeated_streak += 1
+                if repeated_streak >= self.max_repeated_streak:
+                    break
