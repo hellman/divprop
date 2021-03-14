@@ -1,6 +1,8 @@
 from divprop.inequalities.monopool import (
     InequalitiesPool, LPbasedOracle,
     LazySparseSystem,
+    CliqueMountainHills,
+    IneqInfo,
 )
 from divprop.learn import NewDenseLowerSetLearn
 
@@ -57,7 +59,14 @@ pool.system.log_info()
 print()
 print()
 
-pool.gen_dfs()
+if 0:
+    pool.gen_dfs()
+else:
+    CliqueMountainHills(solver="gurobi").learn_system(
+        system=pool.system,
+        oracle=pool.oracle,
+        sol_encoder=lambda ineq: IneqInfo(ineq, "CMH"),
+    )
 
 print("calls", pool.oracle.n_calls)
 

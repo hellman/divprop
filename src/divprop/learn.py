@@ -687,11 +687,3 @@ class NewDenseLowerSetLearn:
         self.log_info()
         print()
         return {Bin(v, self.N) for v in self.feasible.set}
-
-
-class MountainsAndHills:
-    def __init__(self, n_mountains=float("+inf"), min_height=0):
-        self.n_mountains = n_mountains
-        self.min_height = int(min_height)
-
-

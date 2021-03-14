@@ -19,6 +19,7 @@ from divprop.subsets import (
     neibs_up_tuple, not_tuple, support_int_le,
     WeightedFrozenSets,
     GrowingLowerFrozen,
+    GrowingUpperFrozen,
 )
 
 from divprop.milp import MILP
@@ -297,12 +298,224 @@ class InequalitiesPool:
         return Lstar
 
 
+class CliqueMountainHills:
+    def __init__(
+        self,
+        base_level=3,
+        max_mountains=0,
+        min_height=10,
+        max_repeated_streak=5,
+        solver="scip",
+    ):
+        assert base_level >= 2
+        self.base_level = int(base_level)
+        self.max_mountains = int(max_mountains)
+        self.min_height = int(min_height)
+        self.max_repeated_streak = int(max_repeated_streak)
+        self.solver = solver
+        self.log = logging.getLogger(f"{__name__}:{type(self).__name__}")
+
+    def learn_system(self, system, oracle, sol_encoder):
+        self.sys = system
+        self.oracle = oracle
+        self.N = system.N
+        self.sol_encoder = sol_encoder
+
+        n_calls0 = self.oracle.n_calls
+
+        # =================================
+
+        self.generate_base()
+        self.generate_cliques()
+
+        self.log.info("final statistics:")
+        self.log.info(
+            f"    {self.n_cliques} cliques enumerated: "
+            f"{self.n_good} good, {self.n_bad} bad (sub)cliques"
+        )
+        self.log.info(f"    {self.oracle.n_calls - n_calls0} oracle calls")
+        self.sys.log_info()
+
+        self.sys.feasible.do_MaxSet()
+        self.sys.clean_solution()
+
+        self.log.info("after MaxSet")
+        self.sys.log_info()
+
+    def generate_base(self):
+        for i in range(self.N):
+            assert self.sys.encode_bad_subset([i]) in self.sys.feasible, \
+                "single-point removal inequalities must be present"
+            assert isinstance(self.sys.encode_bad_subset([i]), frozenset), \
+                "frozenset assumed"
+
+        for l in range(2, self.base_level+1):
+            log.info(
+                f"generating exhaustive base, height={l}/{self.base_level}"
+            )
+            n_good = 0
+            n_total = 0
+            if l == 2:
+                # exhaust all pairs
+                for inds in combinations(range(self.N), l):
+                    fset = self.sys.encode_bad_subset(inds)
+
+                    ineq = self.oracle.query(Bin(fset, self.N))
+                    if ineq:
+                        self.sys.add_feasible(
+                            fset, sol=self.sol_encoder(ineq)
+                        )
+                        n_good += 1
+                    else:
+                        self.sys.add_infeasible(fset)
+                    n_total += 1
+            else:
+                # only extend feasible pairs/triples/etc.
+                for prev_fset in self.sys.feasible.cache[l-1]:
+                    for k in range(max(prev_fset)+1, self.N):
+                        fset = prev_fset | {k}
+
+                        ineq = self.oracle.query(Bin(fset, self.N))
+                        if ineq:
+                            self.sys.add_feasible(
+                                fset, sol=self.sol_encoder(ineq)
+                            )
+                            n_good += 1
+                        else:
+                            self.sys.add_infeasible(fset)
+                        n_total += 1
+            log.info(
+                f"exhaustive base, height={l}/{self.base_level}: "
+                f"feasible {n_good}/{n_total} "
+                f"(frac. {(n_good+1)/(n_total+1):.3f})"
+            )
+
+    def exclude_subcliques(self, fset):
+        self.milp.add_constraint(
+            sum(self.xs[i] for i in range(self.N) if i not in fset)
+            >= 1
+        )
+
+    def exclude_supercliques(self, fset):
+        self.milp.add_constraint(
+            sum(self.xs[i] for i in fset)
+            <= len(fset) - 1
+        )
+
+    def generate_cliques(self):
+        self.milp = MILP.maximization(solver=self.solver)
+        try:
+            self.milp.set_reopt()
+        except AttributeError:
+            pass
+
+        self.xs = [self.milp.var_binary("x%d" % i) for i in range(self.N)]
+        self.xsum = self.milp.var_int("xsum", lb=self.base_level+1, ub=self.N)
+        self.milp.add_constraint(sum(self.xs) == self.xsum)
+        self.milp.set_objective(self.xsum)
+
+        # exclude super-cliques of known infeasible ones
+        for l in range(2, self.base_level+1):
+            for fset in self.sys.infeasible.iter_wt(l):
+                self.exclude_supercliques(fset)
+
+        self.n_cliques = 0
+        self.n_bad = 0
+        self.n_good = 0
+        while True:
+            size = self.milp.optimize(solution_limit=100, only_best=True)
+            if size is None:
+                log.info(f"no new cliques, milp.err: {self.milp.err}")
+                break
+
+            assert isinstance(size, int), size
+            assert size > self.base_level + 0.5
+
+            assert self.milp.solutions
+            for sol in self.milp.solutions:
+                log.info(
+                    f"clique #{self.n_cliques} "
+                    f"(batch {len(self.milp.solutions)}): "
+                    f"{size} (bads: {self.n_bad})"
+                )
+                fset = self.sys.encode_bad_subset(
+                    i for i, x in enumerate(self.xs) if sol[x] > 0.5
+                )
+                assert fset
+
+                self.n_cliques += 1
+
+                ineq = self.oracle.query(Bin(fset, self.N))
+
+                log.info(f"ineq: {ineq}")
+                if ineq:
+                    self.process_good_clique(fset, ineq)
+                else:
+                    self.process_bad_clique(fset, ineq)
+
+                self.milp.set_ub(self.xsum, size)
+
+    def process_good_clique(self, fset, ineq):
+        self.sys.add_feasible(fset, sol=self.sol_encoder(ineq))
+
+        for i in fset:
+            log.debug(f"{i:4d} {Bin(self.oracle.pool.i2bad[i]).str}")
+        log.debug("")
+
+        self.exclude_subcliques(fset)
+
+        self.n_good += 1
+
+        # take mountains
+        # then hunt for the hills
+        if self.n_good <= self.max_mountains and len(fset) >= self.min_height:
+            log.info(
+                f"mountain #{self.n_good}/{self.max_mountains}, "
+                f"height {len(fset)}>={self.min_height}"
+            )
+            # exclude this variables (assume this points are already covered)
+            for i in fset:
+                self.milp.set_ub(self.xs[i], 0)
+
+    def process_bad_clique(self, fset, ineq):
+        # exclude this clique (& super-cliques)
+        orig = fset
+        # hard limit
+        repeated_streak = 0
+        for itr in range(200):
+            inds = list(orig)
+            shuffle(inds)
+            # print("exclude itr", itr)
+            for i in inds:
+                and_fset = fset - {i}
+
+                ineq = self.oracle.query(Bin(and_fset, self.N))
+                # print("exclude itr", itr, i, "ineq", ineq)
+                if ineq:
+                    self.sys.add_feasible(and_fset, sol=self.sol_encoder(ineq))
+                    break
+                else:
+                    fset = and_fset
+
+            if fset not in self.sys.infeasible.cache:
+                self.n_bad += 1
+                log.info(f"exclude wt={len(fset)}: {fset}")
+                # exclude this clique (&super-cliques since it's reduced)
+                self.exclude_subcliques(fset)
+                self.sys.add_infeasible(fset)
+                repeated_streak = 0
+            else:
+                repeated_streak += 1
+                if repeated_streak >= self.max_repeated_streak:
+                    break
+
+
 class LazySparseSystem:
     def init(self, pool):
         self.pool = pool
         self.N = int(self.pool.N)
         self.feasible = GrowingLowerFrozen(self.N)
-        self.infeasible = WeightedFrozenSets(self.N)
+        self.infeasible = GrowingUpperFrozen(self.N)
         self.solution = {}
 
     # NAIVE
@@ -334,11 +547,9 @@ class LazySparseSystem:
             del self.solution[k]
 
     def encode_bad_subset(self, indexes):
+        indexes = frozenset(indexes)
         assert all(0 <= i < self.N for i in indexes)
-        return frozenset(indexes)
-
-    def to_Bin(self, fset):
-        return Bin(sum(2**(self.N-1-i) for i in fset), self.N)
+        return indexes
 
     def add_feasible(self, fset, sol=None):
         assert isinstance(fset, frozenset)
@@ -367,12 +578,14 @@ class LazySparseSystem:
             log.info(f"   {name}: {len(s)}: {freqstr}")
 
     def learn_simple(self, oracle, sol_encoder=lambda v: v):
+        self.oracle = oracle
+
         print("starting pairs")
         good_pairs = []
         bad_pairs = []
         for i, j in combinations(range(self.N), 2):
             fset = self.encode_bad_subset((i, j))
-            ineq = oracle.query(self.to_Bin(fset))
+            ineq = oracle.query(Bin(fset, self.N))
             # print("visit", Bin(fset, self.N).str, ":", ineq)
             if not ineq:
                 self.infeasible.add(fset)
@@ -403,7 +616,7 @@ class LazySparseSystem:
                         continue
 
                     fset = self.encode_bad_subset((i, j, k))
-                    ineq = oracle.query(self.to_Bin(fset))
+                    ineq = oracle.query(Bin(fset, self.N))
                     if not ineq:
                         self.infeasible.add(fset)
                         bad_triples.add((i, j, k))
@@ -486,7 +699,10 @@ class LazySparseSystem:
 
             n_cliques += 1
 
-            log.info(f"clique #{n_cliques}: {obj} (bads: {len(bads)})")
+            log.info(
+                f"clique #{n_cliques}: {obj} "
+                f"(bads: {len(bads)}, queries: {self.oracle.n_calls})"
+            )
 
             assert obj > known + 0.5
 
@@ -534,7 +750,7 @@ class LazySparseSystem:
 
                     for i in inds:
                         and_fset = fset - {i}
-                        and_indic = self.to_Bin(and_fset)
+                        and_indic = Bin(and_fset, self.N)
 
                         ineq = oracle.query(and_indic)
                         if ineq:

@@ -93,6 +93,9 @@ class WeightedSet:
         for s in self.sets[:w+1]:
             yield from s
 
+    def iter_wt(self, w):
+        yield from self.sets[w]
+
     def __iter__(self):
         return iter(self.iter_ge())
 
@@ -139,6 +142,9 @@ class WeightedFrozenSets:
         for s in self.sets[:w+1]:
             yield from s
 
+    def iter_wt(self, w):
+        yield from self.sets[w]
+
     def __iter__(self):
         return iter(self.iter_ge())
 
@@ -153,6 +159,9 @@ class WeightedFrozenSets:
 
     def __len__(self):
         return sum(len(v) for v in self.sets)
+
+    def __getitem__(self, w):
+        return self.sets[w]
 
     def do_MaxSet(self):
         """naive, optimized by weights"""
@@ -177,7 +186,7 @@ class GrowingExtremeFrozen:
     def __init__(self, n, spec=()):
         self.n = int(n)
         self.sets = [set() for i in range(self.n+1)]
-        self.cache = [set() for i in range(self.n+1)]
+        self.cache = WeightedFrozenSets(n=self.n)
 
         for v in spec:
             self.add(v)
@@ -200,6 +209,9 @@ class GrowingExtremeFrozen:
         for s in reversed(self.sets[:w+1]):
             yield from s
 
+    def iter_wt(self, w):
+        yield from self.sets[w]
+
     def __iter__(self):
         return iter(self.iter_ge())
 
@@ -211,8 +223,8 @@ class GrowingExtremeFrozen:
 
 
 class GrowingLowerFrozen(GrowingExtremeFrozen):
-    low_cache_level = -1
-    upper_descend_max = 10**4
+    # low_cache_level = -1
+    # upper_descend_max = 10**4
 
     def contains(self, v, strict=False):
         """naive, optimized by weights"""
@@ -237,6 +249,10 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
                     v for v in self.sets[w1]
                     if not any(v & u == v for u in self.sets[w2])
                 }
+
+
+class GrowingUpperFrozen(GrowingExtremeFrozen):
+    pass
 
 
 class DynamicExtremeSet:
