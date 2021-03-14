@@ -15,7 +15,11 @@ from .random_group_cut import RandomGroupCut
 from .gem_cut import GemCut
 
 from divprop.learn import DenseLowerSetLearn
-from divprop.subsets import neibs_up_tuple, not_tuple, support_int_le, WeightedFrozenSets
+from divprop.subsets import (
+    neibs_up_tuple, not_tuple, support_int_le,
+    WeightedFrozenSets,
+    GrowingLowerFrozen,
+)
 
 from divprop.milp import MILP
 
@@ -64,10 +68,10 @@ class Hats(Generator):
 
         for top, subs in hats.items():
             ineq = self.make_ineq(top, subs)
-            fset = pool.LSL.encode_bad_subset(
+            fset = pool.syatem.encode_bad_subset(
                 pool.bad2i[q] for q in subs
             )
-            pool.LSL.add_feasible(
+            pool.syatem.add_feasible(
                 fset, sol=IneqInfo(ineq=ineq, source="hat"),
             )
 
@@ -106,6 +110,7 @@ class RandomPlaneCut(Generator):
             sol=IneqInfo(ineq=ineq, source="random_ineq")
         )
 
+
 class DFS(Generator):
     def __init__(self):
         pass
@@ -128,18 +133,17 @@ class LPbasedOracle:
 
     def _prepare_constraints(self):
         self.milp = MILP.maximization(solver=self.solver)
+
         if self.pool.type_good is None:  # not monotone
-            self.xs = [
-                self.milp.var_real("x%d" % i, lb=None, ub=None)
-                for i in range(self.pool.n)
-            ]
-            self.c = self.milp.var_real("c", lb=None, ub=None)
+            lb = None
         else:
-            self.xs = [
-                self.milp.var_real("x%d" % i, lb=0, ub=None)
-                for i in range(self.pool.n)
-            ]
-            self.c = self.milp.var_real("c", lb=0, ub=None)
+            lb = 0  # monotone => nonnegative
+
+        # set ub = 1000+ ? ...
+        self.xs = []
+        for i in range(self.pool.n):
+            self.xs.append(self.milp.var_real("x%d" % i, lb=lb, ub=None))
+        self.c = self.milp.var_real("c", lb=lb, ub=None)
 
         for p in self.pool.good:
             self.milp.add_constraint(inner(p, self.xs) >= self.c)
@@ -153,7 +157,7 @@ class LPbasedOracle:
         bads = bads.support()
 
         self.n_calls += 1
-        self._prepare_constraints()
+
         LP = self.milp
         cs = [LP.add_constraint(self.i2cs[i]) for i in bads]
         res = LP.optimize()
@@ -297,17 +301,17 @@ class LazySparseSystem:
     def init(self, pool):
         self.pool = pool
         self.N = int(self.pool.N)
-        self.feasible = WeightedFrozenSets(self.N)
+        self.feasible = GrowingLowerFrozen(self.N)
         self.infeasible = WeightedFrozenSets(self.N)
         self.solution = {}
 
     # NAIVE
     def is_already_feasible(self, v):
         # quick check
-        if v in self.feasible.set:
+        if v in self.feasible_cache:
             return True
         # is in feasible lowerset?
-        for u in self.feasible.set:
+        for u in self.feasible:
             # v <= u
             if v & u == v:
                 return True
@@ -315,10 +319,10 @@ class LazySparseSystem:
 
     def is_already_infeasible(self, v):
         # quick check
-        if v in self.infeasible.set:
+        if v in self.infeasible_cache:
             return True
         # is in infeasible upperset?
-        for u in self.infeasible.set:
+        for u in self.infeasible:
             # v >= u
             if v | u == v:
                 return True
@@ -415,7 +419,7 @@ class LazySparseSystem:
         print("===================================")
 
         # find cliques
-        # solver = "scip"
+        solver = "scip"
         solver = "gurobi"
         print("clique solver:", solver)
         if solver == "scip":

@@ -148,8 +148,82 @@ class WeightedFrozenSets:
     def remove(self, v):
         return self.sets[len(v)].remove(v)
 
+    def discard(self, v):
+        return self.sets[len(v)].discard(v)
+
     def __len__(self):
         return sum(len(v) for v in self.sets)
+
+    def do_MaxSet(self):
+        """naive, optimized by weights"""
+        w = max(w for w in range(self.n+1) if self.sets[w])
+        # remove from w1 using w2
+        for w2 in reversed(range(w+1)):
+            for w1 in reversed(range(w2)):
+                if not self.sets[w1]:
+                    continue
+                self.sets[w1] = {
+                    v for v in self.sets[w1]
+                    if not any(v & u == v for u in self.sets[w2])
+                }
+
+
+class GrowingExtremeFrozen:
+    """
+    Invariant:
+        extreme <= sets <= cache
+
+    """
+    def __init__(self, n, spec=()):
+        self.n = int(n)
+        self.sets = [set() for i in range(self.n+1)]
+        self.cache = [set() for i in range(self.n+1)]
+
+        for v in spec:
+            self.add(v)
+
+    def add(self, v: frozenset):
+        if v not in self.cache[len(v)]:
+            self.sets[len(v)].add(v)
+            self.cache[len(v)].add(v)
+
+    def iter_ge(self, w=0):
+        for s in self.sets[w:]:
+            yield from s
+
+    def iter_le(self, w=None):
+        if w is None:
+            w = self.n
+        if w < 0:
+            return
+        assert 0 <= w <= self.n
+        for s in reversed(self.sets[:w+1]):
+            yield from s
+
+    def __iter__(self):
+        return iter(self.iter_ge())
+
+    def __contains__(self, v):
+        return self.contains(v, strict=False)
+
+    def __len__(self):
+        return sum(len(v) for v in self.sets)
+
+
+class GrowingLowerFrozen(GrowingExtremeFrozen):
+    low_cache_level = -1
+    upper_descend_max = 10**4
+
+    def contains(self, v, strict=False):
+        """naive, optimized by weights"""
+        assert not strict, "not impl"
+        if v in self.cache[len(v)]:
+            return True
+
+        for u in self.iter_ge(len(v)+1):
+            if u | v == u:
+                return True
+        return False
 
     def do_MaxSet(self):
         """naive, optimized by weights"""
