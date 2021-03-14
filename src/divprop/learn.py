@@ -433,6 +433,76 @@ class DenseLowerSetLearn:
 #                 yield fset | {i}
 
 
+class SupportLearner:
+    def __init__(self, level=2):
+        self.level = int(level)
+
+    def learn_system(self, system, oracle):
+        self.log = logging.getLogger(f"{__name__}:{type(self).__name__}")
+        N = system.N
+
+        start = getattr(system, "_support_learned", 1) + 1
+
+        if start > self.level:
+            self.log.info(
+                f"support-{start} already learned "
+                f"(requested {self.level})"
+            )
+            return
+
+        sol_encoder = lambda ineq: IneqInfo(ineq, f"Support-{self.level}")
+
+        self.log.info(
+            f"generating support-{self.level} graph "
+            f"(exhausting pairs, triples, ..., {self.level}-hyperedges), "
+            f"starting from {start}"
+        )
+
+        for l in range(start, self.level+1):
+            self.log.info(f"generating support, height={l}/{self.level}")
+
+            n_good = 0
+            n_total = 0
+
+            if l == 2:
+                # exhaust all pairs
+                for inds in combinations(range(N), l):
+                    fset = system.encode_bad_subset(inds)
+
+                    ineq = oracle.query(Bin(fset, N))
+                    if ineq:
+                        system.add_feasible(
+                            fset, sol=sol_encoder(ineq)
+                        )
+                        n_good += 1
+                    else:
+                        system.add_infeasible(fset)
+                    n_total += 1
+            else:
+                # only extend feasible pairs/triples/etc.
+                for prev_fset in system.feasible.cache[l-1]:
+                    for k in range(max(prev_fset)+1, N):
+                        fset = prev_fset | {k}
+
+                        ineq = oracle.query(Bin(fset, N))
+                        if ineq:
+                            system.add_feasible(
+                                fset, sol=sol_encoder(ineq)
+                            )
+                            n_good += 1
+                        else:
+                            system.add_infeasible(fset)
+                        n_total += 1
+
+            self.log.info(
+                f"generated support, height={l}/{self.level}: "
+                f"feasible {n_good}/{n_total} "
+                f"(frac. {(n_good+1)/(n_total+1):.3f})"
+            )
+
+            setattr(system, "_support_learned", l)
+
+
 class CliqueMountainHills:
     def __init__(
         self,
@@ -450,20 +520,23 @@ class CliqueMountainHills:
         self.solver = solver
         self.log = logging.getLogger(f"{__name__}:{type(self).__name__}")
 
-    def learn_system(self, system, oracle, sol_encoder=None):
-        if sol_encoder is None:
-            sol_encoder = lambda ineq: IneqInfo(ineq, "CMH")
+    def learn_system(self, system, oracle):
+        self.N = system.N
         self.sys = system
         self.oracle = oracle
-        self.N = system.N
-        self.sol_encoder = sol_encoder
+        self.sol_encoder = lambda ineq: IneqInfo(ineq, "CMH")
 
         n_calls0 = self.oracle.n_calls
 
         # =================================
 
-        self.generate_base()
+        SupportLearner(level=self.base_level).learn_system(
+            system=system,
+            oracle=oracle,
+        )
         self.generate_cliques()
+
+        # =================================
 
         self.log.info("final statistics:")
         self.log.info(
@@ -478,54 +551,6 @@ class CliqueMountainHills:
 
         self.log.info("after MaxSet")
         self.sys.log_info()
-
-    def generate_base(self):
-        for i in range(self.N):
-            assert self.sys.encode_bad_subset([i]) in self.sys.feasible, \
-                "single-point removal inequalities must be present"
-            assert isinstance(self.sys.encode_bad_subset([i]), frozenset), \
-                "frozenset assumed"
-
-        for l in range(2, self.base_level+1):
-            self.log.info(
-                f"generating exhaustive base, height={l}/{self.base_level}"
-            )
-            n_good = 0
-            n_total = 0
-            if l == 2:
-                # exhaust all pairs
-                for inds in combinations(range(self.N), l):
-                    fset = self.sys.encode_bad_subset(inds)
-
-                    ineq = self.oracle.query(Bin(fset, self.N))
-                    if ineq:
-                        self.sys.add_feasible(
-                            fset, sol=self.sol_encoder(ineq)
-                        )
-                        n_good += 1
-                    else:
-                        self.sys.add_infeasible(fset)
-                    n_total += 1
-            else:
-                # only extend feasible pairs/triples/etc.
-                for prev_fset in self.sys.feasible.cache[l-1]:
-                    for k in range(max(prev_fset)+1, self.N):
-                        fset = prev_fset | {k}
-
-                        ineq = self.oracle.query(Bin(fset, self.N))
-                        if ineq:
-                            self.sys.add_feasible(
-                                fset, sol=self.sol_encoder(ineq)
-                            )
-                            n_good += 1
-                        else:
-                            self.sys.add_infeasible(fset)
-                        n_total += 1
-            self.log.info(
-                f"exhaustive base, height={l}/{self.base_level}: "
-                f"feasible {n_good}/{n_total} "
-                f"(frac. {(n_good+1)/(n_total+1):.3f})"
-            )
 
     def exclude_subcliques(self, fset):
         self.milp.add_constraint(
@@ -590,7 +615,6 @@ class CliqueMountainHills:
                     self.process_bad_clique(fset)
 
                 self.milp.add_constraint(self.xsum <= size)
-                # self.milp.set_ub(self.xsum, size)
 
     def process_good_clique(self, fset, ineq):
         self.sys.add_feasible(fset, sol=self.sol_encoder(ineq))
@@ -638,9 +662,11 @@ class CliqueMountainHills:
                 self.n_bad += 1
                 self.log.info(f"exclude wt={len(fset)}: {fset}")
                 # exclude this clique (&super-cliques since it's reduced)
-                self.exclude_subcliques(fset)
+                self.exclude_supercliques(fset)
                 self.sys.add_infeasible(fset)
                 repeated_streak = 0
+                if fset == orig:
+                    break
             else:
                 repeated_streak += 1
                 if repeated_streak >= self.max_repeated_streak:
