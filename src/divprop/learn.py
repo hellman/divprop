@@ -17,9 +17,9 @@ from divprop.subsets import (
     WeightedSet,
 )
 
-from divprop.inequalities.base import (
-    MixedIntegerLinearProgram, MIPSolverException,
-)
+from sage.numerical.mip import MixedIntegerLinearProgram
+from sage.numerical.mip import MIPSolverException
+
 log = logging.getLogger(__name__)
 
 
@@ -291,11 +291,11 @@ class DenseLowerSetLearn:
                 self.add_feasible(
                     fset, sol=sol_encoder(ineq)
                 )
-                if Bin(fset).hw() >= 9:
-                    print("ineq", ineq)
-                    for i in Bin(fset, self.N).support():
-                        print("".join(map(str, oracle.pool.lo[i])))
-                    print()
+                # if Bin(fset).hw() >= 9:
+                #     print("ineq", ineq)
+                #     for i in Bin(fset, self.N).support():
+                #         print("".join(map(str, oracle.pool.lo[i])))
+                #     print()
             # print("result")
             # print("feas", self.feasible.to_DenseSet().to_Bins())
             # print("infe", self.infeasible.to_DenseSet().to_Bins())
