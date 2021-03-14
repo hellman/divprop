@@ -234,6 +234,7 @@ class SCIP(MILP):
         status = self.model.getStatus()
         assert status in ("optimal", "infeasible"), status
         if status == "infeasible":
+            self.model.freeTransform()
             return
 
         obj = self.model.getObjVal()
@@ -253,10 +254,6 @@ class SCIP(MILP):
 
         if self.reopt:
             self.model.freeReoptSolve()
-            # self.model.chgReoptObjective(
-            #     self._obj,
-            #     sense="maximize" if self.maximization else "minimize",
-            # )
         else:
             self.model.freeTransform()
         return obj
