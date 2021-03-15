@@ -1,3 +1,4 @@
+import os
 import coloredlogs
 import logging
 from datetime import datetime
@@ -35,6 +36,9 @@ def setup(level='INFO'):
 
     now = datetime.now().strftime("%Y-%m-%d.%H:%M:%S")
     logger.info(f"starting at {now}")
+
+    if os.path.exists("logs/.divprop"):
+        logging.addFileHandler(f"logs/.{now}")
 
 
 def addFileHandler(filename, append_date=True):
