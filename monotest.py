@@ -17,35 +17,10 @@ log = logging.getLogger()
 fileprefix = "/work/division/workspace/data/sbox_skinny_4/divcore.lb"
 fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
 fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
-#fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
+# fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
 
-points_good = DenseSet.load_from_file(fileprefix + ".good.set")
-points_bad = DenseSet.load_from_file(fileprefix + ".bad.set")
+pool = InequalitiesPool.from_DenseSet_files(fileprefix)
 
-with open(fileprefix + ".type_good") as f:
-    type_good = f.read().strip()
-    assert type_good in ("upper", "lower")
-
-log.info(f"points_good: {points_good}")
-if len(points_good) < 100:
-    log.info(f"{list(points_good)}")
-log.info(f" points_bad: {points_bad}")
-if len(points_bad) < 100:
-    log.info(f"{list(points_bad)}")
-log.info(f"  type_good: {type_good}")
-
-if type_good == "lower":
-    assert points_bad <= points_good.LowerSet().Complement()
-else:
-    assert points_bad <= points_good.UpperSet().Complement()
-
-pool = InequalitiesPool(
-    points_good=points_good.to_Bins(),
-    points_bad=points_bad.to_Bins(),
-    type_good=type_good,
-    system=LazySparseSystem(),
-)
-assert pool.N == len(points_bad)
 
 # pool.gen_hats()
 # for i in range(1000):
@@ -58,16 +33,13 @@ pool.system.log_info()
 print()
 print()
 
-if 0:
-    pool.gen_dfs()
-else:
-    CliqueMountainHills(
-        base_level=2,
-        solver="scip",
-    ).learn_system(
-        system=pool.system,
-        oracle=pool.oracle,
-    )
+CliqueMountainHills(
+    base_level=2,
+    solver="gurobi",
+).learn_system(
+    system=pool.system,
+    oracle=pool.oracle,
+)
 
 print("calls", pool.oracle.n_calls)
 

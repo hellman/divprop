@@ -12,6 +12,7 @@ from .base import (
 )
 
 from divprop.subsets import (
+    DenseSet,
     neibs_up_tuple, not_tuple, support_int_le,
     WeightedFrozenSets,
     GrowingLowerFrozen,
@@ -29,7 +30,7 @@ IneqInfo = namedtuple("IneqInfo", ("ineq", "source"))
 
 class Generator:
     def generate(self, pool):
-        pass
+        raise NotImplementedError()
 
 
 class Hats(Generator):
@@ -65,10 +66,10 @@ class Hats(Generator):
 
         for top, subs in hats.items():
             ineq = self.make_ineq(top, subs)
-            fset = pool.syatem.encode_bad_subset(
+            fset = pool.system.encode_bad_subset(
                 pool.bad2i[q] for q in subs
             )
-            pool.syatem.add_feasible(
+            pool.system.add_feasible(
                 fset, sol=IneqInfo(ineq=ineq, source="hat"),
             )
 
@@ -84,38 +85,14 @@ class RandomPlaneCut(Generator):
         lin = choices(lst, wts, k=pool.n)
         # lin = [randrange(max_coef+1) for _ in range(pool.n)]
         ev_good = min(inner(p, lin) for p in pool.good)
-        fset = pool.LSL.encode_bad_subset(
+        fset = pool.system.encode_bad_subset(
             i for i, q in enumerate(pool.i2bad) if inner(q, lin) < ev_good
         )
-        # if fset:
-        #     print("lin", lin)
-        #     print(
-        #         "good",
-        #         min(inner(p, lin) for p in pool.good),
-        #         max(inner(p, lin) for p in pool.good),
-        #     )
-        #     print(
-        #         " bad",
-        #         min(inner(p, lin) for p in pool.bad),
-        #         max(inner(p, lin) for p in pool.bad),
-        #     )
-        #     print(fset)
         # lin. comb. >= ev_good
         ineq = tuple(lin) + (-ev_good,)
-        pool.LSL.add_feasible(
+        pool.system.add_feasible(
             fset,
             sol=IneqInfo(ineq=ineq, source="random_ineq")
-        )
-
-
-class DFS(Generator):
-    def __init__(self):
-        pass
-
-    def generate(self, pool):
-        return pool.system.learn_simple(
-            oracle=pool.oracle,
-            sol_encoder=lambda ineq: IneqInfo(ineq, "DFS")
         )
 
 
@@ -178,6 +155,35 @@ class LPbasedOracle:
 
 
 class InequalitiesPool:
+    log = logging.getLogger(f"{__name__}:InequalitiesPool")
+
+    @classmethod
+    def from_DenseSet_files(cls, fileprefix, system=None, checks=False):
+        points_good = DenseSet.load_from_file(fileprefix + ".good.set")
+        points_bad = DenseSet.load_from_file(fileprefix + ".bad.set")
+        with open(fileprefix + ".type_good") as f:
+            type_good = f.read().strip()
+            assert type_good in ("upper", "lower", None)
+
+        cls.log.info(f"points_good: {points_good}")
+        cls.log.info(f" points_bad: {points_bad}")
+        cls.log.info(f"  type_good: {type_good}")
+
+        if checks:
+            if type_good == "lower":
+                assert points_bad <= points_good.LowerSet().Complement()
+            elif type_good == "upper":
+                assert points_bad <= points_good.UpperSet().Complement()
+
+        pool = cls(
+            points_good=points_good.to_Bins(),
+            points_bad=points_bad.to_Bins(),
+            type_good=type_good,
+            system=system,
+        )
+        assert pool.N == len(points_bad)
+        return pool
+
     def __init__(self, points_good, points_bad, type_good=None, system=None):
         for p in points_bad:
             self.n = len(p)
@@ -235,9 +241,6 @@ class InequalitiesPool:
     def gen_hats(self):
         Hats().generate(self)
 
-    def gen_dfs(self):
-        DFS().generate(self)
-
     # tbd:
     # port polyhedron
     # port subset greedy
@@ -247,8 +250,8 @@ class InequalitiesPool:
         [SecITC:SasTod17]
         Choose subset optimally by optimizing MILP system.
         """
-        log.info(f"InequalitiesPool.choose_subset_milp(solver={solver})")
-        log.info(f"{len(self.system.feasible)} ineqs {len(self.bad)} bad points")
+        self.log.info(f"InequalitiesPool.choose_subset_milp(solver={solver})")
+        self.log.info(f"{len(self.system.feasible)} ineqs {len(self.bad)} bad points")
 
         L = list(self.system.feasible)
         self.check_good(L)  # to avoid surprises
@@ -274,7 +277,7 @@ class InequalitiesPool:
         # minimize number of ineqs
         milp.set_objective(sum(take_eq))
 
-        log.info(
+        self.log.info(
             f"solving milp with {n} variables, "
             f"{len(self.points_bad)} constraints"
         )
@@ -295,6 +298,8 @@ class InequalitiesPool:
 
 
 class LazySparseSystem:
+    log = logging.getLogger(f"{__name__}:LazySparseSystem")
+
     def init(self, pool):
         self.pool = pool
         self.N = int(self.pool.N)
@@ -350,7 +355,7 @@ class LazySparseSystem:
         self.feasible.do_MaxSet()
 
     def log_info(self):
-        log.info("stat:")
+        self.log.info("stat:")
         for (name, s) in [
             ("feasible", self.feasible),
             ("infeasible", self.infeasible),
@@ -360,213 +365,3 @@ class LazySparseSystem:
                 f"{sz}:{cnt}" for sz, cnt in sorted(freq.items())
             )
             log.info(f"   {name}: {len(s)}: {freqstr}")
-
-    def learn_simple(self, oracle, sol_encoder=lambda v: v):
-        self.oracle = oracle
-
-        print("starting pairs")
-        good_pairs = []
-        bad_pairs = []
-        for i, j in combinations(range(self.N), 2):
-            fset = self.encode_bad_subset((i, j))
-            ineq = oracle.query(Bin(fset, self.N))
-            # print("visit", Bin(fset, self.N).str, ":", ineq)
-            if not ineq:
-                self.infeasible.add(fset)
-                bad_pairs.append((i, j))
-            else:
-                self.feasible.add(fset)
-                self.solution[fset] = sol_encoder(ineq)
-                good_pairs.append((i, j))
-
-        print("pairs done")
-        print("n_calls", oracle.n_calls)
-        self.log_info()
-        print()
-
-        known = 2
-
-        if 0:
-            bad_triples = set()
-            for i, j in good_pairs:
-                for k in range(j+1, self.N):
-                    assert (i < j < k)
-
-                    fset_ik = self.encode_bad_subset((i, k))
-                    if fset_ik not in self.feasible:
-                        continue
-                    fset_jk = self.encode_bad_subset((j, k))
-                    if fset_jk not in self.feasible:
-                        continue
-
-                    fset = self.encode_bad_subset((i, j, k))
-                    ineq = oracle.query(Bin(fset, self.N))
-                    if not ineq:
-                        self.infeasible.add(fset)
-                        bad_triples.add((i, j, k))
-                    else:
-                        self.feasible.add(fset)
-                        self.solution[fset] = sol_encoder(ineq)
-
-            print("triples done", len(bad_triples), "bad triples")
-            print("n_calls", oracle.n_calls)
-            self.log_info()
-            print()
-            known = 3
-        print("===================================")
-
-        # find cliques
-        solver = "scip"
-        solver = "gurobi"
-        print("clique solver:", solver)
-        if solver == "scip":
-            from pyscipopt import Model
-            model = Model()
-            model.hideOutput()
-
-            xs = [model.addVar("x%d" % i, vtype="B") for i in range(self.N)]
-            xsum = model.addVar("xsum", vtype="I", lb=known+1, ub=self.N)
-            model.addCons(xsum == sum(xs))
-            model.setObjective(xsum)
-            model.setMaximize()
-            m_add_cons = model.addCons
-            m_set_max = model.tightenVarUbGlobal
-            def m_solve():
-                model.optimize()
-                status = model.getStatus()
-                nsols = model.getNSols()
-                print("nsols", nsols)
-                assert status in ("optimal", "infeasible"), status
-                if status == "optimal":
-                    return model.getObjVal()
-                raise MIPSolverException()
-            m_get_val = model.getVal
-        else:
-            model = MixedIntegerLinearProgram(maximization=True, solver=solver)
-
-            var = model.new_variable(binary=True)
-            xs = [var["x%d" % i] for i in range(self.N)]
-            xsum = model.new_variable(integer=True, nonnegative=True)["xsum"]
-            model.add_constraint(xsum == sum(xs))
-            model.set_min(xsum, known+1)
-            model.set_objective(xsum)
-            m_add_cons = model.add_constraint
-            m_set_max = model.set_max
-            m_solve = model.solve
-            m_get_val = model.get_values
-
-        for i, j in bad_pairs:
-            m_add_cons(xs[i] + xs[j] <= 1)
-        if known == 3:
-            for i, j, k in bad_triples:
-                m_add_cons(xs[i] + xs[j] + xs[k] <= 2)
-
-        # vs = 0, 1, 3, 13
-        # for i, j in combinations(vs, 2):
-        #     assert (i, j) in good_pairs
-        #     assert (i, j) not in bad_pairs
-        # for i, j, k in combinations(vs, 3):
-        #     assert (i, j, k) not in bad_triples
-
-        # # for v in vs:
-        # #     add_cons(xs[v] == 1)
-
-        bads = set()
-        goods = set()
-        n_cliques = 0
-        while True:
-            try:
-                obj = m_solve()
-            except MIPSolverException as err:
-                print("exception (no solution?):", err)
-                break
-
-            n_cliques += 1
-
-            log.info(
-                f"clique #{n_cliques}: {obj} "
-                f"(bads: {len(bads)}, queries: {self.oracle.n_calls})"
-            )
-
-            assert obj > known + 0.5
-
-            val_xs = tuple(m_get_val(x) for x in xs)
-            assert all(abs(v - round(v)) < 0.00001 for v in val_xs)
-            val_xs = tuple(int(v + 0.5) for v in val_xs)
-
-            if solver == "scip":
-                model.freeTransform()
-
-            indic = Bin(val_xs, self.N)
-            fset = frozenset(indic.support())
-
-            ineq = oracle.query(indic)
-            print("".join(map(str, val_xs)), ineq)
-            if ineq:
-
-                self.feasible.add(fset)
-                self.solution[fset] = sol_encoder(ineq)
-                for i in indic.support():
-                    print("%3d" % i, Bin(oracle.pool.i2bad[i]).str)
-                print()
-
-                # exclude all subcliques
-                m_add_cons(sum(
-                    xs[i] for i, x in enumerate(val_xs) if x == 0
-                ) >= 1)
-                goods.add(indic)
-
-                # take one mountain
-                # then hunt for the hills
-                if indic.hw() > 18:
-                    print("taken the mountain!", len(goods))
-                    for i in indic.support():
-                        m_set_max(xs[i], 0)
-            else:
-                # exclude this clique (&overcliques)
-                orig = indic
-                for itr in range(100):
-                    indic = orig
-
-                    # print("removal itr", itr)
-                    inds = list(indic.support())
-                    shuffle(inds)
-
-                    for i in inds:
-                        and_fset = fset - {i}
-                        and_indic = Bin(and_fset, self.N)
-
-                        ineq = oracle.query(and_indic)
-                        if ineq:
-                            # print("degraded to GOOD", and_indic.hw(), and_fset)
-                            self.feasible.add(and_fset)
-                            self.solution[and_fset] = sol_encoder(ineq)
-                        else:
-                            # print("degraded to  BAD", and_indic.hw(), and_fset)
-                            fset = and_fset
-                            indic = and_indic
-
-                    if indic not in bads:
-                        print("exclude", indic.hw(), indic.support())
-                        # exclude this clique (&overcliques since it's reduced)
-                        m_add_cons(sum(
-                            xs[i] for i, x in enumerate(indic.tuple) if x == 1
-                        ) <= sum(indic.tuple) - 1)
-                        bads.add(indic)
-                    elif itr > 50:
-                        break
-
-            m_set_max(xsum, int(obj + 0.5))
-
-        print("cliques enumerated", n_cliques)
-        print("n_calls", oracle.n_calls)
-        self.log_info()
-        print()
-
-        self.feasible.do_MaxSet()
-        self.clean_solution()
-
-        print("clean")
-        print("n_calls", oracle.n_calls)
-        self.log_info()
-        print()
