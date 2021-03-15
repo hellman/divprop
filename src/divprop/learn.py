@@ -542,6 +542,8 @@ class CliqueMountainHills:
         self.bad_learn_hard_limit_random = int(bad_learn_hard_limit_random)
         self.bad_learn_hard_limit_milp = int(bad_learn_hard_limit_milp)
 
+        self._options = self.__dict__.copy()
+
         self.solver = solver
         self.log = logging.getLogger(f"{__name__}:{type(self).__name__}")
 
@@ -553,6 +555,8 @@ class CliqueMountainHills:
         n_calls0 = self.oracle.n_calls
 
         self.milp = None
+
+        self.log.info(f"starting, options: {self._options}")
 
         # =================================
 
@@ -613,6 +617,8 @@ class CliqueMountainHills:
 
         self.log.info("after MaxSet/MinSet")
         self.sys.log_info()
+
+        self.log.info(f"recall options: {self._options}")
 
     def exclude_subcliques(self, fset):
         self.milp.add_constraint(
@@ -719,6 +725,12 @@ class CliqueMountainHills:
             for l in range(2, self.base_level+1):
                 for fset in self.sys.infeasible.iter_wt(l):
                     self.exclude_supercliques(fset)
+
+        self.log.info(
+            "starting max-clique search, "
+            f"max_mountains: {self.max_mountains} "
+            f"(min height {self.min_height})"
+        )
 
         self.n_cliques = 0
         self.n_bad = 0
