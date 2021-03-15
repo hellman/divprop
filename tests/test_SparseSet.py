@@ -1,5 +1,8 @@
 from binteger import Bin
-from divprop.subsets import DynamicLowerSet, DynamicUpperSet, DenseSet
+from divprop.subsets import (
+    DynamicLowerSet, DynamicUpperSet, DenseSet,
+    GrowingUpperFrozen, GrowingLowerFrozen,
+)
 from random import randrange, seed
 
 
@@ -63,5 +66,26 @@ def test_Dynamic():
                 assert sparse.set == set(dense)
 
 
+def test_GrowingExtremeFrozen():
+    f01 = frozenset({0, 1})
+    f02 = frozenset({0, 2})
+    f012 = frozenset({0, 1, 2})
+
+    s = GrowingUpperFrozen(10)
+    s.add(f01)
+    s.add(f02)
+    s.add(f012)
+    s.do_MinSet()
+    assert set(s) == {f01, f02}
+
+    s = GrowingLowerFrozen(10)
+    s.add(f01)
+    s.add(f02)
+    s.add(f012)
+    s.do_MaxSet()
+    assert set(s) == {f012}
+
+
 if __name__ == '__main__':
     test_Dynamic()
+    test_GrowingExtremeFrozen()

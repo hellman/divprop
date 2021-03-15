@@ -2,6 +2,8 @@
 Manipulations on sets of binary vectors / subsets of some set.
 """
 
+from itertools import combinations
+
 from .libsubsets import *
 from .libsubsets import DenseSet
 
@@ -229,30 +231,79 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
     def contains(self, v, strict=False):
         """naive, optimized by weights"""
         assert not strict, "not impl"
-        if v in self.cache[len(v)]:
+        if v in self.cache:
             return True
 
-        for u in self.iter_ge(len(v)+1):
-            if u | v == u:
-                return True
+        for w in reversed(range(len(v)+1, self.n+1)):
+            for u in self.sets[w]:
+                if u | v == u:
+                    return True
         return False
 
     def do_MaxSet(self):
         """naive, optimized by weights"""
-        w = max(w for w in range(self.n+1) if self.sets[w])
         # remove from w1 using w2
-        for w2 in reversed(range(w+1)):
-            for w1 in reversed(range(w2)):
+        for w2 in reversed(range(1, self.n+1)):
+            if not self.sets[w2]:
+                continue
+            for w1 in range(w2):
                 if not self.sets[w1]:
                     continue
-                self.sets[w1] = {
-                    v for v in self.sets[w1]
-                    if not any(v & u == v for u in self.sets[w2])
-                }
+                # rough binomial(w2, w1)
+                nsub = w2**w1 if w1 < w2//2 else (w2-w1)**w1
+                if nsub < len(self.sets[w1]):
+                    # enum all subseqs
+                    for u in self.sets[w2]:
+                        for v in combinations(u, w1):
+                            self.sets[w1].discard(frozenset(v))
+                else:
+                    self.sets[w1] = {
+                        v for v in self.sets[w1]
+                        if not any(v & u == v for u in self.sets[w2])
+                    }
 
 
 class GrowingUpperFrozen(GrowingExtremeFrozen):
-    pass
+    def contains(self, v, strict=False):
+        """naive, optimized by weights"""
+        assert not strict, "not impl"
+        if v in self.cache:
+            return True
+
+        for w in range(len(v)):
+            for u in self.sets[w]:
+                if u & v == u:
+                    return True
+        return False
+
+    def do_MinSet(self):
+        """naive, optimized by weights"""
+        # remove from w1 using w2
+        for w2 in range(0, self.n):
+            if not self.sets[w2]:
+                continue
+            for w1 in range(w2+1, self.n+1):
+                if not self.sets[w1]:
+                    continue
+
+                # rough binomial(nw2, nw1)
+                nw1 = self.n - w1
+                nw2 = self.n - w2
+                nsup = nw2**nw1 if nw1 < nw2//2 else (nw2-nw1)**nw1
+                full = frozenset(range(self.n))
+                if nsup < len(self.sets[w1]):
+                    # enum all superseqs
+                    for u in self.sets[w2]:
+                        nu = fset_complement(u, self.n)
+                        for v in combinations(nu, nw1):
+                            v = full - frozenset(v)
+                            self.sets[w1].discard(v)
+                else:
+                    # quadratic algo
+                    self.sets[w1] = {
+                        v for v in self.sets[w1]
+                        if not any(v | u == v for u in self.sets[w2])
+                    }
 
 
 class DynamicExtremeSet:
@@ -459,3 +510,7 @@ def support_int_le(v, n):
 
 def antisupport_int_le(v, n):
     return [i for i in range(n) if v & (1 << i) == 0]
+
+
+def fset_complement(fset, n):
+    return frozenset(i for i in range(n) if i not in fset)
