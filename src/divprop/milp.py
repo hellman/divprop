@@ -56,9 +56,11 @@ class MILP:
         return self.var_int(name, lb=0, ub=1)
 
     def trunc(self, v):
-        if abs(round(v) - v) < self.EPS:
-            return int(v + 0.5)
-        return v
+        r = round(v)
+        if abs(r - v) < self.EPS:
+            return int(r)
+        else:
+            return v
 
 
 @MILP.register("glpk")
