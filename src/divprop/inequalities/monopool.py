@@ -301,9 +301,9 @@ class InequalitiesPool:
         i2fset = list(self.system.feasible)
         i2info = [self.system.solution[fset] for fset in i2fset]
 
-        for i, ineq in enumerate(i2info):
-            fset = i2fset[i]
-            print("ineq", i, ":", ineq, "covers", len(fset), ":", tuple(fset))
+        # for i, ineq in enumerate(i2info):
+        #     fset = i2fset[i]
+            # print("ineq", i, ":", ineq, "covers", len(fset), ":", tuple(fset))
 
         # self.check_good(L)  # to avoid surprises
         # fset2i = {fset: i for i, fset in enumerate(i2fset)}
@@ -334,11 +334,12 @@ class InequalitiesPool:
         )
 
         # show log for large problems
-        # res = milp.optimize(log=(n >= 10000))
-        res = milp.optimize(log=1)
+        res = milp.optimize(log=(n >= 10000))
         assert res is not None
         sol = milp.solutions[0]
-        print("obj", res, "sol", sol)
+        self.log.info(f"objective {res}")
+
+        # print("obj", res, "sol", sol)
 
         ineqs = []
         ineqs_ret = []
