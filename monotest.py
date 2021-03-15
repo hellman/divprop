@@ -1,8 +1,7 @@
 from divprop.inequalities.monopool import (
     InequalitiesPool, LPbasedOracle,
-    LazySparseSystem,
-    IneqInfo,
 )
+from itertools import combinations
 from divprop.learn import CliqueMountainHills
 
 from divprop.inequalities.base import satisfy, inner
@@ -15,26 +14,33 @@ logging.setup(level="DEBUG")
 log = logging.getLogger()
 
 fileprefix = "/work/division/workspace/data/sbox_skinny_4/divcore.lb"
+
 fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
-fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
+fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
+fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
+
+fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
+fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
+fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
+
+fileprefix = "/work/division/workspace/data/sbox_present/ddt"
+
+# fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
 # fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
 
 pool = InequalitiesPool.from_DenseSet_files(fileprefix)
-
 
 # pool.gen_hats()
 # for i in range(1000):
 #     pool.gen_random_inequality()
 
-pool.set_oracle(LPbasedOracle(solver="GLPK"))
-
-print("initial", pool.oracle.n_calls, "N", pool.N)
-pool.system.log_info()
-print()
-print()
+pool.set_oracle(LPbasedOracle(solver="glpk"))
 
 CliqueMountainHills(
-    base_level=2,
+    base_level=3,
+    max_mountains=0,
+    n_random=2500,
+    max_exclusion_size=10,
     solver="gurobi",
 ).learn_system(
     system=pool.system,
@@ -45,7 +51,28 @@ print("calls", pool.oracle.n_calls)
 
 pool.system.log_info()
 
-from itertools import combinations
+print("minimizing...")
+
+ineqs = pool.choose_subset_milp(solver="gurobi")
+
+print("minimum:", len(ineqs))
+
+file = fileprefix + ".ineqs.%d" % len(ineqs)
+with open(file, "w") as f:
+    print(len(ineqs), file=f)
+    for ineq in ineqs:
+        print(*ineq, file=f)
+
+print("written to", file)
+
+for q in pool._good_orig:
+    assert all(satisfy(q.tuple, ineq) for ineq in ineqs)
+
+for q in pool._bad_orig:
+    assert any(not satisfy(q.tuple, ineq) for ineq in ineqs)
+
+print("checks ok!")
+
 if pool.N <= 18:
     for l in range(pool.N+1):
         for t in combinations(range(pool.N), l):
