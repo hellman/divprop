@@ -182,6 +182,7 @@ class SCIP(MILP):
         """
         has to be called befor setting the problem
         """
+        raise NotImplementedError("scip's reopt seems buggy")
         self.model.enableReoptimization(True)
         self.reopt = True
 
