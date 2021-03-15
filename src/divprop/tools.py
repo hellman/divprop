@@ -143,6 +143,12 @@ def tool_divcore2bounds():
     )
 
     parser.add_argument(
+        "-t", "--type", default="lb,ubc,ubo",
+        help="Type of bounds to store, comma-separated: "
+             "'lb', 'ubc', 'ubo', 'full'"
+    )
+
+    parser.add_argument(
         "divcore", type=str,
         help="File with division core (.set file, .dim must be present)",
     )
@@ -173,7 +179,8 @@ def tool_divcore2bounds():
     dclo = dc.data  # = mid.MinSet()
     dcup = mid.MaxSet()
 
-    for typ in "lb", "ubc", "ubo":
+    typs = args.type.lower().split(",")
+    for typ in typs:
         log.info("")
         log.info(f"Type {typ}")
 
@@ -198,6 +205,11 @@ def tool_divcore2bounds():
             points_bad = points_bad.MinSet()
 
             type_good = "lower"
+        elif typ == "full":
+            points_good = mid
+            points_bad = mid.Complement()
+
+            type_good = "-"
         else:
             assert 0
 
