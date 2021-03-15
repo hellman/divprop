@@ -516,7 +516,6 @@ class SupportLearner:
             setattr(system, "_support_learned", l)
 
 
-
 class CliqueMountainHills:
     def __init__(
         self,
@@ -524,6 +523,7 @@ class CliqueMountainHills:
         max_mountains=0,
         min_height=10,
         max_repeated_streak=5,
+        max_exclusion_size=7,
         n_random=10000,
         reuse_known=True,
         bad_learn_hard_limit_random=25,
@@ -535,6 +535,7 @@ class CliqueMountainHills:
         self.max_mountains = int(max_mountains)
         self.min_height = int(min_height)
         self.max_repeated_streak = int(max_repeated_streak)
+        self.max_exclusion_size = int(max_exclusion_size)
         self.reuse_known = reuse_known
         self.n_random = int(n_random)
 
@@ -566,7 +567,7 @@ class CliqueMountainHills:
         # =================================
 
         self.sol_encoder = lambda ineq: \
-            IneqInfo(ineq, f"Clique-Random")
+            IneqInfo(ineq, "Clique-Random")
 
         self.bad_learn_hard_limit = self.bad_learn_hard_limit_random
         self.generate_cliques_random()
@@ -636,14 +637,31 @@ class CliqueMountainHills:
 
             fset = frozenset([order.pop()])
             for i in order:
-                good = 1
-                for j in fset:
-                    edge = frozenset((i, j))
-                    if edge in self.sys.infeasible.cache:
-                        good = 0
-                        break
-                if not good:
-                    continue
+                if 1:
+                    # check all edges from support
+                    good = 1
+                    for l in range(1, self.base_level):
+                        for js in combinations(fset, l):
+                            edge = frozenset(js + (i,))
+                            if edge in self.sys.infeasible.cache:
+                                good = 0
+                                break
+                        if not good:
+                            break
+                    if not good:
+                        continue
+                else:
+                    # check only 2-edges
+                    good = 1
+                    for l in range(2, self.base_level+1):
+                        for j in fset:
+                            if frozenset((i, j)) in self.sys.infeasible.cache:
+                                good = 0
+                                break
+                        if not good:
+                            break
+                    if not good:
+                        continue
 
                 fset2 = fset | {i}
                 if fset2 in self.sys.infeasible.cache:
@@ -692,7 +710,8 @@ class CliqueMountainHills:
                 f"{len(self.sys.feasible)} feasible cliques"
             )
             for fset in self.sys.infeasible:
-                self.exclude_supercliques(fset)
+                if len(fset) <= self.max_exclusion_size:
+                    self.exclude_supercliques(fset)
             for fset in self.sys.feasible:
                 self.exclude_subcliques(fset)
         else:
@@ -763,6 +782,8 @@ class CliqueMountainHills:
         # exclude this clique (& super-cliques)
         orig = fset
         repeated_streak = 0
+        best_exclude = float("+inf"), None
+        excluded_something = 0
         for itr in range(self.bad_learn_hard_limit):  # hard limit
             fset = orig
             inds = list(orig)
@@ -780,14 +801,18 @@ class CliqueMountainHills:
                     fset = and_fset
 
             if fset not in self.sys.infeasible.cache:
+                best_exclude = min(best_exclude, (len(fset), fset))
+
                 self.n_bad += 1
-                self.log.info(f"exclude wt={len(fset)}: {fset}")
+                if len(fset) <= self.max_exclusion_size:
+                    self.log.info(f"exclude wt={len(fset)}: {fset}")
 
                 self.sys.add_infeasible(fset)
 
-                if self.milp:
+                if self.milp and len(fset) <= self.max_exclusion_size:
                     # exclude this clique (&super-cliques since it's reduced)
                     self.exclude_supercliques(fset)
+                    excluded_something = 1
 
                 repeated_streak = 0
                 if fset == orig:
@@ -796,3 +821,9 @@ class CliqueMountainHills:
                 repeated_streak += 1
                 if repeated_streak >= self.max_repeated_streak:
                     break
+
+        assert best_exclude[1]
+        if self.milp and not excluded_something:
+            self.log.info(f"force exclude wt={len(fset)}: {fset}")
+            fset = best_exclude[1]
+            self.exclude_supercliques(fset)
