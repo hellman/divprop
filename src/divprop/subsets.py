@@ -279,6 +279,29 @@ class GrowingUpperFrozen(GrowingExtremeFrozen):
     def do_MinSet(self):
         """naive, optimized by weights"""
         # remove from w1 using w2
+        for w1 in range(1, self.n+1):
+            todel = set()
+            for v in self.sets[w1].copy():
+                is_red = 0
+                for w2 in range(w1):
+                    nsub = w1**w2 if w2 < w1//2 else (w1-w2)**w2
+                    full = frozenset(range(self.n))
+                    if nsub < len(self.sets[w2]):
+                        for u in combinations(v, w2):
+                            if frozenset(u) in self.sets[w2]:
+                                is_red = 1
+                                break
+                    else:
+                        if any(v | u == v for u in self.sets[w2]):
+                            is_red = 1
+
+                    if is_red:
+                        todel.add(v)
+                        break
+            self.sets[w1] -= todel
+        return
+
+
         for w2 in range(0, self.n):
             if not self.sets[w2]:
                 continue
