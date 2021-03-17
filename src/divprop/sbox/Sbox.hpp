@@ -11,13 +11,13 @@ struct T_Sbox {
     uint64_t ymask;
 
     T_Sbox(int n, int m) {
-        data.resize(1ull << n);
+        this->data.resize(1ull << n);
         this->n = n;
         this->m = m;
         init();
     }
-    T_Sbox(const std::vector<T> &_data, int n, int m) {
-        data = _data;
+    T_Sbox(const std::vector<T> &data, int n, int m) {
+        this->data = data;
         this->n = n;
         this->m = m;
         init();

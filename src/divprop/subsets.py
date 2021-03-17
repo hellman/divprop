@@ -185,17 +185,22 @@ class GrowingExtremeFrozen:
         extreme <= sets <= cache
 
     """
-    def __init__(self, n, spec=()):
+    def __init__(self, n, spec=(), disable_cache=False):
         self.n = int(n)
         self.sets = [set() for i in range(self.n+1)]
-        self.cache = WeightedFrozenSets(n=self.n)
+        if disable_cache:
+            self.cache = None
+        else:
+            self.cache = WeightedFrozenSets(n=self.n)
 
         for v in spec:
             self.add(v)
 
     def add(self, v: frozenset):
-        if v not in self.cache[len(v)]:
-            self.sets[len(v)].add(v)
+        if self.cache and v in self.cache[len(v)]:
+            return
+        self.sets[len(v)].add(v)
+        if self.cache:
             self.cache[len(v)].add(v)
 
     def iter_ge(self, w=0):
@@ -223,6 +228,10 @@ class GrowingExtremeFrozen:
     def __len__(self):
         return sum(len(v) for v in self.sets)
 
+    def to_Bins(self):
+        for v in self:
+            yield Bin(v, self.n)
+
 
 class GrowingLowerFrozen(GrowingExtremeFrozen):
     # low_cache_level = -1
@@ -231,10 +240,10 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
     def contains(self, v, strict=False):
         """naive, optimized by weights"""
         assert not strict, "not impl"
-        if v in self.cache:
+        if self.cache and v in self.cache:
             return True
 
-        for w in reversed(range(len(v)+1, self.n+1)):
+        for w in reversed(range(len(v), self.n+1)):
             for u in self.sets[w]:
                 if u | v == u:
                     return True
@@ -267,10 +276,10 @@ class GrowingUpperFrozen(GrowingExtremeFrozen):
     def contains(self, v, strict=False):
         """naive, optimized by weights"""
         assert not strict, "not impl"
-        if v in self.cache:
+        if self.cache and v in self.cache:
             return True
 
-        for w in range(len(v)):
+        for w in range(len(v)+1):
             for u in self.sets[w]:
                 if u & v == u:
                     return True
