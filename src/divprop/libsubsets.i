@@ -36,10 +36,33 @@
 }
 
 %include "subsets/DenseSet.hpp"
+
 %include "subsets/SboxGraph.hpp"
 %include "divprop/DivCore.hpp"
 
-%template(Sbox2GI) Sbox2GraphIndicator<uint64_t>;
+%template(Sbox2GraphIndicator8) T_Sbox2GraphIndicator<uint8_t>;
+%template(Sbox2GraphIndicator16) T_Sbox2GraphIndicator<uint16_t>;
+%template(Sbox2GraphIndicator32) T_Sbox2GraphIndicator<uint32_t>;
+%template(Sbox2GraphIndicator64) T_Sbox2GraphIndicator<uint64_t>;
+%pythoncode %{
+Sbox2GraphIndicator = Sbox2GraphIndicator32;
+%}
+
+%template(Sbox2Coordinates8) T_Sbox2Coordinates<uint8_t>;
+%template(Sbox2Coordinates16) T_Sbox2Coordinates<uint16_t>;
+%template(Sbox2Coordinates32) T_Sbox2Coordinates<uint32_t>;
+%template(Sbox2Coordinates64) T_Sbox2Coordinates<uint64_t>;
+%pythoncode %{
+Sbox2Coordinates = Sbox2Coordinates64;
+%}
+
+%template(DivCore_StrongComposition8) T_DivCore_StrongComposition<uint8_t>;
+%template(DivCore_StrongComposition16) T_DivCore_StrongComposition<uint16_t>;
+%template(DivCore_StrongComposition32) T_DivCore_StrongComposition<uint32_t>;
+%template(DivCore_StrongComposition64) T_DivCore_StrongComposition<uint64_t>;
+%pythoncode %{
+DivCore_StrongComposition = DivCore_StrongComposition32;
+%}
 
 %{
 #include "DenseSet.hpp"
@@ -47,14 +70,4 @@
 #include "DivCore.hpp"
 %}
 
-%template(DivCore_StrongComposition8) tpl_DivCore_StrongComposition<uint8_t>;
-%template(DivCore_StrongComposition16) tpl_DivCore_StrongComposition<uint16_t>;
-%template(DivCore_StrongComposition32) tpl_DivCore_StrongComposition<uint32_t>;
-// 64-bit very hardly useful...
-%template(DivCore_StrongComposition64) tpl_DivCore_StrongComposition<uint64_t>;
-
-%pythoncode %{
-DivCore_StrongComposition = DivCore_StrongComposition32;
-%}
-
-%template(MyVector_DenseSet) std::vector<DenseSet>;
+%template(Vec_DenseSet) std::vector<DenseSet>;

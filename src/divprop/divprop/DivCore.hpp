@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 #endif
 
 template <typename T>
-struct tpl_DivCore_StrongComposition {
+struct T_DivCore_StrongComposition {
     int n, r, m;
     std::vector<DenseSet> current;
     std::vector<T> tab1;
@@ -24,8 +24,8 @@ struct tpl_DivCore_StrongComposition {
 
     DenseSet divcore;
 
-    // tpl_DivCore_StrongComposition(int _n, int _r, int _m, const std::vector<T> &_tab1, const std::vector<T> &_tab2);
-    tpl_DivCore_StrongComposition(
+    // T_DivCore_StrongComposition(int _n, int _r, int _m, const std::vector<T> &_tab1, const std::vector<T> &_tab2);
+    T_DivCore_StrongComposition(
         int _n, int _r, int _m,
         const std::vector<T> &_tab1, const std::vector<T> &_tab2
     ) :

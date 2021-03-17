@@ -2,7 +2,7 @@ from functools import reduce
 from random import shuffle, randrange
 
 from binteger import Bin
-from divprop.subsets import Sbox2GI, DenseSet
+from divprop.subsets import DenseSet
 from divprop.divcore import DenseDivCore
 
 from test_sboxes import get_sboxes
