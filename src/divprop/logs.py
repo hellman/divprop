@@ -38,7 +38,7 @@ def setup(level='INFO'):
     logger.info(f"starting at {now}")
 
     if os.path.exists("logs/.divprop"):
-        logging.addFileHandler(f"logs/.{now}")
+        addFileHandler(f"logs/.{now}")
 
 
 def addFileHandler(filename, append_date=True):

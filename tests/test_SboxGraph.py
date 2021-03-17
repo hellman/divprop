@@ -1,4 +1,8 @@
-from divprop.subsets import Sbox2GraphIndicator, Sbox2Coordinates
+from divprop.subsets import (
+    Sbox2GraphIndicator,
+    Sbox2Coordinates,
+    Sbox,
+)
 
 
 def test_Sbox2GraphIndicator():
@@ -17,6 +21,15 @@ def test_Sbox2Coordinates():
     assert list(cs[0]) == [3, 5, 6, 7]
     assert list(cs[1]) == [1, 2, 5, 6]
     assert list(cs[2]) == [0, 2, 5, 7]
+
+    a = Sbox([1, 2, 3, 4, 0, 7, 6, 5], 3, 3)
+    qs = [a.coordinate_product(2**i) for i in range(3)][::-1]
+    assert qs == list(cs)
+
+    q3 = a.coordinate_product(3)
+    assert list(q3) == [2, 5]
+    q7 = a.coordinate_product(7)
+    assert list(q7) == [5]
 
 
 if __name__ == '__main__':

@@ -51,6 +51,7 @@ setup(
                 "./src/divprop/common/",
                 "./src/divprop/subsets/",
                 "./src/divprop/divprop/",
+                "./src/divprop/sbox/",
             ],
             depends=[
                 "./src/divprop/common/common.hpp",
@@ -58,6 +59,7 @@ setup(
                 "./src/divprop/subsets/DenseSet.hpp",
                 "./src/divprop/subsets/SboxGraph.hpp",
                 "./src/divprop/divprop/DivCore.hpp",
+                "./src/divprop/sbox/Sbox.hpp",
             ],
             sources=[
                 "./src/divprop/libsubsets.i",

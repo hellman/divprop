@@ -1,17 +1,18 @@
-from divprop.subsets import Sbox2GI, DenseSet
+from array import array
 
 from divprop.subsets import (
+    DenseSet,
     DivCore_StrongComposition,
     DivCore_StrongComposition8,
     DivCore_StrongComposition16,
     DivCore_StrongComposition32,
     DivCore_StrongComposition64,
+    Sbox2GraphIndicator,
+    Sbox2Coordinates,
+    Sbox,
 )
 
 import divprop.logs as logging
-
-
-log = logging.getLogger(__name__)
 
 
 def mask(m):
@@ -26,6 +27,8 @@ class DenseDivCore:
 
     Wrapper for DenseSet, stored in :attr:`data`.
     """
+    log = logging.getLogger(f"{__name__:DenseDivCore}")
+
     def __init__(self, data, n, m):
         assert isinstance(data, DenseSet)
         assert data.n == n + m
@@ -36,26 +39,33 @@ class DenseDivCore:
         self.mask_v = mask(m)
 
     @classmethod
-    def from_sbox(cls, sbox, n, m, debug=False):
-        graph = Sbox2GI(sbox, n, m)
+    def from_sbox(cls, sbox, n, m, debug=False, method="simple"):
+        method = getattr(cls, "from_sbox_" + method)
+        if not method:
+            raise ValueError(f"Unknown method DenseDivCore.from_sbox:{method}")
+        return method(sbox, n, m, debug)
+
+    @classmethod
+    def from_sbox_simple(cls, sbox, n, m, debug=False):
+        graph = Sbox2GraphIndicator(sbox, n, m)
 
         if debug:
-            log.info(f"  graph {graph}")
+            cls.log.info(f"  graph {graph}")
 
         graph.do_Mobius()
 
         if debug:
-            log.info(f"    anf {graph}")
+            cls.log.info(f"    anf {graph}")
 
         graph.do_MaxSet()
 
         if debug:
-            log.info(f"anf-max {graph}")
+            cls.log.info(f"anf-max {graph}")
 
         graph.do_Not()
 
         if debug:
-            log.info(f"divcore {graph}")
+            cls.log.info(f"divcore {graph}")
 
         return cls(graph, n, m)
 
@@ -146,3 +156,46 @@ class DenseDivCore:
         ret.do_MinSet(self.mask_v)
         ret.do_Not(self.mask_u)
         return ret
+
+
+class SparseDivCore:
+    log = logging.getLogger(f"{__name__:SparseDivCore}")
+
+    def __init__(self, data, n, m):
+        self.data = set(data)
+        self.n = int(n)
+        self.m = int(m)
+        self.mask_u = mask(n) << m
+        self.mask_v = mask(m)
+
+    @classmethod
+    def from_sbox(cls, sbox, n, m, debug=False, method="peekanfs"):
+        method = getattr(cls, "from_sbox_" + method)
+        if not method:
+            raise ValueError(f"Unknown method DenseDivCore.from_sbox:{method}")
+        return method(sbox, n, m, debug)
+
+    @classmethod
+    def from_sbox_peekanfs(cls, sbox: Sbox, n, m, debug=False):
+        assert n == m, "only bijections supported yet"
+        return SboxPeekANFs(sbox, n).compute()
+
+
+class SboxPeekANFs:
+    def __init__(self, sbox: Sbox, n: int):
+        self.n = int(n)
+        self.sbox = sbox
+        self.isbox = ~sbox
+        for x, y in enumerate(sbox):
+            self.isbox[y] = x
+
+    def compute(self):
+        pass
+
+    def run_bit(self, mask, inverse=False):
+        sbox = self.isbox if inverse else self.sbox
+        func = sbox.coordinate_product(mask)
+        func.do_Mobius()
+        func.do_MaxSet()
+        return func.to_Bins()
+

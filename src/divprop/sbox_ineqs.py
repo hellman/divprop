@@ -7,7 +7,7 @@ from argparse import RawTextHelpFormatter
 from binteger import Bin
 
 from divprop.divcore import DenseDivCore
-from divprop.inequalities import InequalitiesPool, satisfy
+from divprop.inequalities.pool import InequalitiesPool, satisfy
 from divprop import logging
 
 from divprop.tools import get_sbox, get_sbox_sizes
