@@ -203,6 +203,10 @@ class GrowingExtremeFrozen:
         if self.cache:
             self.cache[len(v)].add(v)
 
+    def update(self, vs):
+        for v in vs:
+            self.add(v)
+
     def iter_ge(self, w=0):
         for s in self.sets[w:]:
             yield from s

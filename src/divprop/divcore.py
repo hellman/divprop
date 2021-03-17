@@ -219,7 +219,7 @@ class SboxPeekANFs:
                 continue
 
             itr += 1
-            self.log.debug(f"run #{itr} fset {fset} inv? {inverse}" )
+            self.log.debug(f"run #{itr} fset {fset} inv? {inverse}")
             stat[(inverse, len(fset))] += 1
 
             mask = Bin(fset, 2*n).int
@@ -227,11 +227,9 @@ class SboxPeekANFs:
                 mask >>= n
             res = self.run_mask(mask, inverse=inverse)
 
-            added = set()
-            for uv in res:
-                fset2 = frozenset(Bin(uv, 2*n).support())
-                divcore.add(fset2)
-                added.add(fset2)
+            added = {frozenset(Bin(uv, 2*n).support()) for uv in res}
+            divcore.update(added)
+
             if itr % 10 == 0:
                 divcore.do_MinSet()
 
@@ -239,11 +237,7 @@ class SboxPeekANFs:
             if not tocheck:
                 continue
 
-            if inverse:
-                rng = range(max(fset)+1, n)
-            else:
-                rng = range(max(fset)+1, 2*n)
-
+            rng = range(max(fset)+1, n if inverse else 2*n)
             for i in rng:
                 fset2 = fset | {i}
                 tocheck2 = {v | {i} for v in tocheck}
@@ -257,7 +251,6 @@ class SboxPeekANFs:
             f"computed divcore n={n} in {itr} bit-ANF calls, "
             f"stat {statstr}, size {len(divcore)}"
         )
-
         return set(divcore.to_Bins())
 
     def run_mask(self, mask, inverse=False):
