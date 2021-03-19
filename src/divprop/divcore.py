@@ -31,18 +31,21 @@ class DivCore:
     log = logging.getLogger(f"{__name__}:DivCore")
 
     def __init__(self, data, n, m):
-        self.data = set(map(int, data))
+        self._set = set(map(int, data))
         self.n = int(n)
         self.m = int(m)
         self.mask_u = mask(n) << m
         self.mask_v = mask(m)
 
-    def get_dense(self):
+    def to_dense(self):
         # list because swig does not map set straightforwardly.. need a typemap
-        return DenseSet(list(self.data), self.n + self.m)
+        return DenseSet(list(self._set), self.n + self.m)
 
     def to_Bins(self):
-        return {Bin(v, self.n+self.m) for v in self.data}
+        return {Bin(v, self.n+self.m) for v in self._set}
+
+    def __iter__(self):
+        return iter(self._set)
 
     @classmethod
     def from_sbox(cls, sbox: Sbox, n: int = None, m: int = None,
@@ -63,7 +66,7 @@ class DivCore:
         n = int(n)
         m = int(m)
 
-        graph = sbox.graph_indicator()
+        graph = sbox.graph_dense()
 
         if debug:
             cls.log.info(f"  graph {graph}")
@@ -97,26 +100,26 @@ class DivCore:
 
     def get_Invalid(self) -> DenseSet:
         """Set I_S from the paper"""
-        ret = self.get_dense()
+        ret = self.to_dense()
         ret.do_ComplementU2L()
         return ret
 
     def get_Minimal(self) -> DenseSet:
         """Set M_S from the paper. = MinDPPT up to negating (u)."""
-        ret = self.get_dense()
+        ret = self.to_dense()
         ret.do_UpperSet(self.mask_u)
         ret.do_MinSet(self.mask_v)
         return ret
 
     def get_Minimal_Bounds(self) -> (DenseSet, DenseSet):
         """Set M_S from the paper, in the form of its (MinSet,Maxset)"""
-        lo = self.get_dense()
+        lo = self.to_dense()
         hi = self.get_Minimal()
         hi.do_MaxSet()
         return lo, hi
 
     def get_Redundant(self) -> DenseSet:
-        ret = self.get_dense()
+        ret = self.to_dense()
         ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
         ret.do_MinSet()
         return ret
@@ -133,7 +136,7 @@ class DivCore:
         in the form of MaxSet of invalid vectors
         (ones that are a bit lower than vectors from divcore)
         """
-        ret = self.get_dense()
+        ret = self.to_dense()
         ret.do_ComplementU2L()
         return ret
 
@@ -152,13 +155,13 @@ class DivCore:
 
         """
         if method == "redundant":
-            ret = self.get_dense()
+            ret = self.to_dense()
             ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
             ret.do_MinSet()
         else:
             # ret = self.MinDPPT()
             # ret.do_Not(self.mask_u)
-            ret = self.get_dense()
+            ret = self.to_dense()
             ret.do_UpperSet(self.mask_u)
             ret.do_MinSet(self.mask_v)
 
@@ -171,7 +174,7 @@ class DivCore:
         """
         DenseSet of all valid transitions, including redundant ones.
         """
-        ret = self.get_dense()
+        ret = self.to_dense()
         ret.do_UpperSet()
         ret.do_Not(self.mask_u)
         return ret
@@ -180,7 +183,7 @@ class DivCore:
         """
         DenseSet of all valid reduced transitions.
         """
-        ret = self.get_dense()
+        ret = self.to_dense()
         ret.do_UpperSet(self.mask_u)
         ret.do_MinSet(self.mask_v)
         ret.do_Not(self.mask_u)
@@ -190,7 +193,7 @@ class DivCore:
         assert isinstance(other, DivCore)
         assert self.n == other.n
         assert self.m == other.m
-        return self.data == other.data
+        return self._set == other._set
 
 
 class SboxPeekANFs:

@@ -13,13 +13,11 @@ def test_DivCore():
     n = m = 3
     dc = DivCore.from_sbox(s, n, m, method="dense", debug=True)
     dc2 = DivCore.from_sbox(s, n, m, method="peekanfs", debug=True)
-    print(sorted(dc.data))
-    print(sorted(dc2.data))
     assert dc == dc2
 
-    assert dc.get_dense().info() == \
+    assert dc.to_dense().info() == \
         "dfa780cfc382387a n=6 wt=12 | 2:3 3:9"
-    assert dc.get_dense().get_support() == \
+    assert dc.to_dense().get_support() == \
         (7, 11, 12, 19, 20, 25, 35, 36, 42, 49, 50, 56)
 
     assert dc.LB().info() == \
@@ -93,7 +91,7 @@ def check_one_DPPT(sbox, n, m, dppt):
     dc = DivCore.from_sbox(sbox, n, m, debug=True)
     assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
     assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
-    assert dc.FullDPPT() == dc.get_dense().UpperSet().Not(dc.mask_u)
+    assert dc.FullDPPT() == dc.to_dense().UpperSet().Not(dc.mask_u)
 
 
 def check_one_relations(sbox, n, m):

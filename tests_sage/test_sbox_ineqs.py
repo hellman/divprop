@@ -1,5 +1,5 @@
 from divprop.sbox_ineqs import get_sbox, get_sbox_sizes
-from divprop.divcore import DenseDivCore
+from divprop.divcore import DivCore
 from divprop.inequalities import satisfy
 from binteger import Bin
 from glob import glob
@@ -23,7 +23,7 @@ def test_ineqs():
 
 
 def check_sbox_full(name, sbox, n, m):
-    dc = DenseDivCore.from_sbox(sbox, n, m)
+    dc = DivCore.from_sbox(sbox, n, m)
     mid = dc.MinDPPT().Not(dc.mask_u)
     lb = dc.LB()
     # dclo = mid.MinSet()
@@ -42,7 +42,7 @@ def check_sbox_full(name, sbox, n, m):
                 print("ineq", ineq)
 
         if typ == "lb":
-            points_good = dc.data
+            points_good = dc.to_dense()
             points_bad = lb
             type_good = "upper"
         elif typ == "ubo":

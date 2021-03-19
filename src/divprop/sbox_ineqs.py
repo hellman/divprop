@@ -6,7 +6,7 @@ from argparse import RawTextHelpFormatter
 
 from binteger import Bin
 
-from divprop.divcore import DenseDivCore
+from divprop.divcore import DivCore
 from divprop.inequalities.pool import InequalitiesPool, satisfy
 from divprop import logging
 
@@ -165,7 +165,7 @@ def process_sbox(name, sbox, gens=DEFAULT_GENS_LARGE, subset_method="milp", outp
     if output == ".":
         output = f"results/{name}_sbox"
 
-    dc = DenseDivCore.from_sbox(sbox, n, m)
+    dc = DivCore.from_sbox(sbox, n, m)
     mid = dc.MinDPPT().Not(dc.mask_u)
     lb = dc.LB()
     dclo = mid.MinSet()

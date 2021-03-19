@@ -5,7 +5,7 @@ import argparse
 
 from divprop.all_sboxes import sboxes
 from divprop.subsets import DenseSet
-from divprop.divcore import DenseDivCore
+from divprop.divcore import DivCore
 import divprop.logs as logging
 
 
@@ -71,7 +71,7 @@ def tool_sbox2divcore():
     output = args.output or f"data/sbox_{name}/divcore"
 
     log.info(f"computing division core for '{name}', output to {output}")
-    dc = DenseDivCore.from_sbox(sbox, n, m)
+    dc = DivCore.from_sbox(sbox, n, m)
 
     log.info(f"division core: {dc.data}")
     log.info(f"by pairs: {dc.data.str_stat_by_weight_pairs(n, m)}")
@@ -217,7 +217,7 @@ def tool_divcore2bounds():
     log.info(divcore_data)
     log.info(f"n = {n}, m = {m}")
 
-    dc = DenseDivCore(data=divcore_data, n=n, m=m)
+    dc = DivCore(data=divcore_data, n=n, m=m)
 
     log.info("generating bounds...")
 

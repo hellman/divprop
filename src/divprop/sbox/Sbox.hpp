@@ -82,7 +82,7 @@ struct T_Sbox {
         return f;
     }
 
-    DenseSet graph_indicator() const {
+    DenseSet graph_dense() const {
         DenseSet graph(n + m);
         fori (x, 1ull << n) {
             uint64_t y = (uint64_t)data[x];
