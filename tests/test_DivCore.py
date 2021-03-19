@@ -2,8 +2,8 @@ from functools import reduce
 from random import shuffle, randrange
 
 from binteger import Bin
-from divprop.subsets import DenseSet
-from divprop.divcore import DenseDivCore
+from divprop.subsets import DenseSet, Sbox
+from divprop.divcore import DivCore
 
 from test_sboxes import get_sboxes
 
@@ -11,11 +11,15 @@ from test_sboxes import get_sboxes
 def test_DivCore():
     s = [1, 2, 3, 4, 0, 7, 6, 5]
     n = m = 3
-    dc = DenseDivCore.from_sbox(s, n, m, debug=True)
+    dc = DivCore.from_sbox(s, n, m, method="dense", debug=True)
+    dc2 = DivCore.from_sbox(s, n, m, method="peekanfs", debug=True)
+    print(sorted(dc.data))
+    print(sorted(dc2.data))
+    assert dc == dc2
 
-    assert dc.data.info() == \
+    assert dc.get_dense().info() == \
         "dfa780cfc382387a n=6 wt=12 | 2:3 3:9"
-    assert dc.data.get_support() == \
+    assert dc.get_dense().get_support() == \
         (7, 11, 12, 19, 20, 25, 35, 36, 42, 49, 50, 56)
 
     assert dc.LB().info() == \
@@ -86,14 +90,14 @@ def check_one_DPPT(sbox, n, m, dppt):
             mindppt1.add((u << m) | v)
     mindppt1 = tuple(sorted(mindppt1))
 
-    dc = DenseDivCore.from_sbox(sbox, n, m, debug=True)
+    dc = DivCore.from_sbox(sbox, n, m, debug=True)
     assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
     assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
-    assert dc.FullDPPT() == dc.data.UpperSet().Not(dc.mask_u)
+    assert dc.FullDPPT() == dc.get_dense().UpperSet().Not(dc.mask_u)
 
 
 def check_one_relations(sbox, n, m):
-    dc = DenseDivCore.from_sbox(sbox, n, m, debug=True)
+    dc = DivCore.from_sbox(sbox, n, m, debug=True)
 
     mid = dc.MinDPPT().Not(dc.mask_u)
     lb = dc.LB()
@@ -128,6 +132,21 @@ def form_partition(*sets):
     )
 
 
+def test_peekanfs():
+
+    for n in range(2, 10):
+        m = n
+        sbox = list(range(2**n))
+    shuffle(sbox)
+
+    sbox = Sbox(sbox, n, m)
+    test1 = sorted(DivCore.from_sbox(sbox, method="dense").to_Bins())
+    test2 = sorted(DivCore.from_sbox(sbox, method="peekanfs").to_Bins())
+    assert test1 == test2
+    print("OK")
+
+
 if __name__ == '__main__':
     test_DivCore()
     test_DPPT()
+    test_peekanfs()

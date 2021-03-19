@@ -57,14 +57,12 @@ setup(
                 "./src/divprop/common/common.hpp",
                 "./src/divprop/common/Sweep.hpp",
                 "./src/divprop/subsets/DenseSet.hpp",
-                "./src/divprop/subsets/SboxGraph.hpp",
                 "./src/divprop/divprop/DivCore.hpp",
                 "./src/divprop/sbox/Sbox.hpp",
             ],
             sources=[
                 "./src/divprop/libsubsets.i",
                 "./src/divprop/subsets/DenseSet.cpp",
-                "./src/divprop/subsets/SboxGraph.cpp",
             ],
             swig_opts=["-c++", "-DSWIGWORDSIZE64"],  # https://github.com/swig/swig/issues/568
             extra_compile_args=["-std=c++2a", "-O2", "-fopenmp"],

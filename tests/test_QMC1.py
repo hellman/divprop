@@ -1,10 +1,11 @@
-from random import randrange
+from random import randrange, seed
 from binteger import Bin
 
 from divprop.subsets import DenseSet, QMC1
 
 
 def test_QMC1():
+    seed(123)
     for n in range(1, 12):
         P = DenseSet(n)
         for i in range(1000):
@@ -17,6 +18,7 @@ def test_QMC1():
                 for a, u in S:
                     Sa.setdefault(a, []).append(u)
 
+                print(len(S))
                 for a in Sa:
                     # prec(u)
                     U = DenseSet(n)

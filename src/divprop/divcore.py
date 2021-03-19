@@ -11,11 +11,8 @@ from divprop.subsets import (
     DivCore_StrongComposition16,
     DivCore_StrongComposition32,
     DivCore_StrongComposition64,
-    Sbox2GraphIndicator,
-    Sbox2Coordinates,
     Sbox,
     GrowingUpperFrozen,
-    DynamicUpperSet,
 )
 
 import divprop.logs as logging
@@ -25,35 +22,48 @@ def mask(m):
     return (1 << m) - 1
 
 
-class DenseDivCore:
+class DivCore:
     """
     Division Core of the S-Box = reduced DPPT of its graph (as a dense set).
 
     Notation: vectors (u, v), with bit-length (n, m).
-
-    Wrapper for DenseSet, stored in :attr:`data`.
     """
-    log = logging.getLogger(f"{__name__}:DenseDivCore")
+    log = logging.getLogger(f"{__name__}:DivCore")
 
     def __init__(self, data, n, m):
-        assert isinstance(data, DenseSet)
-        assert data.n == n + m
-        self.data = data
+        self.data = set(map(int, data))
         self.n = int(n)
         self.m = int(m)
         self.mask_u = mask(n) << m
         self.mask_v = mask(m)
 
+    def get_dense(self):
+        # list because swig does not map set straightforwardly.. need a typemap
+        return DenseSet(list(self.data), self.n + self.m)
+
+    def to_Bins(self):
+        return {Bin(v, self.n+self.m) for v in self.data}
+
     @classmethod
-    def from_sbox(cls, sbox, n, m, debug=False, method="simple"):
+    def from_sbox(cls, sbox: Sbox, n: int = None, m: int = None,
+                  method="dense", debug=False):
+        if n is None or m is None:
+            assert isinstance(sbox, Sbox)
+            n = sbox.n
+            m = sbox.m
+        if not isinstance(sbox, Sbox):
+            sbox = Sbox(sbox, n, m)
         method = getattr(cls, "from_sbox_" + method)
         if not method:
             raise ValueError(f"Unknown method DenseDivCore.from_sbox:{method}")
         return method(sbox, n, m, debug)
 
     @classmethod
-    def from_sbox_simple(cls, sbox, n, m, debug=False):
-        graph = Sbox2GraphIndicator(sbox, n, m)
+    def from_sbox_dense(cls, sbox: Sbox, n: int, m: int, debug=False):
+        n = int(n)
+        m = int(m)
+
+        graph = sbox.graph_indicator()
 
         if debug:
             cls.log.info(f"  graph {graph}")
@@ -75,25 +85,38 @@ class DenseDivCore:
 
         return cls(graph, n, m)
 
+    @classmethod
+    def from_sbox_peekanfs(cls, sbox: Sbox, n: int, m: int, debug=False):
+        n = int(n)
+        m = int(m)
+        assert n == m, "only bijections supported yet"
+        if not isinstance(sbox, Sbox):
+            sbox = Sbox(sbox, n, m)
+        divcore = SboxPeekANFs(sbox).compute(debug=debug)
+        return cls(divcore, n=n, m=m)
+
     def get_Invalid(self) -> DenseSet:
         """Set I_S from the paper"""
-        return self.data.ComplementU2L()
+        ret = self.get_dense()
+        ret.do_ComplementU2L()
+        return ret
 
     def get_Minimal(self) -> DenseSet:
         """Set M_S from the paper. = MinDPPT up to negating (u)."""
-        ret = self.data.copy()
+        ret = self.get_dense()
         ret.do_UpperSet(self.mask_u)
         ret.do_MinSet(self.mask_v)
         return ret
 
     def get_Minimal_Bounds(self) -> (DenseSet, DenseSet):
         """Set M_S from the paper, in the form of its (MinSet,Maxset)"""
-        ret = self.get_Minimal()
-        ret.do_MaxSet()
-        return self.data.copy(), ret
+        lo = self.get_dense()
+        hi = self.get_Minimal()
+        hi.do_MaxSet()
+        return lo, hi
 
     def get_Redundant(self) -> DenseSet:
-        ret = self.data.copy()
+        ret = self.get_dense()
         ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
         ret.do_MinSet()
         return ret
@@ -110,7 +133,7 @@ class DenseDivCore:
         in the form of MaxSet of invalid vectors
         (ones that are a bit lower than vectors from divcore)
         """
-        ret = self.data.copy()
+        ret = self.get_dense()
         ret.do_ComplementU2L()
         return ret
 
@@ -129,13 +152,13 @@ class DenseDivCore:
 
         """
         if method == "redundant":
-            ret = self.data.copy()
+            ret = self.get_dense()
             ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
             ret.do_MinSet()
         else:
             # ret = self.MinDPPT()
             # ret.do_Not(self.mask_u)
-            ret = self.data.copy()
+            ret = self.get_dense()
             ret.do_UpperSet(self.mask_u)
             ret.do_MinSet(self.mask_v)
 
@@ -148,7 +171,7 @@ class DenseDivCore:
         """
         DenseSet of all valid transitions, including redundant ones.
         """
-        ret = self.data.copy()
+        ret = self.get_dense()
         ret.do_UpperSet()
         ret.do_Not(self.mask_u)
         return ret
@@ -157,41 +180,24 @@ class DenseDivCore:
         """
         DenseSet of all valid reduced transitions.
         """
-        ret = self.data.copy()
+        ret = self.get_dense()
         ret.do_UpperSet(self.mask_u)
         ret.do_MinSet(self.mask_v)
         ret.do_Not(self.mask_u)
         return ret
 
-
-class SparseDivCore:
-    log = logging.getLogger(f"{__name__}:SparseDivCore")
-
-    def __init__(self, data, n, m):
-        self.data = set(data)
-        self.n = int(n)
-        self.m = int(m)
-        self.mask_u = mask(n) << m
-        self.mask_v = mask(m)
-
-    @classmethod
-    def from_sbox(cls, sbox, n, m, debug=False, method="peekanfs"):
-        method = getattr(cls, "from_sbox_" + method)
-        if not method:
-            raise ValueError(f"Unknown method DenseDivCore.from_sbox:{method}")
-        return method(sbox, n, m, debug)
-
-    @classmethod
-    def from_sbox_peekanfs(cls, sbox: Sbox, n, m, debug=False):
-        assert n == m, "only bijections supported yet"
-        divcore = SboxPeekANFs(sbox, n).compute(debug=debug)
-        return SparseDivCore(divcore, n=cls.n, m=cls.m)
+    def __eq__(self, other):
+        assert isinstance(other, DivCore)
+        assert self.n == other.n
+        assert self.m == other.m
+        return self.data == other.data
 
 
 class SboxPeekANFs:
     log = logging.getLogger(f"{__name__}:SboxPeekANFs")
 
     def __init__(self, sbox: Sbox):
+        assert isinstance(sbox, Sbox)
         self.n = int(sbox.n)
         self.sbox = sbox
         self.isbox = ~sbox
@@ -268,13 +274,6 @@ class SboxPeekANFs:
 
 if __name__ == '__main__':
     logging.setup(level="DEBUG")
-    if 1:  # present
-        n = m = 4
-        sbox = [12, 5, 6, 11, 9, 0, 10, 13, 3, 14, 15, 8, 4, 7, 1, 2]
-
-    if 1:  # AES
-        n = m = 8
-        sbox = [99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156, 164, 114, 192, 183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 113, 216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154, 7, 18, 128, 226, 235, 39, 178, 117, 9, 131, 44, 26, 27, 110, 90, 160, 82, 59, 214, 179, 41, 227, 47, 132, 83, 209, 0, 237, 32, 252, 177, 91, 106, 203, 190, 57, 74, 76, 88, 207, 208, 239, 170, 251, 67, 77, 51, 133, 69, 249, 2, 127, 80, 60, 159, 168, 81, 163, 64, 143, 146, 157, 56, 245, 188, 182, 218, 33, 16, 255, 243, 210, 205, 12, 19, 236, 95, 151, 68, 23, 196, 167, 126, 61, 100, 93, 25, 115, 96, 129, 79, 220, 34, 42, 144, 136, 70, 238, 184, 20, 222, 94, 11, 219, 224, 50, 58, 10, 73, 6, 36, 92, 194, 211, 172, 98, 145, 149, 228, 121, 231, 200, 55, 109, 141, 213, 78, 169, 108, 86, 244, 234, 101, 122, 174, 8, 186, 120, 37, 46, 28, 166, 180, 198, 232, 221, 116, 31, 75, 189, 139, 138, 112, 62, 181, 102, 72, 3, 246, 14, 97, 53, 87, 185, 134, 193, 29, 158, 225, 248, 152, 17, 105, 217, 142, 148, 155, 30, 135, 233, 206, 85, 40, 223, 140, 161, 137, 13, 191, 230, 66, 104, 65, 153, 45, 15, 176, 84, 187, 22]
 
     import sys
     n = m = int(sys.argv[1])

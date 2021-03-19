@@ -10,6 +10,16 @@ struct T_Sbox {
     uint64_t xmask;
     uint64_t ymask;
 
+    constexpr static bool is_Sbox_class = true;
+
+#ifdef SWIG
+    %pythoncode %{
+    @classmethod
+    def __instancecheck__(cls, inst):
+        return getattr(inst, "is_Sbox_class", False)
+    %}
+#endif
+
     T_Sbox(int n, int m) {
         this->data.resize(1ull << n);
         this->n = n;
@@ -23,11 +33,14 @@ struct T_Sbox {
         init();
     }
     void init() {
-        ensure(0 <= n && n <= 63);
+        ensure(0 <= n && n <= 62);
         ensure(0 <= m && uint64_t(m) <= sizeof(T) * 8);
         ensure(data.size() == (1ull << n));
         xmask = (1ull << n) - 1;
         ymask = (m == 64) ? -1ull : ((1ull << m) - 1);
+        fori (x, 1ll << n) {
+            ensure(0 <= data[x] && data[x] <= ymask);
+        }
     }
 
     T_Sbox<T> inverse() const {
@@ -67,5 +80,25 @@ struct T_Sbox {
             f.set(x, bit);
         }
         return f;
+    }
+
+    DenseSet graph_indicator() const {
+        DenseSet graph(n + m);
+        fori (x, 1ull << n) {
+            uint64_t y = (uint64_t)data[x];
+            graph.add((u64(x) << m) | y);
+        }
+        return graph;
+    }
+
+    std::vector<DenseSet> coordinates() const {
+        std::vector<DenseSet> funcs(m, DenseSet(n));
+        fori (x, 1ull << n) {
+            uint64_t y = (uint64_t)data[x];
+            fori (i, m) {
+                funcs[m-1-i].set(x, (y >> i) & 1);
+            }
+        }
+        return funcs;
     }
 };

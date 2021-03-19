@@ -4,7 +4,7 @@
 %include <std_string.i>
 %include <exception.i>
 %include <std_map.i>
-%include <std_unordered_set.i>
+%include <std_set.i>
 %include <stdint.i>
 
 %typedef uint64_t u64;
@@ -22,6 +22,7 @@
 %template(MyVector_u16) std::vector<uint16_t>;
 %template(MyVector_u8) std::vector<uint8_t>;
 %template(MyVector_int) std::vector<int>;
+%template(MySet_uint64) std::set<uint64_t>;
 %template(MyMap_PII_u64) std::map<std::pair<int,int>, uint64_t>;
 
 // https://stackoverflow.com/questions/1394484/how-do-i-propagate-c-exceptions-to-python-in-a-swig-wrapper-library
@@ -36,25 +37,8 @@
 }
 
 %include "subsets/DenseSet.hpp"
-%include "subsets/SboxGraph.hpp"
 %include "divprop/DivCore.hpp"
 %include "sbox/Sbox.hpp"
-
-%template(Sbox2GraphIndicator8) T_Sbox2GraphIndicator<uint8_t>;
-%template(Sbox2GraphIndicator16) T_Sbox2GraphIndicator<uint16_t>;
-%template(Sbox2GraphIndicator32) T_Sbox2GraphIndicator<uint32_t>;
-%template(Sbox2GraphIndicator64) T_Sbox2GraphIndicator<uint64_t>;
-%pythoncode %{
-Sbox2GraphIndicator = Sbox2GraphIndicator32
-%}
-
-%template(Sbox2Coordinates8) T_Sbox2Coordinates<uint8_t>;
-%template(Sbox2Coordinates16) T_Sbox2Coordinates<uint16_t>;
-%template(Sbox2Coordinates32) T_Sbox2Coordinates<uint32_t>;
-%template(Sbox2Coordinates64) T_Sbox2Coordinates<uint64_t>;
-%pythoncode %{
-Sbox2Coordinates = Sbox2Coordinates64
-%}
 
 %template(Sbox8) T_Sbox<uint8_t>;
 %template(Sbox16) T_Sbox<uint16_t>;
@@ -74,7 +58,6 @@ DivCore_StrongComposition = DivCore_StrongComposition32
 
 %{
 #include "DenseSet.hpp"
-#include "SboxGraph.hpp"
 #include "DivCore.hpp"
 #include "Sbox.hpp"
 %}
