@@ -12,6 +12,7 @@ from divprop.subsets import (
     DivCore_StrongComposition32,
     DivCore_StrongComposition64,
     Sbox,
+    Sbox32,
     GrowingUpperFrozen,
 )
 
@@ -51,10 +52,10 @@ class DivCore:
     def from_sbox(cls, sbox: Sbox, n: int = None, m: int = None,
                   method="dense", debug=False):
         if n is None or m is None:
-            assert isinstance(sbox, Sbox)
+            assert isinstance(sbox, Sbox.classes)
             n = sbox.n
             m = sbox.m
-        if not isinstance(sbox, Sbox):
+        if not isinstance(sbox, Sbox.classes):
             sbox = Sbox(sbox, n, m)
         method = getattr(cls, "from_sbox_" + method)
         if not method:
@@ -93,7 +94,7 @@ class DivCore:
         n = int(n)
         m = int(m)
         assert n == m, "only bijections supported yet"
-        if not isinstance(sbox, Sbox):
+        if not isinstance(sbox, Sbox.classes):
             sbox = Sbox(sbox, n, m)
         divcore = SboxPeekANFs(sbox).compute(debug=debug)
         return cls(divcore, n=n, m=m)
@@ -199,11 +200,11 @@ class DivCore:
 class SboxPeekANFs:
     log = logging.getLogger(f"{__name__}:SboxPeekANFs")
 
-    def __init__(self, sbox: Sbox):
-        assert isinstance(sbox, Sbox)
+    def __init__(self, sbox: Sbox, isbox: Sbox = None):
+        assert isinstance(sbox, Sbox.classes)
         self.n = int(sbox.n)
         self.sbox = sbox
-        self.isbox = ~sbox
+        self.isbox = ~sbox if isbox is None else isbox
 
     def compute(self, debug=False):
         n = self.n
@@ -257,15 +258,18 @@ class SboxPeekANFs:
             f"{l}:{cnt}" for (inverse, l), cnt in sorted(stat.items())
         )
         self.log.info(
-            f"computed divcore n={n} in {itr} bit-ANF calls, "
+            f"computed divcore n={n:02d} in {itr} bit-ANF calls, "
             f"stat {statstr}, size {len(divcore)}"
         )
         return set(divcore.to_Bins())
 
+    def get_product(self, mask, inverse):
+        sbox = self.isbox if inverse else self.sbox
+        return sbox.coordinate_product(mask)
+
     def run_mask(self, mask, inverse=False):
         assert 0 <= mask < 1 << self.n
-        sbox = self.isbox if inverse else self.sbox
-        func = sbox.coordinate_product(mask)
+        func = self.get_product(mask, inverse)
         func.do_Mobius()
         func.do_MaxSet()
         func.do_Not()
@@ -275,19 +279,102 @@ class SboxPeekANFs:
             return {(u << self.n) | mask for u in func}
 
 
+class HeavyPeeks(SboxPeekANFs):
+    log = logging.getLogger(f"{__name__}:HeavyPeeks")
+
+    def __init__(self, n, fws, bks, memorize=False):
+        self.n = int(n)
+        if memorize:
+            self.fws = [DenseSet.load_from_file(f) for f in fws]
+            self.bks = [DenseSet.load_from_file(f) for f in bks]
+        else:
+            self.fws = fws
+            self.bks = bks
+        self.memorize = memorize
+
+    def get_coord(self, i, inverse):
+        lst = self.bks if inverse else self.fws
+        if self.memorize:
+            return lst[i]
+        else:
+            return DenseSet.load_from_file(lst[i])
+
+    def get_product(self, mask, inverse):
+        cur = DenseSet(self.n)
+        cur.fill()
+        for i in Bin(mask, self.n).support():
+            cur &= self.get_coord(i, inverse)
+        return cur
+
+
 if __name__ == '__main__':
-    logging.setup(level="DEBUG")
-
-    import sys
+    import gc
+    import sys, os, subprocess
     n = m = int(sys.argv[1])
-    sbox = list(range(2**n))
-    from random import shuffle
-    shuffle(sbox)
-    # ans = sorted(DenseDivCore.from_sbox(sbox, n, m).data.to_Bins())
+    # sbox = list(range(2**n))
+    # from random import shuffle
+    # shuffle(sbox)
+    # sbox = Sbox(sbox, n, m)
+    logging.setup(level="DEBUG")
+    logging.addFileHandler(f"divcore_random/{n:02d}")
+    log = logging.getLogger(__name__)
 
-    sbox = Sbox(sbox, n, m)
+    if n >= 24:
+        if not os.path.isfile(f"divcore_random/cache/{n}_i{n-1}.set"):
+            log.info("generating...")
+            sbox = Sbox32.GEN_random_permutation(n, 2021)
+            log.info(f"generated {n:02d}-bit permutation")
+
+            filename = f"divcore_random/{n:02d}.sbox"
+            sbox.save_to_file(filename)
+            log.info(f"saved {n:02d}-bit permutation")
+
+            h = subprocess.check_output(["sha256sum", filename])
+            log.info(f"sha256sum: {h}")
+
+            for i in range(n):
+                coord = sbox.coordinate(i)
+                coord.save_to_file(f"divcore_random/cache/{n}_{i}.set")
+                log.info(f"coord {i}/{n} saved")
+
+            log.info("inverting...")
+            isbox = ~sbox
+            log.info("inverting done")
+            del sbox
+            gc.collect()
+            for i in range(n):
+                coord = isbox.coordinate(i)
+                coord.save_to_file(f"divcore_random/cache/{n}_i{i}.set")
+                log.info(f"coord {i}/{n} saved")
+        else:
+            log.info("heavy peeks")
+            fws = [f"divcore_random/cache/{n}_{i}.set" for i in range(n)]
+            bks = [f"divcore_random/cache/{n}_i{i}.set" for i in range(n)]
+            pa = HeavyPeeks(n, fws, bks, memorize=False)
+            res = sorted(pa.compute())
+            log.info(f"computed divcore: {len(res)} elements")
+        quit()
+
+    log.info("generating...")
+    sbox = Sbox32.GEN_random_permutation(n, 2021)
+    log.info(f"generated {n:02d}-bit permutation")
+
+    filename = f"divcore_random/{n:02d}.sbox"
+    sbox.save_to_file(filename)
+    log.info(f"saved {n:02d}-bit permutation")
+
+    h = subprocess.check_output(["sha256sum", filename])
+    log.info(f"sha256sum: {h}")
+
     pa = SboxPeekANFs(sbox)
     res = sorted(pa.compute())
-    # print(*res)
-    # assert res == ans
-    print("OK")
+    log.info(f"computed divcore: {len(res)} elements")
+
+    with open(f"divcore_random/{n:02d}.divcore.sparse", "w") as f:
+        print(len(res), file=f)
+        for uv in res:
+            print(int(uv), file=f, end=" ")
+
+    if n <= 10:
+        ans = sorted(DivCore.from_sbox(sbox).to_Bins())
+        assert res == ans

@@ -63,6 +63,7 @@ setup(
             sources=[
                 "./src/divprop/libsubsets.i",
                 "./src/divprop/subsets/DenseSet.cpp",
+                "./src/divprop/sbox/Sbox.cpp",
             ],
             swig_opts=["-c++", "-DSWIGWORDSIZE64"],  # https://github.com/swig/swig/issues/568
             extra_compile_args=["-std=c++2a", "-O2", "-fopenmp"],

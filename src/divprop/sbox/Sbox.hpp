@@ -1,5 +1,8 @@
 #pragma once
 
+#include <random>
+#include <chrono>
+
 #include "common.hpp"
 #include "DenseSet.hpp"
 
@@ -9,6 +12,9 @@ struct T_Sbox {
     std::vector<T> data;
     uint64_t xmask;
     uint64_t ymask;
+
+    static const uint64_t VERSION1 = 0xcbd6c2fe63066fffull;
+    static const uint64_t MARKER_END = 0x143d15e3d6f4f9baull;
 
     constexpr static bool is_Sbox_class = true;
 
@@ -71,6 +77,12 @@ struct T_Sbox {
     T __setitem__(uint64_t x, const T y) {
         return set(x, y);
     }
+    #ifdef SWIG
+    %pythoncode %{
+        def __iter__(self):
+            return iter(self.data)
+    %}
+    #endif
 
     DenseSet coordinate_product(T mask) const {
         DenseSet f(n);
@@ -100,5 +112,88 @@ struct T_Sbox {
             }
         }
         return funcs;
+    }
+
+    DenseSet coordinate(int i) const {
+        ensure(0 <= i && i < n);
+        DenseSet func(n);
+        fori (x, 1ull << n) {
+            uint64_t y = (uint64_t)data[x];
+            func.set(x, (y >> (m - 1 - i)) & 1);
+        }
+        return func;
+    }
+
+    static T_Sbox<T> GEN_random_permutation(int n, uint64_t seed=-1ull) {
+        ensure(1 <= n && n <= 62);
+        if (seed == -1ull) {
+            seed = std::chrono::system_clock::now().time_since_epoch().count();
+        }
+
+        T_Sbox<T> res(n, n);
+        fori (x, 1ull << n) {
+            res.set(x, x);
+        }
+        std::mt19937 engine(seed);
+        shuffle(res.data.begin(), res.data.end(), engine);
+        return res;
+    }
+
+    void save_to_file(const char *filename) const {
+        FILE *fd = fopen(filename, "w");
+        ensure(fd, "can not open file");
+
+        uint64_t header = VERSION1;
+        uint64_t vt = sizeof(T);
+        uint64_t vn = n;
+        uint64_t vm = m;
+
+        fwrite(&header, 8, 1, fd);
+        fwrite(&vt, 8, 1, fd);
+        fwrite(&vn, 8, 1, fd);
+        fwrite(&vm, 8, 1, fd);
+
+        for (auto y: data) {
+            fwrite(&y, vt, 1, fd);
+        }
+
+        uint64_t marker = MARKER_END;
+        fwrite(&marker, 8, 1, fd);
+        fclose(fd);
+    }
+    static T_Sbox<T> load_from_file(const char *filename) {
+        FILE *fd = fopen(filename, "r");
+        ensure(fd, "can not open file");
+
+
+        uint64_t header;
+        fread(&header, 8, 1, fd);
+
+        if (header == VERSION1) {
+            uint64_t vt, vn, vm;
+            fread(&vt, 8, 1, fd);
+            fread(&vn, 8, 1, fd);
+            fread(&vm, 8, 1, fd);
+
+            ensure(sizeof(T) == vt, "can not load sbox of different word size, sorry");
+
+            T_Sbox<T> res(vn, vm);
+            uint64_t y = 0;
+            fori (x, 1ull << vn) {
+                fread(&y, vt, 1, fd);
+                res.set(x, y);
+            }
+
+            uint64_t marker;
+            fread(&marker, 8, 1, fd);
+            ensure(marker == MARKER_END, "file format error");
+
+            fclose(fd);
+            return res;
+        }
+        else {
+            ensure(0, "unknown sbox file version");
+        }
+        return T_Sbox<T>(0, 0);
     }
 };

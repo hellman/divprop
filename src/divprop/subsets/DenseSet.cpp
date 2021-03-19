@@ -563,9 +563,7 @@ void DenseSet::save_to_file(const char *filename) const {
     FILE *fd = fopen(filename, "w");
     ensure(fd, "can not open file");
 
-    uint64_t header = DenseSet::VERSION1;
     uint64_t vn = n;
-    uint64_t vl = supp.size();
     uint64_t sz = 8;
     if (n <= 8) {
         sz = 1;
@@ -576,18 +574,43 @@ void DenseSet::save_to_file(const char *filename) const {
     else if (n <= 32) {
         sz = 4;
     }
-    fwrite(&header, 8, 1, fd);
-    fwrite(&vn, 8, 1, fd);
-    fwrite(&vl, 8, 1, fd);
-    fwrite(&sz, 8, 1, fd);
 
-    for (auto v: supp) {
-        fwrite(&v, sz, 1, fd);
+    if (supp.size() * sz < data.size() * 8) {
+        uint64_t header = DenseSet::VERSION_SPARSE;
+        uint64_t vl = supp.size();
+
+        fwrite(&header, 8, 1, fd);
+        fwrite(&vn, 8, 1, fd);
+        fwrite(&vl, 8, 1, fd);
+        fwrite(&sz, 8, 1, fd);
+
+        for (auto v: supp) {
+            fwrite(&v, sz, 1, fd);
+        }
+
+        uint64_t marker = MARKER_END;
+        fwrite(&marker, 8, 1, fd);
+        fclose(fd);
     }
+    else {
+        supp.clear();
 
-    uint64_t marker = MARKER_END;
-    fwrite(&marker, 8, 1, fd);
-    fclose(fd);
+        uint64_t header = DenseSet::VERSION_DENSE;
+        uint64_t vl = data.size();
+
+        fwrite(&header, 8, 1, fd);
+        fwrite(&vn, 8, 1, fd);
+        fwrite(&vl, 8, 1, fd);
+        fwrite(&sz, 8, 1, fd);
+
+        for (auto v: data) {
+            fwrite(&v, 8, 1, fd);
+        }
+
+        uint64_t marker = MARKER_END;
+        fwrite(&marker, 8, 1, fd);
+        fclose(fd);
+    }
 }
 DenseSet DenseSet::load_from_file(const char *filename) {
     FILE *fd = fopen(filename, "r");
@@ -598,14 +621,14 @@ DenseSet DenseSet::load_from_file(const char *filename) {
     uint64_t header;
     fread(&header, 8, 1, fd);
 
-    if (header == VERSION1) {
-        uint64_t vl;
-        uint64_t vn;
-        uint64_t sz;
-        fread(&vn, 8, 1, fd);
-        fread(&vl, 8, 1, fd);
-        fread(&sz, 8, 1, fd);
+    uint64_t vl;
+    uint64_t vn;
+    uint64_t sz;
+    fread(&vn, 8, 1, fd);
+    fread(&vl, 8, 1, fd);
+    fread(&sz, 8, 1, fd);
 
+    if (header == VERSION_SPARSE) {
         if (!QUIET) {
             fprintf(stderr,
                 "Loading DenseSet(n=%lu)"
@@ -621,16 +644,24 @@ DenseSet DenseSet::load_from_file(const char *filename) {
             fread(&v, sz, 1, fd);
             res.set(v);
         }
+    }
+    else if (header == VERSION_DENSE) {
+        res = DenseSet(vn);
+        uint64_t v = 0;
+        fori (i, vl) {
+            fread(&v, 8, 1, fd);
+            res.data[i] = v;
+        }
 
-        uint64_t marker;
-        fread(&marker, 8, 1, fd);
-        ensure(marker == MARKER_END, "file format error");
-
-        fclose(fd);
     }
     else {
         ensure(0, "unknown set file version");
     }
+    uint64_t marker;
+    fread(&marker, 8, 1, fd);
+    ensure(marker == MARKER_END, "file format error");
+
+    fclose(fd);
     return res;
 }
 

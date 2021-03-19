@@ -46,6 +46,7 @@
 %template(Sbox64) T_Sbox<uint64_t>;
 %pythoncode %{
 Sbox = Sbox64
+Sbox.classes = Sbox8, Sbox16, Sbox32, Sbox64
 %}
 
 %template(DivCore_StrongComposition8) T_DivCore_StrongComposition<uint8_t>;

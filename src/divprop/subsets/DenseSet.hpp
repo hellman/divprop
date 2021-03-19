@@ -32,7 +32,8 @@ struct DenseSet {
     bool __bool__() const;
     bool is_full() const;
 
-    static const uint64_t VERSION1 = 0xf1c674e0bf03fea6ull;
+    static const uint64_t VERSION_SPARSE = 0xf1c674e0bf03fea6ull;
+    static const uint64_t VERSION_DENSE = 0xf556483ae0da9468ull;
     static const uint64_t MARKER_END = 0xc6891a2b5f8bb0b7ull;
     static bool QUIET;  // set to true to disable stderr printing
 
