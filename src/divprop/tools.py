@@ -4,7 +4,7 @@ import hashlib
 import argparse
 
 from divprop.all_sboxes import sboxes
-from divprop.subsets import DenseSet
+from divprop.subsets import DenseSet, Sbox
 from divprop.divcore import DivCore
 import divprop.logs as logging
 
@@ -112,7 +112,7 @@ def tool_sbox2ddt():
 
     output = args.output or f"data/sbox_{name}/ddt"
 
-    log.info(f"computing division core for '{name}', output to {output}")
+    log.info(f"computing ddt support for '{name}', output to {output}")
     ddt = DenseSet(n + m)
     for dx in range(2**n):
         for x in range(2**n):
@@ -129,6 +129,63 @@ def tool_sbox2ddt():
 
     ddt.save_to_file(output + ".good.set")
     ddt.Complement().save_to_file(output + ".bad.set")
+    with open(output + ".type_good", "w") as f:
+        print("-", file=f)
+
+
+# parity transition table?
+def tool_sbox2ptt():
+    logging.setup(level="INFO")
+
+    parser = argparse.ArgumentParser(
+        description="Generate Parity Transition Table (PTT) of a given S-box."
+    )
+
+    parser.add_argument(
+        "sbox", type=str,
+        help="S-box (name or python repr e.g. '(2,1,0,3)' )",
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, default=None,
+        help="Output file (default: data/sbox_{name}/ptt) (.set will be appended)",
+    )
+
+    parser.add_argument(
+        "-n", "--name", type=str, default=None,
+        help="Force name to use in default data paths",
+    )
+
+    args = parser.parse_args()
+
+    name, sbox, n, m = parse_sbox(args.sbox)
+    try:
+        os.mkdir(f"data/sbox_{name}")
+    except FileExistsError:
+        pass
+
+    output = args.output or f"data/sbox_{name}/ptt"
+
+    log.info(f"computing parity table for '{name}', output to {output}")
+
+    sbox = Sbox(sbox, n, m)
+    ptt = DenseSet(n + m)
+    # not optimized
+    for v in range(2**m):
+        comp = sbox.coordinate_product(v)
+        comp.do_Mobius()
+        for u in comp:
+            ptt.set((u << m) | v)
+
+    log.info(f" ptt: {ptt}")
+    log.info(f"~ptt: {ptt.Complement()}")
+    log.info(f"by pairs: {ptt.str_stat_by_weight_pairs(n, m)}")
+
+    ptt.save_to_file(output + ".set")
+    with open(output + ".dim", "w") as f:
+        print(n, m, file=f)
+
+    ptt.save_to_file(output + ".good.set")
+    ptt.Complement().save_to_file(output + ".bad.set")
     with open(output + ".type_good", "w") as f:
         print("-", file=f)
 
