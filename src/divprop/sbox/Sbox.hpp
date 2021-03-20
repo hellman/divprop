@@ -49,6 +49,14 @@ struct T_Sbox {
         }
     }
 
+    void invert_in_place() {
+        ensure(n == m);
+        T_Sbox<T> ret = *this;
+        fori (x, xmask + 1) {
+            set(ret.data[x], x);
+        }
+        return;
+    }
     T_Sbox<T> inverse() const {
         ensure(n == m);
         T_Sbox<T> ret(n, m);
@@ -153,9 +161,10 @@ struct T_Sbox {
         fwrite(&vn, 8, 1, fd);
         fwrite(&vm, 8, 1, fd);
 
-        for (auto y: data) {
-            fwrite(&y, vt, 1, fd);
-        }
+        fwrite(data.data(), vt, 1ull << vn, fd);
+        // for (auto y: data) {
+        //     fwrite(&y, vt, 1, fd);
+        // }
 
         uint64_t marker = MARKER_END;
         fwrite(&marker, 8, 1, fd);
@@ -179,10 +188,11 @@ struct T_Sbox {
 
             T_Sbox<T> res(vn, vm);
             uint64_t y = 0;
-            fori (x, 1ull << vn) {
-                fread(&y, vt, 1, fd);
-                res.set(x, y);
-            }
+            fread(res.data.data(), vt, 1ull << vn, fd);
+            // fori (x, 1ull << vn) {
+            //     fread(&y, vt, 1, fd);
+            //     res.set(x, y);
+            // }
 
             uint64_t marker;
             fread(&marker, 8, 1, fd);

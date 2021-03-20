@@ -584,9 +584,28 @@ void DenseSet::save_to_file(const char *filename) const {
         fwrite(&vl, 8, 1, fd);
         fwrite(&sz, 8, 1, fd);
 
-        for (auto v: supp) {
-            fwrite(&v, sz, 1, fd);
+        if (sz == 1) {
+            vector<uint8_t> supp_supp(supp.begin(), supp.end());
+            fwrite(supp_supp.data(), sz, supp.size(), fd);
         }
+        else if (sz == 2) {
+            vector<uint16_t> supp_supp(supp.begin(), supp.end());
+            fwrite(supp_supp.data(), sz, supp.size(), fd);
+        }
+        else if (sz == 4) {
+            vector<uint32_t> supp_supp(supp.begin(), supp.end());
+            fwrite(supp_supp.data(), sz, supp.size(), fd);
+        }
+        else if (sz == 8) {
+            fwrite(supp.data(), sz, supp.size(), fd);
+        }
+        else {
+            ensure(0, "???");
+        }
+
+        // for (auto v: supp) {
+        //     fwrite(&v, sz, 1, fd);
+        // }
 
         uint64_t marker = MARKER_END;
         fwrite(&marker, 8, 1, fd);
@@ -603,9 +622,10 @@ void DenseSet::save_to_file(const char *filename) const {
         fwrite(&vl, 8, 1, fd);
         fwrite(&sz, 8, 1, fd);
 
-        for (auto v: data) {
-            fwrite(&v, 8, 1, fd);
-        }
+        fwrite(data.data(), sizeof(uint64_t), vl, fd);
+        // for (auto v: data) {
+        //     fwrite(&v, 8, 1, fd);
+        // }
 
         uint64_t marker = MARKER_END;
         fwrite(&marker, 8, 1, fd);
@@ -639,19 +659,43 @@ DenseSet DenseSet::load_from_file(const char *filename) {
         }
 
         res = DenseSet(vn);
-        uint64_t v = 0;
-        fori (i, vl) {
-            fread(&v, sz, 1, fd);
-            res.set(v);
+        if (sz == 1) {
+            vector<uint8_t> supp(vl);
+            fread(supp.data(), sz, vl, fd);
+            for (auto v: supp) res.add(v);
         }
+        else if (sz == 2) {
+            vector<uint16_t> supp(vl);
+            fread(supp.data(), sz, vl, fd);
+            for (auto v: supp) res.add(v);
+        }
+        else if (sz == 4) {
+            vector<uint32_t> supp(vl);
+            fread(supp.data(), sz, vl, fd);
+            for (auto v: supp) res.add(v);
+        }
+        else if (sz == 8) {
+            vector<uint64_t> supp(vl);
+            fread(supp.data(), sz, vl, fd);
+            for (auto v: supp) res.add(v);
+        }
+        else {
+            ensure(0, "???");
+        }
+        // uint64_t v = 0;
+        // fori (i, vl) {
+        //     fread(&v, sz, 1, fd);
+        //     res.set(v);
+        // }
     }
     else if (header == VERSION_DENSE) {
         res = DenseSet(vn);
-        uint64_t v = 0;
-        fori (i, vl) {
-            fread(&v, 8, 1, fd);
-            res.data[i] = v;
-        }
+        fread(res.data.data(), sizeof(uint64_t), vl, fd);
+        // uint64_t v = 0;
+        // fori (i, vl) {
+        //     fread(&v, 8, 1, fd);
+        //     res.data[i] = v;
+        // }
 
     }
     else {
