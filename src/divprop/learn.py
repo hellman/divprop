@@ -479,9 +479,7 @@ class SupportLearner:
 
                     ineq = oracle.query(Bin(fset, N))
                     if ineq:
-                        system.add_feasible(
-                            fset, sol=sol_encoder(ineq)
-                        )
+                        system.add_feasible(fset, sol=sol_encoder(ineq))
                         n_good += 1
                     else:
                         system.add_infeasible(fset)
@@ -492,6 +490,14 @@ class SupportLearner:
                         fset = prev_fset | {k}
                         n_total += 1
 
+                        good = 1
+                        for j in prev_fset:
+                            if (fset - {j}) in system.infeasible.cache:
+                                good = 0
+                                break
+                        if not good:
+                            continue
+
                         if fset in system.feasible.cache:
                             n_good += 1
                             continue
@@ -500,9 +506,7 @@ class SupportLearner:
 
                         ineq = oracle.query(Bin(fset, N))
                         if ineq:
-                            system.add_feasible(
-                                fset, sol=sol_encoder(ineq)
-                            )
+                            system.add_feasible(fset, sol=sol_encoder(ineq))
                             n_good += 1
                         else:
                             system.add_infeasible(fset)
