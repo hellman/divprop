@@ -285,8 +285,11 @@ class HeavyPeeks(SboxPeekANFs):
     def __init__(self, n, fws, bks, memorize=False):
         self.n = int(n)
         if memorize:
+            self.log.info("loading forward coordinates to memory")
             self.fws = [DenseSet.load_from_file(f) for f in fws]
+            self.log.info("loading backward coordinates to memory")
             self.bks = [DenseSet.load_from_file(f) for f in bks]
+            self.log.info("loaded to memory done")
         else:
             self.fws = fws
             self.bks = bks
@@ -307,26 +310,29 @@ class HeavyPeeks(SboxPeekANFs):
         return cur
 
 
-if __name__ == '__main__':
+def tool_RandomSboxBenchmark():
     import gc
-    import sys, os, subprocess
-    n = m = int(sys.argv[1])
-    # sbox = list(range(2**n))
-    # from random import shuffle
-    # shuffle(sbox)
-    # sbox = Sbox(sbox, n, m)
+    import sys
+    import os
+    import subprocess
+
+    n = int(sys.argv[1])
+
     logging.setup(level="DEBUG")
     logging.addFileHandler(f"divcore_random/{n:02d}")
     log = logging.getLogger(__name__)
 
     if n >= 24:
-        if not os.path.isfile(f"divcore_random/cache/{n}_i{n-1}.set"):
+        if 0 and not os.path.isfile(f"divcore_random/cache/{n}_i{n-1}.set"):
+            filename = f"divcore_random/{n:02d}.sbox"
+            ifilename = f"divcore_random/i{n:02d}.sbox"
+
             log.info("generating...")
             sbox = Sbox32.GEN_random_permutation(n, 2021)
+            # sbox = Sbox32.load_from_file(filename)
             log.info(f"generated {n:02d}-bit permutation")
 
-            filename = f"divcore_random/{n:02d}.sbox"
-            sbox.save_to_file(filename)
+            # sbox.save_to_file(filename)
             log.info(f"saved {n:02d}-bit permutation")
 
             h = subprocess.check_output(["sha256sum", filename])
@@ -338,10 +344,18 @@ if __name__ == '__main__':
                 log.info(f"coord {i}/{n} saved")
 
             log.info("inverting...")
-            isbox = ~sbox
+            isbox = sbox
+            isbox.invert_in_place()
             log.info("inverting done")
             del sbox
             gc.collect()
+
+            isbox.save_to_file(ifilename)
+            log.info(f"saved {n:02d}-bit permutation")
+
+            h = subprocess.check_output(["sha256sum", ifilename])
+            log.info(f"sha256sum: {h}")
+
             for i in range(n):
                 coord = isbox.coordinate(i)
                 coord.save_to_file(f"divcore_random/cache/{n}_i{i}.set")
@@ -350,13 +364,13 @@ if __name__ == '__main__':
             log.info("heavy peeks")
             fws = [f"divcore_random/cache/{n}_{i}.set" for i in range(n)]
             bks = [f"divcore_random/cache/{n}_i{i}.set" for i in range(n)]
-            pa = HeavyPeeks(n, fws, bks, memorize=False)
+            pa = HeavyPeeks(n, fws, bks, memorize=True)
             res = sorted(pa.compute())
             log.info(f"computed divcore: {len(res)} elements")
         quit()
 
     log.info("generating...")
-    sbox = Sbox32.GEN_random_permutation(n, 2021)
+    sbox = Sbox32.GEN_random_permutation(n, 1)
     log.info(f"generated {n:02d}-bit permutation")
 
     filename = f"divcore_random/{n:02d}.sbox"
@@ -378,3 +392,7 @@ if __name__ == '__main__':
     if n <= 10:
         ans = sorted(DivCore.from_sbox(sbox).to_Bins())
         assert res == ans
+
+
+if __name__ == '__main__':
+    tool_RandomSboxBenchmark()
