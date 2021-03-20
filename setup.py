@@ -18,6 +18,7 @@ entry_points = {
         'divprop.sbox_ineqs = divprop.sbox_ineqs:main',
         'divprop.sbox2divcore = divprop.tools:tool_sbox2divcore',
         'divprop.sbox2ddt = divprop.tools:tool_sbox2ddt',
+        'divprop.sbox2ptt = divprop.tools:tool_sbox2ptt',
         'divprop.setinfo = divprop.tools:tool_setinfo',
         'divprop.divcore2bounds = divprop.tools:tool_divcore2bounds',
         'divprop.mono2ineqs = divprop.inequalities.tools:tool_mono2ineqs',
