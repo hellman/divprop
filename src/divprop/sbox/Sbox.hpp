@@ -48,6 +48,29 @@ struct T_Sbox {
             ensure(0 <= data[x] && data[x] <= ymask);
         }
     }
+    uint64_t get_hash() const {
+        uint64_t h = 0xcd35ac633ca730f7ull;
+        for (auto v: data) {
+            h ^= v;
+            h *= 0x579012b977f2665bull;
+            h ^= h >> 23;
+            h += v;
+            h ^= h >> 10;
+        }
+        return h;
+    }
+    std::string info() const {
+        char buf[4096];
+        snprintf(
+            buf, 4000,
+            "<Sbox hash=%016lx n=%d m=%d>",
+            get_hash(), n, m
+        );
+        return string(buf);
+    }
+    std::string __str__() const {
+        return info();
+    }
 
     void invert_in_place() {
         ensure(n == m);

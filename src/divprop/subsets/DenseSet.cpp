@@ -724,10 +724,10 @@ std::string DenseSet::info() const {
     char buf[4096];
     snprintf(
         buf, 4000,
-        "%016lx n=%d wt=%lu | ",
+        "<DenseSet hash=%016lx n=%d wt=%lu | ",
         get_hash(), n, get_weight()
     );
-    return string(buf) + str_stat_by_weights();
+    return string(buf) + str_stat_by_weights() + ">";
 }
 std::string DenseSet::__str__() const {
     return info();

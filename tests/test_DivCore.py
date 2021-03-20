@@ -16,20 +16,20 @@ def test_DivCore():
     assert dc == dc2
 
     assert dc.to_dense().info() == \
-        "dfa780cfc382387a n=6 wt=12 | 2:3 3:9"
+        "<DenseSet hash=dfa780cfc382387a n=6 wt=12 | 2:3 3:9>"
     assert dc.to_dense().get_support() == \
         (7, 11, 12, 19, 20, 25, 35, 36, 42, 49, 50, 56)
 
     assert dc.LB().info() == \
-        "9fe09c93bbcdbb87 n=6 wt=8 | 2:6 3:2"
+        "<DenseSet hash=9fe09c93bbcdbb87 n=6 wt=8 | 2:6 3:2>"
     assert dc.UB(method="redundant").info() == \
-        "60f7fb1d9a638a50 n=6 wt=12 | 3:6 4:6"
+        "<DenseSet hash=60f7fb1d9a638a50 n=6 wt=12 | 3:6 4:6>"
     assert dc.UB(method="complement").info() == \
-        "449b201e8a75f016 n=6 wt=10 | 3:8 4:2"
+        "<DenseSet hash=449b201e8a75f016 n=6 wt=10 | 3:8 4:2>"
     assert dc.FullDPPT().info() == \
-        "b712d2af3b433a45 n=6 wt=43 | 0:1 1:3 2:10 3:13 4:12 5:3 6:1"
+        "<DenseSet hash=b712d2af3b433a45 n=6 wt=43 | 0:1 1:3 2:10 3:13 4:12 5:3 6:1>"
     assert dc.MinDPPT().info() == \
-        "ff7ce5b30da61490 n=6 wt=15 | 0:1 2:7 3:3 4:3 6:1"
+        "<DenseSet hash=ff7ce5b30da61490 n=6 wt=15 | 0:1 2:7 3:3 4:3 6:1>"
 
     assert dc.LB().get_support() == \
         (3, 5, 6, 17, 26, 34, 41, 48)

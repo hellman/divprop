@@ -39,7 +39,7 @@ def test_DenseSet():
     assert b.get_support() == (0, 1, 2, 3, 5, 8)
     assert b.get_weight() == 6
 
-    assert b.info() == 'f01a3338f076a640 n=6 wt=6 | 0:1 1:3 2:2'
+    assert b.info() == '<DenseSet hash=f01a3338f076a640 n=6 wt=6 | 0:1 1:3 2:2>'
     assert DenseSet([1, 2, 4, 5, 7], 6) == a
 
     assert_raises(
