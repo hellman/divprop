@@ -197,10 +197,10 @@ class GrowingExtremeFrozen:
             self.add(v)
 
     def add(self, v: frozenset):
-        if self.cache and v in self.cache[len(v)]:
+        if self.cache is not None and v in self.cache[len(v)]:
             return
         self.sets[len(v)].add(v)
-        if self.cache:
+        if self.cache is not None:
             self.cache[len(v)].add(v)
 
     def update(self, vs):
@@ -244,7 +244,7 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
     def contains(self, v, strict=False):
         """naive, optimized by weights"""
         assert not strict, "not impl"
-        if self.cache and v in self.cache:
+        if self.cache is not None and v in self.cache:
             return True
 
         for w in reversed(range(len(v), self.n+1)):
@@ -280,7 +280,7 @@ class GrowingUpperFrozen(GrowingExtremeFrozen):
     def contains(self, v, strict=False):
         """naive, optimized by weights"""
         assert not strict, "not impl"
-        if self.cache and v in self.cache:
+        if self.cache is not None and v in self.cache:
             return True
 
         for w in range(len(v)+1):
