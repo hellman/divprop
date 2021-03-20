@@ -21,6 +21,7 @@ entry_points = {
         'divprop.setinfo = divprop.tools:tool_setinfo',
         'divprop.divcore2bounds = divprop.tools:tool_divcore2bounds',
         'divprop.mono2ineqs = divprop.inequalities.tools:tool_mono2ineqs',
+        'divprop.random_sbox_benchmark = divprop.tool_random_sbox_benchmark:tool_RandomSboxBenchmark',
     ]
 }
 
