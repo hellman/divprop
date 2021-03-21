@@ -255,13 +255,13 @@ class Gurobi(MILP):
         obj = self.trunc(self.model.objVal)
         if solution_limit != 0:
             for i in range(min(solution_limit, self.model.SolCount)):
-                if solution_limit > 1:
-                    self.model.setAttr("SolutionNumber", i)
-                solobj = self.model.objVal
+                self.model.setParam("SolutionNumber", i)
+
+                solobj = self.model.PoolObjVal
                 if solobj + self.EPS < obj and only_best:
                     continue
 
-                vec = {v: self.trunc(v.X) for v in self.vars}
+                vec = {v: self.trunc(v.Xn) for v in self.vars}
                 self.solutions.append(vec)
         return obj
 

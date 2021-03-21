@@ -33,7 +33,9 @@ class LearnModule:
         self.xs = [self.milp.var_binary("x%d" % i) for i in range(self.N)]
         self.xsum = self.milp.var_int("xsum", lb=2, ub=self.N)
         self.milp.add_constraint(sum(self.xs) == self.xsum)
-        self.milp.set_objective(self.xsum)
+
+        if maximization is not None:
+            self.milp.set_objective(self.xsum)
 
         if init:
             self.log.info(
