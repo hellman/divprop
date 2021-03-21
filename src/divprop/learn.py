@@ -528,6 +528,7 @@ class CliqueMountainHills:
         min_height=10,
         max_repeated_streak=5,
         max_exclusion_size=7,
+        max_milp_cliques=10**9,
         n_random=10000,
         reuse_known=True,
         bad_learn_hard_limit_random=25,
@@ -540,6 +541,7 @@ class CliqueMountainHills:
         self.min_height = int(min_height)
         self.max_repeated_streak = int(max_repeated_streak)
         self.max_exclusion_size = int(max_exclusion_size)
+        self.max_milp_cliques = int(max_milp_cliques)
         self.reuse_known = reuse_known
         self.n_random = int(n_random)
 
@@ -733,13 +735,14 @@ class CliqueMountainHills:
         self.log.info(
             "starting max-clique search, "
             f"max_mountains: {self.max_mountains} "
-            f"(min height {self.min_height})"
+            f"(min height {self.min_height}); "
+            f"max cliques total {self.max_milp_cliques}"
         )
 
         self.n_cliques = 0
         self.n_bad = 0
         self.n_good = 0
-        while True:
+        while self.n_cliques < self.max_milp_cliques:
             size = self.milp.optimize(solution_limit=100, only_best=True)
             if size is None:
                 self.log.info(f"no new cliques, milp.err: {self.milp.err}")
