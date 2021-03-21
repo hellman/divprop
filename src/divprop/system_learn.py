@@ -131,12 +131,12 @@ class LearnModule:
 
         for itr in range(self.good_learn_hard_limit):  # hard limit
             fset = orig
-            inds = list(self.full_fset - orig)
+            inds = list(self.fset_full - orig)
             shuffle(inds)
             fail = False
             cursol = sol
             for i in inds:
-                and_fset = fset + {i}
+                and_fset = fset | {i}
 
                 if and_fset in self.system.feasible.cache:
                     fail = True
@@ -181,6 +181,7 @@ class SupportLearner(LearnModule):
 
         system = self.system
         oracle = self.oracle
+        N = self.N
 
         start = getattr(system, "_support_learned", 1) + 1
 
@@ -270,11 +271,12 @@ class RandomMaxFeasible(LearnModule):
 
         self._options = self.__dict__.copy()
 
-    def learn(self):
+    def learn(self, num=1_000_000):
         self.n_sample_feas = 0
         self.n_sample_feas_new = 0
         self.n_sample_infeas = 0
         self.n_sample_infeas_new = 0
+        self.n_itr = num
         self.time_stats = defaultdict(lambda: 0)
         self.run_stats = defaultdict(lambda: 0)
 
@@ -283,7 +285,7 @@ class RandomMaxFeasible(LearnModule):
         SL.learn()
 
         self.itr = 0
-        while True:
+        while self.itr < num:
             self.itr += 1
             if self.itr % self.refresh_rate == 1:
                 self.refresh()
@@ -299,7 +301,7 @@ class RandomMaxFeasible(LearnModule):
     def refresh(self):
         self.log.info("")
         self.log.info("---------------------------")
-        self.log.info(f"refreshing, iteration {self.itr}, stats:")
+        self.log.info(f"refreshing, iteration {self.itr}/{self.n_itr}, stats:")
         for method in self.time_stats:
             avgtime = self.time_stats[method]/(0.1+self.run_stats[method])
             self.log.info(
@@ -371,9 +373,10 @@ class RandomMaxFeasible(LearnModule):
 class UnknownFillMILP(LearnModule):
     log = logging.getLogger(f"{__name__}:UnknownFillMILP")
 
-    def __init__(self, solver="gurobi", refresh_rate=5):
+    def __init__(self, solver="gurobi", batch_size=10, refresh_rate=5):
         self.refresh_rate = int(refresh_rate)
         self.solver = solver
+        self.batch_size = int(batch_size)
 
         self._options = self.__dict__.copy()
 
@@ -406,13 +409,16 @@ class UnknownFillMILP(LearnModule):
             if self.itr % self.refresh_rate == 1:
                 self.refresh()
             if not self.find_new_unknown():
+                if level is None:
+                    self.refresh()
+                    raise EOFError("all groups exhausted!")
                 break
 
         self.refresh()
 
     def find_new_unknown(self):
         self.log.info(f"itr #{self.itr}: optimizing...")
-        size = self.milp.optimize()
+        size = self.milp.optimize(solution_limit=self.batch_size)
         if size is None:
             self.log.info(f"no new cliques, milp.err: {self.milp.err}")
             return False

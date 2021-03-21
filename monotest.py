@@ -27,9 +27,9 @@ fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
 fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
 fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
 
-fileprefix = "/work/division/workspace/data/sbox_present/ddt"
+# fileprefix = "/work/division/workspace/data/sbox_present/ddt"
 fileprefix = "/work/division/workspace/data/sbox_presentmod/ptt"
-fileprefix = "/work/division/workspace/data/sbox_present/ptt"
+# fileprefix = "/work/division/workspace/data/sbox_present/ptt"
 
 # fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
 # fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
@@ -53,8 +53,6 @@ except Exception as err:
     log.warning(f"can not load previous system from {sysfile}: {err}")
     pool.system.log_info()
 
-# print(len(pool.system.feasible.cache[3]))
-# quit()
 # SL = SupportLearner(level=3)
 # SL.init(system=pool.system, oracle=pool.oracle)
 # SL.learn()
@@ -62,15 +60,19 @@ except Exception as err:
 if 0:
     RandMax = RandomMaxFeasible(base_level=3, refresh_rate=1000)
     RandMax.init(system=pool.system, oracle=pool.oracle)
-    RandMax.learn()
+    RandMax.learn(num=50_000)
 
-if 0:
-    Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi")
+if 1:
+    Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi", batch_size=10)
     Comp.init(system=pool.system, oracle=pool.oracle)
-    # Comp.learn(level=4, num=50)
+
+    Comp.learn(level=4, num=50)
     while True:
-        Comp.learn(maximization=False, num=50)
-        Comp.learn(maximization=True, num=50)
+        try:
+            Comp.learn(maximization=True, num=10)
+            Comp.learn(maximization=False, num=10)
+        except EOFError:
+            break
 
 if 1:
     Ver = Verifier(solver="gurobi")
