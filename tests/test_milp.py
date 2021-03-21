@@ -1,4 +1,4 @@
-from divprop.milp import MILP, has_scip, has_sage
+from divprop.milp import MILP, has_scip, has_sage, has_gurobi
 
 
 def test_milp():
@@ -8,6 +8,9 @@ def test_milp():
     if has_sage:
         solvers.append("glpk")
         solvers.append("coin")
+    if has_gurobi:
+        solvers.append("gurobi")
+
     for solver in solvers:
         check_solver(solver)
 

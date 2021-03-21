@@ -1,14 +1,18 @@
-from divprop.inequalities.monopool import (
-    InequalitiesPool, LPbasedOracle,
-)
+import os
 from itertools import combinations
-from divprop.learn import CliqueMountainHills
+
+from binteger import Bin
+
+from divprop.inequalities.monopool import (
+    InequalitiesPool, LPbasedOracle, LazySparseSystem,
+)
+from divprop.system_learn import (
+    SupportLearner, RandomMaxFeasible, UnknownFillMILP, Verifier,
+)
 
 from divprop.inequalities.base import satisfy, inner
 from divprop.subsets import DenseSet
 from divprop import logging
-from binteger import Bin
-
 
 logging.setup(level="DEBUG")
 log = logging.getLogger()
@@ -24,23 +28,96 @@ fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
 fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
 
 fileprefix = "/work/division/workspace/data/sbox_present/ddt"
+fileprefix = "/work/division/workspace/data/sbox_presentmod/ptt"
+fileprefix = "/work/division/workspace/data/sbox_present/ptt"
 
 # fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
 # fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
 
+
+sysfile = fileprefix + ".system"
+
+if 0:
+    try:
+        os.unlink(sysfile)
+    except Exception as err:
+        pass
+
 pool = InequalitiesPool.from_DenseSet_files(fileprefix)
+pool.set_oracle(LPbasedOracle(solver="glpk"))
+pool.set_system(LazySparseSystem(sysfile=sysfile))
+
+try:
+    pool.system.load_from_file(sysfile)
+except Exception as err:
+    log.warning(f"can not load previous system from {sysfile}: {err}")
+    pool.system.log_info()
+
+# print(len(pool.system.feasible.cache[3]))
+# quit()
+# SL = SupportLearner(level=3)
+# SL.init(system=pool.system, oracle=pool.oracle)
+# SL.learn()
+
+if 0:
+    RandMax = RandomMaxFeasible(base_level=3, refresh_rate=1000)
+    RandMax.init(system=pool.system, oracle=pool.oracle)
+    RandMax.learn()
+
+if 0:
+    Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi")
+    Comp.init(system=pool.system, oracle=pool.oracle)
+    # Comp.learn(level=4, num=50)
+    while True:
+        Comp.learn(maximization=False, num=50)
+        Comp.learn(maximization=True, num=50)
+
+if 1:
+    Ver = Verifier(solver="gurobi")
+    Ver.init(system=pool.system, oracle=pool.oracle)
+    Ver.learn(clean=False)
+
+pool.system.log_info()
+
+for fset in pool.system.infeasible:
+    assert not pool.oracle.query(Bin(fset, pool.N))
+
+for v in pool.system.feasible:
+    ineq = pool.system.solution[v].ineq
+    badinds = Bin(v, pool.N).support()
+    # print("v", Bin(v, pool.N), "badinds", badinds, "ineq", ineq)
+    res = pool.oracle.query(Bin(v, pool.N))
+    # print("query", res)
+    assert all(satisfy(q, ineq) for q in pool.good)
+    assert all(not satisfy(pool.i2bad[i], ineq) for i in badinds)
+
+print("minimizing...")
+
+ineqs = pool.choose_subset_milp(solver="gurobi")
+
+print("minimum:", len(ineqs))
+
+file = fileprefix + ".ineqs.%d" % len(ineqs)
+with open(file, "w") as f:
+    print(len(ineqs), file=f)
+    for ineq in ineqs:
+        print(*ineq, file=f)
+
+print("written to", file)
+
+quit()
 
 # pool.gen_hats()
 # for i in range(1000):
 #     pool.gen_random_inequality()
 
-pool.set_oracle(LPbasedOracle(solver="glpk"))
 
 CliqueMountainHills(
-    base_level=3,
-    max_mountains=0,
-    n_random=2500,
-    max_exclusion_size=10,
+    base_level=2,
+    max_mountains=2,
+    n_random=1_000,
+    max_exclusion_size=25,
+    max_milp_cliques=5,
     solver="gurobi",
 ).learn_system(
     system=pool.system,

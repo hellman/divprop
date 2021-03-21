@@ -1,4 +1,5 @@
 import logging
+import pickle
 from random import sample, randrange, choices, shuffle
 from collections import Counter, namedtuple, defaultdict
 from itertools import combinations
@@ -175,7 +176,7 @@ class InequalitiesPool:
     log = logging.getLogger(f"{__name__}:InequalitiesPool")
 
     @classmethod
-    def from_DenseSet_files(cls, fileprefix, system=None, checks=False):
+    def from_DenseSet_files(cls, fileprefix, checks=False):
         points_good = DenseSet.load_from_file(fileprefix + ".good.set")
         points_bad = DenseSet.load_from_file(fileprefix + ".bad.set")
         with open(fileprefix + ".type_good") as f:
@@ -193,18 +194,17 @@ class InequalitiesPool:
                 assert points_bad <= points_good.UpperSet().Complement()
             elif type_good == TYPE_GOOD_GENERIC:
                 assert (points_good & points_bad).is_empty()
-                assert (points_good | points_bad).is_ful()
+                assert (points_good | points_bad).is_full()
 
         pool = cls(
             points_good=points_good.to_Bins(),
             points_bad=points_bad.to_Bins(),
             type_good=type_good,
-            system=system,
         )
         assert pool.N == len(points_bad)
         return pool
 
-    def __init__(self, points_good, points_bad, type_good=TYPE_GOOD_GENERIC, system=None):
+    def __init__(self, points_good, points_bad, type_good=TYPE_GOOD_GENERIC):
         for p in points_bad:
             self.n = len(p)
             break
@@ -235,9 +235,10 @@ class InequalitiesPool:
         self.bad2i = {p: i for i, p in enumerate(self.i2bad)}
         self.N = len(self.bad)
 
-        self.system = system if system else LazySparseSystem()
-        self.system.init(pool=self)
+        self._oracle = None
+        self._system = None
 
+    def init_system(self):
         if self.type_good in ("lower", "upper"):
             for pi, p in enumerate(self.i2bad):
                 self.gen_basic_ineq_convex(pi, p)
@@ -247,17 +248,26 @@ class InequalitiesPool:
         else:
             assert 0
 
-        self._oracle = None
-
     @property
     def oracle(self):
         if not self._oracle:
-            self.oracle = LPbasedOracle()
+            self.set_oracle(LPbasedOracle())
         return self._oracle
 
     def set_oracle(self, oracle):
         self._oracle = oracle
         oracle.attach_to_pool(self)
+
+    @property
+    def system(self):
+        if not self._system:
+            self.set_system(LazySparseSystem())
+        return self._system
+
+    def set_system(self, system):
+        self._system = system
+        system.attach_to_pool(self)
+        self.init_system()
 
     def gen_basic_ineq_convex(self, pi, p):
         fset = self.system.encode_bad_subset((pi,))
@@ -371,35 +381,47 @@ def invert_ineq(ineq):
 class LazySparseSystem:
     log = logging.getLogger(f"{__name__}:LazySparseSystem")
 
-    def init(self, pool):
+    def __init__(self, sysfile=None):
+        self.sysfile = sysfile
+
+    def attach_to_pool(self, pool):
         self.pool = pool
         self.N = int(self.pool.N)
         self.feasible = GrowingLowerFrozen(self.N)
         self.infeasible = GrowingUpperFrozen(self.N)
         self.solution = {}
+        self.stat = {}
 
-    # NAIVE
-    def is_already_feasible(self, v):
-        # quick check
-        if v in self.feasible_cache:
-            return True
-        # is in feasible lowerset?
-        for u in self.feasible:
-            # v <= u
-            if v & u == v:
-                return True
-        return False
+    def refresh(self):
+        self.log.info("refreshing system")
+        self.feasible.do_MaxSet()
+        self.infeasible.do_MinSet()
+        try:
+            self.save()
+        except KeyboardInterrupt:
+            log.error("interrupted saving! trying again, please be patient")
+            self.save()
+            quit()
+        # self.log_info()  # save triggers log info
 
-    def is_already_infeasible(self, v):
-        # quick check
-        if v in self.infeasible_cache:
-            return True
-        # is in infeasible upperset?
-        for u in self.infeasible:
-            # v >= u
-            if v | u == v:
-                return True
-        return False
+    def save(self):
+        self.save_to_file(self.sysfile)
+
+    def load_from_file(self, filename):
+        with open(filename, "rb") as f:
+            data = pickle.load(f)
+        self.__dict__.update(data)
+        self.log.info(f"loaded state from file {filename}")
+        self.log_info()
+
+    def save_to_file(self, filename):
+        data = self.__dict__.copy()
+        del data["pool"]
+        del data["sysfile"]
+        with open(filename, "wb") as f:
+            pickle.dump(data, f)
+        self.log.info(f"saved state to file {filename}")
+        self.log_info()
 
     def clean_solution(self):
         todel = [k for k in self.solution if k not in self.feasible]
@@ -435,4 +457,5 @@ class LazySparseSystem:
             freqstr = " ".join(
                 f"{sz}:{cnt}" for sz, cnt in sorted(freq.items())
             )
-            log.info(f"   {name}: {len(s)}: {freqstr}")
+            cachestr = len(s.cache) if s.cache is not None else None
+            log.info(f"   {name}: {len(s)}: {freqstr}, cache {cachestr}")

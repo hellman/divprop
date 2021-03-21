@@ -1,10 +1,12 @@
+import time
 import logging
+import pickle
 
 from tqdm import tqdm
 from random import choice, shuffle, randrange
 from itertools import combinations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from queue import PriorityQueue
 
 from binteger import Bin
@@ -433,93 +435,6 @@ class DenseLowerSetLearn:
 #             if i not in fset:
 #                 yield fset | {i}
 
-
-class SupportLearner:
-    def __init__(self, level=2):
-        self.level = int(level)
-
-    def learn_system(self, system, oracle):
-        self.log = logging.getLogger(f"{__name__}:{type(self).__name__}")
-        N = system.N
-
-        start = getattr(system, "_support_learned", 1) + 1
-
-        if start > self.level:
-            self.log.info(
-                f"support-{start} already learned "
-                f"(requested {self.level})"
-            )
-            return
-
-        sol_encoder = lambda ineq: IneqInfo(ineq, f"Support-{self.level}")
-
-        self.log.info(
-            f"generating support-{self.level} graph "
-            f"(exhausting pairs, triples, ..., {self.level}-hyperedges), "
-            f"starting from {start}"
-        )
-
-        for l in range(start, self.level+1):
-            self.log.info(f"generating support, height={l}/{self.level}")
-
-            n_good = 0
-            n_total = 0
-
-            if l == 2:
-                # exhaust all pairs
-                for inds in combinations(range(N), l):
-                    fset = system.encode_bad_subset(inds)
-                    n_total += 1
-
-                    if fset in system.feasible.cache:
-                        n_good += 1
-                        continue
-                    elif fset in system.infeasible.cache:
-                        continue
-
-                    ineq = oracle.query(Bin(fset, N))
-                    if ineq:
-                        system.add_feasible(fset, sol=sol_encoder(ineq))
-                        n_good += 1
-                    else:
-                        system.add_infeasible(fset)
-            else:
-                # only extend feasible pairs/triples/etc.
-                for prev_fset in system.feasible.cache[l-1]:
-                    for k in range(max(prev_fset)+1, N):
-                        fset = prev_fset | {k}
-                        n_total += 1
-
-                        good = 1
-                        for j in prev_fset:
-                            if (fset - {j}) in system.infeasible.cache:
-                                good = 0
-                                break
-                        if not good:
-                            continue
-
-                        if fset in system.feasible.cache:
-                            n_good += 1
-                            continue
-                        elif fset in system.infeasible.cache:
-                            continue
-
-                        ineq = oracle.query(Bin(fset, N))
-                        if ineq:
-                            system.add_feasible(fset, sol=sol_encoder(ineq))
-                            n_good += 1
-                        else:
-                            system.add_infeasible(fset)
-
-            self.log.info(
-                f"generated support, height={l}/{self.level}: "
-                f"feasible {n_good}/{n_total} "
-                f"(frac. {(n_good+1)/(n_total+1):.3f})"
-            )
-
-            setattr(system, "_support_learned", l)
-
-
 class CliqueMountainHills:
     def __init__(
         self,
@@ -555,7 +470,7 @@ class CliqueMountainHills:
 
     def learn_system(self, system, oracle):
         self.N = system.N
-        self.sys = system
+        self.system = system
         self.oracle = oracle
 
         n_calls0 = self.oracle.n_calls
@@ -569,10 +484,9 @@ class CliqueMountainHills:
         self.sol_encoder = lambda ineq: \
             IneqInfo(ineq, f"Support-{self.base_level}")
 
-        SupportLearner(level=self.base_level).learn_system(
-            system=system,
-            oracle=oracle,
-        )
+        SL = SupportLearner(level=self.base_level)
+        SL.init(system=system, oracle=oracle)
+        SL.learn()
 
         # =================================
 
@@ -588,16 +502,22 @@ class CliqueMountainHills:
             f"{self.n_good} good, {self.n_bad} bad (sub)cliques"
         )
         self.log.info(f"    {self.oracle.n_calls - n_calls0} oracle calls")
-        self.sys.log_info()
+        self.system.log_info()
 
         # =================================
 
-        self.sys.feasible.do_MaxSet()
-        self.sys.infeasible.do_MinSet()
-        self.sys.clean_solution()
+        self.system.feasible.do_MaxSet()
+        self.system.infeasible.do_MinSet()
+        self.system.clean_solution()
 
         self.log.info("after MaxSet/MinSet")
-        self.sys.log_info()
+        self.system.log_info()
+
+        with open("tmpset", "wb") as f:
+            data = self.system.feasible, self.system.infeasible
+            pickle.dump(data, f)
+
+        quit()
 
         # =================================
 
@@ -613,25 +533,25 @@ class CliqueMountainHills:
             f"{self.n_good} good, {self.n_bad} bad (sub)cliques"
         )
         self.log.info(f"    {self.oracle.n_calls - n_calls0} oracle calls")
-        self.sys.log_info()
+        self.system.log_info()
 
         # =================================
 
-        self.sys.feasible.do_MaxSet()
-        self.sys.infeasible.do_MinSet()
-        self.sys.clean_solution()
+        self.system.feasible.do_MaxSet()
+        self.system.infeasible.do_MinSet()
+        self.system.clean_solution()
 
         self.log.info("after MaxSet/MinSet")
-        self.sys.log_info()
+        self.system.log_info()
 
         self.log.info(f"recall options: {self._options}")
 
-    def exclude_subcliques(self, fset):
+    def milp_exclude_subcliques(self, fset):
         self.milp.add_constraint(
             sum(self.xs[i] for i in range(self.N) if i not in fset) >= 1
         )
 
-    def exclude_supercliques(self, fset):
+    def milp_exclude_supercliques(self, fset):
         self.milp.add_constraint(
             sum(self.xs[i] for i in fset) <= len(fset) - 1
         )
@@ -655,7 +575,7 @@ class CliqueMountainHills:
                     for l in range(1, self.base_level):
                         for js in combinations(fset, l):
                             edge = frozenset(js + (i,))
-                            if edge in self.sys.infeasible.cache:
+                            if edge in self.system.infeasible.cache:
                                 good = 0
                                 break
                         if not good:
@@ -667,7 +587,7 @@ class CliqueMountainHills:
                     good = 1
                     for l in range(2, self.base_level+1):
                         for j in fset:
-                            if frozenset((i, j)) in self.sys.infeasible.cache:
+                            if frozenset((i, j)) in self.system.infeasible.cache:
                                 good = 0
                                 break
                         if not good:
@@ -676,13 +596,13 @@ class CliqueMountainHills:
                         continue
 
                 fset2 = fset | {i}
-                if fset2 in self.sys.infeasible.cache:
+                if fset2 in self.system.infeasible.cache:
                     continue
                 fset = fset2
 
-            assert fset not in self.sys.infeasible.cache
+            assert fset not in self.system.infeasible.cache
 
-            if fset in self.sys.feasible.cache:
+            if fset in self.system.feasible.cache:
                 continue
 
             self.n_cliques += 1
@@ -718,19 +638,19 @@ class CliqueMountainHills:
         # all known or support of base-level?
         if self.reuse_known:
             log.info(
-                f"reusing {len(self.sys.infeasible)} infeasible and "
-                f"{len(self.sys.feasible)} feasible cliques"
+                f"reusing {len(self.system.infeasible)} infeasible and "
+                f"{len(self.system.feasible)} feasible cliques"
             )
-            for fset in self.sys.infeasible:
+            for fset in self.system.infeasible:
                 if len(fset) <= self.max_exclusion_size:
-                    self.exclude_supercliques(fset)
-            for fset in self.sys.feasible:
-                self.exclude_subcliques(fset)
+                    self.milp_exclude_supercliques(fset)
+            for fset in self.system.feasible:
+                self.milp_exclude_subcliques(fset)
         else:
             log.info(f"using only infeasible support-{self.base_level}")
             for l in range(2, self.base_level+1):
-                for fset in self.sys.infeasible.iter_wt(l):
-                    self.exclude_supercliques(fset)
+                for fset in self.system.infeasible.iter_wt(l):
+                    self.milp_exclude_supercliques(fset)
 
         self.log.info(
             "starting max-clique search, "
@@ -753,7 +673,7 @@ class CliqueMountainHills:
 
             assert self.milp.solutions
             for sol in self.milp.solutions:
-                fset = self.sys.encode_bad_subset(
+                fset = self.system.encode_bad_subset(
                     i for i, x in enumerate(self.xs) if sol[x] > 0.5
                 )
                 self.log.info(
@@ -775,7 +695,7 @@ class CliqueMountainHills:
                 self.milp.add_constraint(self.xsum <= size)
 
     def process_good_clique(self, fset, ineq):
-        self.sys.add_feasible(fset, sol=self.sol_encoder(ineq))
+        self.system.add_feasible(fset, sol=self.sol_encoder(ineq))
 
         for i in fset:
             self.log.debug(f"{i:4d} {Bin(self.oracle.pool.i2bad[i]).str}")
@@ -784,7 +704,7 @@ class CliqueMountainHills:
         self.n_good += 1
 
         if self.milp:
-            self.exclude_subcliques(fset)
+            self.milp_exclude_subcliques(fset)
 
             # take mountains ?
             # then hunt for the hills
@@ -814,23 +734,23 @@ class CliqueMountainHills:
                 ineq = self.oracle.query(Bin(and_fset, self.N))
                 # print("exclude itr", itr, i, "ineq", ineq)
                 if ineq:
-                    self.sys.add_feasible(and_fset, sol=self.sol_encoder(ineq))
+                    self.system.add_feasible(and_fset, sol=self.sol_encoder(ineq))
                     break
                 else:
                     fset = and_fset
 
-            if fset not in self.sys.infeasible.cache:
+            if fset not in self.system.infeasible.cache:
                 best_exclude = min(best_exclude, (len(fset), fset))
 
                 self.n_bad += 1
                 if len(fset) <= self.max_exclusion_size:
                     self.log.info(f"exclude wt={len(fset)}: {fset}")
 
-                self.sys.add_infeasible(fset)
+                self.system.add_infeasible(fset)
 
                 if self.milp and len(fset) <= self.max_exclusion_size:
                     # exclude this clique (&super-cliques since it's reduced)
-                    self.exclude_supercliques(fset)
+                    self.milp_exclude_supercliques(fset)
                     excluded_something = 1
 
                 repeated_streak = 0
@@ -845,4 +765,4 @@ class CliqueMountainHills:
         if self.milp and not excluded_something:
             self.log.info(f"force exclude wt={len(fset)}: {fset}")
             fset = best_exclude[1]
-            self.exclude_supercliques(fset)
+            self.milp_exclude_supercliques(fset)

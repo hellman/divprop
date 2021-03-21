@@ -188,6 +188,7 @@ class GrowingExtremeFrozen:
     def __init__(self, n, spec=(), disable_cache=False):
         self.n = int(n)
         self.sets = [set() for i in range(self.n+1)]
+        self.extreme = False
         if disable_cache:
             self.cache = None
         else:
@@ -196,9 +197,15 @@ class GrowingExtremeFrozen:
         for v in spec:
             self.add(v)
 
+    def clean_cache(self):
+        self.cache = WeightedFrozenSets(n=self.n)
+        for v in self:
+            self.cache[len(v)].add(v)
+
     def add(self, v: frozenset):
         if self.cache is not None and v in self.cache[len(v)]:
             return
+        self.extreme = False
         self.sets[len(v)].add(v)
         if self.cache is not None:
             self.cache[len(v)].add(v)
@@ -247,6 +254,7 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
         if self.cache is not None and v in self.cache:
             return True
 
+        # print("check contains")
         for w in reversed(range(len(v), self.n+1)):
             for u in self.sets[w]:
                 if u | v == u:
@@ -255,6 +263,8 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
 
     def do_MaxSet(self):
         """naive, optimized by weights"""
+        if self.extreme:
+            return
         # remove from w1 using w2
         for w2 in reversed(range(1, self.n+1)):
             if not self.sets[w2]:
@@ -274,6 +284,7 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
                         v for v in self.sets[w1]
                         if not any(v & u == v for u in self.sets[w2])
                     }
+        self.extreme = True
 
 
 class GrowingUpperFrozen(GrowingExtremeFrozen):
@@ -291,6 +302,8 @@ class GrowingUpperFrozen(GrowingExtremeFrozen):
 
     def do_MinSet(self):
         """naive, optimized by weights"""
+        if self.extreme:
+            return
         # remove from w1 using w2
         for w1 in range(1, self.n+1):
             todel = set()
@@ -312,8 +325,8 @@ class GrowingUpperFrozen(GrowingExtremeFrozen):
                         todel.add(v)
                         break
             self.sets[w1] -= todel
+        self.extreme = True
         return
-
 
         for w2 in range(0, self.n):
             if not self.sets[w2]:
