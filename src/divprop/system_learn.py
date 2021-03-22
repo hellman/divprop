@@ -488,7 +488,7 @@ class Verifier(LearnModule):
 
         self.log.info("infeasible good!")
 
-        self.milp_init(maximization=False)
+        self.milp_init()
 
         res = self.milp.optimize()
         self.log.info(f"milp optimize: {res}")
@@ -500,5 +500,4 @@ class Verifier(LearnModule):
             self.system.feasible.clean_cache()
             self.system.infeasible.clean_cache()
             self.system.save()
-
-        self.log.info("clean done!")
+            self.log.info("clean done!")

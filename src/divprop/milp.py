@@ -252,7 +252,11 @@ class Gurobi(MILP):
         if status == GRB.INFEASIBLE:
             return
 
-        obj = self.trunc(self.model.objVal)
+        if self.maximization is None:
+            obj = True
+        else:
+            obj = self.trunc(self.model.objVal)
+
         if solution_limit != 0:
             for i in range(min(solution_limit, self.model.SolCount)):
                 self.model.setParam("SolutionNumber", i)

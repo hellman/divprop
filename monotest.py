@@ -62,14 +62,19 @@ if 0:
     RandMax.init(system=pool.system, oracle=pool.oracle)
     RandMax.learn(num=50_000)
 
-if 1:
+if 0:
     Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi", batch_size=10)
     Comp.init(system=pool.system, oracle=pool.oracle)
-
     Comp.learn(level=4, num=50)
+
     while True:
         try:
+            Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi", batch_size=10)
+            Comp.init(system=pool.system, oracle=pool.oracle)
             Comp.learn(maximization=True, num=10)
+
+            Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi", batch_size=10)
+            Comp.init(system=pool.system, oracle=pool.oracle)
             Comp.learn(maximization=False, num=10)
         except EOFError:
             break
