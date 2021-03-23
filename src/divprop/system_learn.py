@@ -8,20 +8,26 @@ from collections import Counter, defaultdict
 
 from binteger import Bin
 
-from divprop.milp import MILP
 from divprop.inequalities.monopool import IneqInfo
 
+from divprop.milp import MILP
+from divprop.sat import CNF
 
 log = logging.getLogger(__name__)
 
 
 class LearnModule:
+    bad_learn_hard_limit = 100
+    good_learn_hard_limit = 250
+    max_repeated_streak = 3
+
     def init(self, system, oracle):
         self.N = system.N
         self.system = system
         self.oracle = oracle
         self.fset_full = frozenset(range(self.N))
         self.milp = None
+        self.sat = None
         self.itr = 0
 
     def milp_init(self, maximization=True, init=True):
@@ -39,30 +45,62 @@ class LearnModule:
 
         if init:
             self.log.info(
-                f"initializing feasible constraints: {len(self.system.feasible)}"
+                "initializing "
+                f"feasible constraints: {len(self.system.feasible)}"
             )
             for fset in self.system.infeasible:
-                self.milp_exclude_supercliques(fset)
+                self.model_exclude_supercliques(fset)
             self.log.info(
-                f"initializing infeasible constraints: {len(self.system.infeasible)}"
+                "initializing "
+                f"infeasible constraints: {len(self.system.infeasible)}"
             )
             for fset in self.system.feasible:
-                self.milp_exclude_subcliques(fset)
+                self.model_exclude_subcliques(fset)
             self.log.info("init done")
 
-    def milp_exclude_subcliques(self, fset):
-        if not self.milp:
-            return
-        self.milp.add_constraint(
-            sum(self.xs[i] for i in range(self.N) if i not in fset) >= 1
-        )
+    def sat_init(self, init_sum=True, init=True):
+        self.sat = CNF(solver=self.solver)
 
-    def milp_exclude_supercliques(self, fset):
-        if not self.milp:
-            return
-        self.milp.add_constraint(
-            sum(self.xs[i] for i in fset) <= len(fset) - 1
-        )
+        self.xs = [self.sat.var() for i in range(self.N)]
+        if init_sum:
+            self.xsum = self.sat.SeqAddMany(*[[x] for x in self.xs])
+            self.xsum.append(self.sat.ZERO)  # padding
+
+        if init:
+            self.log.info(
+                "initializing "
+                f"feasible constraints: {len(self.system.feasible)}"
+            )
+            for fset in self.system.infeasible:
+                self.model_exclude_supercliques(fset)
+            self.log.info(
+                "initializing "
+                f"infeasible constraints: {len(self.system.infeasible)}"
+            )
+            for fset in self.system.feasible:
+                self.model_exclude_subcliques(fset)
+            self.log.info("init done")
+
+    def model_exclude_subcliques(self, fset):
+        if self.milp:
+            self.milp.add_constraint(
+                sum(self.xs[i] for i in range(self.N) if i not in fset) >= 1
+            )
+        if self.sat:
+            self.sat.add_clause(tuple(
+                self.xs[i] for i in self.fset_full - fset
+            ))
+
+    def model_exclude_supercliques(self, fset):
+        if self.milp:
+            self.milp.add_constraint(
+                sum(self.xs[i] for i in fset) <= len(fset) - 1
+            )
+
+        if self.sat:
+            self.sat.add_clause(tuple(
+                -self.xs[i] for i in fset
+            ))
 
     def middle_infeasible_learn(self, fset):
         if fset in self.system.infeasible:
@@ -70,9 +108,6 @@ class LearnModule:
 
         log.info(f"itr #{self.itr}: learning from inf. wt={len(fset)}: {tuple(fset)}")
         orig = fset
-
-        self.bad_learn_hard_limit = 100
-        self.max_repeated_streak = 3
 
         stat = Counter()
         repeated_streak = 0
@@ -107,7 +142,7 @@ class LearnModule:
             stat[len(fset)] += 1
 
             self.system.add_infeasible(fset)
-            self.milp_exclude_supercliques(fset)
+            self.model_exclude_supercliques(fset)
 
             if fset == orig:
                 # log.info("stop because can not reduce")
@@ -122,9 +157,6 @@ class LearnModule:
 
         log.info(f"itr #{self.itr}: learning from feas. wt={len(fset)}: {tuple(fset)}")
         orig = fset
-
-        self.good_learn_hard_limit = 250
-        self.max_repeated_streak = 5
 
         stat = Counter()
         repeated_streak = 0
@@ -163,7 +195,7 @@ class LearnModule:
             self.system.add_feasible(
                 fset, sol=IneqInfo(cursol, "LearnFeas")
             )
-            self.milp_exclude_subcliques(fset)
+            self.model_exclude_subcliques(fset)
 
             if fset == orig:
                 break
@@ -390,7 +422,7 @@ class UnknownFillMILP(LearnModule):
 
     def learn(self, maximization=False, num=10, level=None):
         self.log.info(
-            f"searching for unknowns, "
+            f"searching for {num} unknowns, "
             f"maximization? {maximization}, "
             f"fixed level {level}"
         )
@@ -426,9 +458,9 @@ class UnknownFillMILP(LearnModule):
         assert isinstance(size, int), size
         assert self.milp.solutions
 
-        if self.maximization:
+        if self.maximization is True:
             self.milp.add_constraint(self.xsum <= size)
-        else:
+        elif self.maximization is False:
             self.milp.add_constraint(self.xsum >= size)
 
         for sol in self.milp.solutions:
@@ -451,18 +483,115 @@ class UnknownFillMILP(LearnModule):
                     self.system.add_feasible(
                         fset, sol=IneqInfo(ineq, "UnknownFillMILP")
                     )
-                    self.milp_exclude_subcliques(fset)
+                    self.model_exclude_subcliques(fset)
                 else:
                     self.n_bad += 1
                     self.middle_infeasible_learn(fset)
             else:
                 if ineq:
                     self.n_good += 1
-                    self.middle_feasible_learn(fset, sol)
+                    self.middle_feasible_learn(fset, ineq)
                 else:
                     self.n_bad += 1
                     self.system.add_infeasible(fset)
-                    self.milp_exclude_supercliques(fset)
+                    self.model_exclude_supercliques(fset)
+        return True
+
+
+class UnknownFillSAT(LearnModule):
+    log = logging.getLogger(f"{__name__}:UnknownFillSAT")
+
+    good_learn_hard_limit = 1
+
+    def __init__(self, minimization=True, solver="cadical", refresh_rate=5):
+        self.refresh_rate = int(refresh_rate)
+        self.solver = solver
+        self.minimization = minimization
+
+        self._options = self.__dict__.copy()
+
+    def refresh(self):
+        self.log.info("")
+        self.log.info("---------------------------")
+        self.log.info(f"refreshing, iteration {self.itr}")
+        self.system.refresh()
+        self.log.info("---------------------------")
+        self.log.info("")
+
+    def learn(self, num=10):
+        self.log.info(f"searching for {num} unknowns")
+        self.sat_init(init_sum=self.minimization)
+
+        if self.minimization:
+            self.level = getattr(self.system, "_support_learned", 1) + 1
+        else:
+            self.level = None
+
+        self.n_good = 0
+        self.n_bad = 0
+
+        self.itr = 0
+        while self.itr < num:
+            self.itr += 1
+            if self.refresh == 1 or self.itr % self.refresh_rate == 1:
+                self.refresh()
+
+            if not self.find_new_unknown():
+                self.refresh()
+                raise EOFError("all groups exhausted!")
+
+        self.refresh()
+
+    def find_new_unknown(self):
+        while True:
+            # <= level
+            self.log.info(f"itr #{self.itr}: optimizing (level={self.level}...")
+            if self.minimization:
+                assum = [-self.xsum[self.level]]
+            else:
+                assum = ()
+
+            sol = self.sat.solve(assumptions=assum)
+            self.log.info(f"SAT solve: {bool(sol)}")
+            if sol:
+                break
+
+            if self.minimization:
+                self.level += 1
+                if self.level <= self.N:
+                    continue
+            self.log.info("no new cliques")
+            return False
+
+        fset = self.system.encode_bad_subset(
+            i for i, x in enumerate(self.xs) if sol[x] == 1
+        )
+        self.log.info(
+            f"clique #{self.itr}, size {len(fset)}: "
+            f"{tuple(fset)} (good: {self.n_good}, bads: {self.n_bad})"
+        )
+        assert fset
+
+        ineq = self.oracle.query(Bin(fset, self.N))
+
+        self.log.info(f"ineq: {ineq}")
+
+        if not self.minimization:
+            if ineq:
+                self.n_good += 1
+                self.middle_feasible_learn(fset, ineq)
+            else:
+                self.n_bad += 1
+                self.middle_infeasible_learn(fset)
+        elif self.minimization:
+            if ineq:
+                self.n_good += 1
+                self.middle_feasible_learn(fset, ineq)
+            else:
+                self.n_bad += 1
+                self.system.add_infeasible(fset)
+                self.model_exclude_supercliques(fset)
+
         return True
 
 
@@ -493,6 +622,43 @@ class Verifier(LearnModule):
         res = self.milp.optimize()
         self.log.info(f"milp optimize: {res}")
         assert res is None, "not all cliques explored!"
+
+        self.log.info("all good!")
+
+        if clean:
+            self.system.feasible.clean_cache()
+            self.system.infeasible.clean_cache()
+            self.system.save()
+            self.log.info("clean done!")
+
+
+class SATVerifier(LearnModule):
+    log = logging.getLogger(f"{__name__}:SATVerifier")
+
+    def __init__(self, solver=None):
+        self.solver = solver
+
+    def learn(self, clean=False):
+        self.log.info("refreshing system")
+        self.system.refresh()
+
+        self.log.info("verifying system")
+
+        for fset in self.system.feasible:
+            assert self.oracle.query(Bin(fset, self.N))
+
+        self.log.info("feasible good!")
+
+        for fset in self.system.infeasible:
+            assert not self.oracle.query(Bin(fset, self.N))
+
+        self.log.info("infeasible good!")
+
+        self.sat_init(init_sum=False)
+
+        res = self.sat.solve()
+        self.log.info(f"sat solve: {res}")
+        assert not res, "not all cliques explored!"
 
         self.log.info("all good!")
 
