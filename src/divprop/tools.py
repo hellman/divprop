@@ -285,7 +285,7 @@ def tool_divcore2bounds():
 
     lb = dc.LB()
     assert mid.UpperSet().Complement().MaxSet() == lb
-    dclo = dc.data  # = mid.MinSet()
+    dclo = divcore_data  # = mid.MinSet()
     dcup = mid.MaxSet()
 
     typs = args.type.lower().split(",")
@@ -297,6 +297,8 @@ def tool_divcore2bounds():
             points_good = dclo
             points_bad = lb
 
+            assert points_bad == dc.get_Invalid()
+
             type_good = "upper"
         elif typ == "ubo":
             points_good = dcup.LowerSet()
@@ -305,6 +307,8 @@ def tool_divcore2bounds():
             points_good = points_good.MaxSet()
             points_bad = points_bad.MinSet()
 
+            assert points_bad == dc.get_Redundant()
+
             type_good = "lower"
         elif typ == "ubc":
             points_good = dcup.LowerSet()
@@ -312,6 +316,8 @@ def tool_divcore2bounds():
 
             points_good = points_good.MaxSet()
             points_bad = points_bad.MinSet()
+
+            assert points_bad == dc.get_RedundantAlternative()
 
             type_good = "lower"
         elif typ == "full":
