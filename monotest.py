@@ -7,7 +7,9 @@ from divprop.inequalities.monopool import (
     InequalitiesPool, LPbasedOracle, LazySparseSystem,
 )
 from divprop.system_learn import (
-    SupportLearner, RandomMaxFeasible, UnknownFillMILP, Verifier,
+    SupportLearner, RandomMaxFeasible,
+    UnknownFillSAT, UnknownFillMILP,
+    SATVerifier, Verifier,
 )
 
 from divprop.inequalities.base import satisfy, inner
@@ -31,8 +33,9 @@ fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
 fileprefix = "/work/division/workspace/data/sbox_presentmod/ptt"
 # fileprefix = "/work/division/workspace/data/sbox_present/ptt"
 
-# fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
-# fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
+fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
+fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
+# fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubo"
 
 
 sysfile = fileprefix + ".system"
@@ -58,29 +61,40 @@ except Exception as err:
 # SL.learn()
 
 if 0:
-    RandMax = RandomMaxFeasible(base_level=3, refresh_rate=1000)
+    RandMax = RandomMaxFeasible(base_level=2, refresh_rate=1000)
     RandMax.init(system=pool.system, oracle=pool.oracle)
-    RandMax.learn(num=50_000)
+    RandMax.learn(num=5_000)
 
 if 0:
     Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi", batch_size=10)
     Comp.init(system=pool.system, oracle=pool.oracle)
     Comp.learn(level=4, num=50)
 
+if 0:
     while True:
         try:
-            Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi", batch_size=10)
+            Comp = UnknownFillMILP(refresh_rate=1, solver="gurobi", batch_size=1)
             Comp.init(system=pool.system, oracle=pool.oracle)
-            Comp.learn(maximization=True, num=10)
+            Comp.learn(maximization=True, num=1)
 
-            Comp = UnknownFillMILP(refresh_rate=25, solver="gurobi", batch_size=10)
+            Comp = UnknownFillMILP(refresh_rate=1, solver="gurobi", batch_size=1)
             Comp.init(system=pool.system, oracle=pool.oracle)
-            Comp.learn(maximization=False, num=10)
+            Comp.learn(maximization=False, num=1)
         except EOFError:
             break
 
+if 0:
+    try:
+        sat = UnknownFillSAT(minimization=True, refresh_rate=100, solver="cadical")
+        sat.init(system=pool.system, oracle=pool.oracle)
+        sat.learn(num=10**6)
+    except EOFError:
+        print("solved?!")
+        pass
+
 if 1:
-    Ver = Verifier(solver="gurobi")
+    # Ver = Verifier(solver="gurobi")
+    Ver = SATVerifier(solver="cadical")
     Ver.init(system=pool.system, oracle=pool.oracle)
     Ver.learn(clean=False)
 
