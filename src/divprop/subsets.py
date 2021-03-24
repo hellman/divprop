@@ -188,7 +188,7 @@ class GrowingExtremeFrozen:
     def __init__(self, n, spec=(), disable_cache=False):
         self.n = int(n)
         self.sets = [set() for i in range(self.n+1)]
-        self.extreme = False
+        self.extreme = not spec
         if disable_cache:
             self.cache = None
         else:
