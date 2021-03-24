@@ -22,6 +22,7 @@ from divprop.subsets import (
 
 from divprop.milp import MILP
 
+TYPE_GOOD_SHIFTED = "shifted"
 TYPE_GOOD_GENERIC = "-"
 
 log = logging.getLogger(__name__)
@@ -110,10 +111,10 @@ class LPbasedOracle:
     def _prepare_constraints(self):
         self.milp = MILP.maximization(solver=self.solver)
 
-        if self.pool.type_good == TYPE_GOOD_GENERIC:  # not monotone
-            lb = None
-        else:
+        if self.pool.is_monotone:
             lb = 0  # monotone => nonnegative
+        else:
+            lb = None
 
         # set ub = 1000+ ? ...
         self.xs = []
@@ -204,32 +205,35 @@ class InequalitiesPool:
         assert pool.N == len(points_bad)
         return pool
 
-    def __init__(self, points_good, points_bad, type_good=TYPE_GOOD_GENERIC):
+    def __init__(self, points_good, points_bad, type_good=TYPE_GOOD_GENERIC, shift=None):
         for p in points_bad:
             self.n = len(p)
             break
 
         assert type_good in ("lower", "upper", TYPE_GOOD_GENERIC)
+        if shift is not None:
+            assert type_good == "lower"
+        elif type_good == "upper":
+            type_good = "lower"
+            shift = (1,) * self.n
+
+        if type_good == TYPE_GOOD_GENERIC:
+            self.is_monotone = False
+            self.shift = None
+            assert shift is None
+
+            self.bad = set(map(tuple, points_bad))
+            self.good = set(map(tuple, points_good))
+        else:
+            self.is_monotone = True
+            self.shift = shift
+            assert shift is not None
+
+            self.bad = {tuple_xor(p, shift) for p in points_bad}
+            self.good = {tuple_xor(p, shift) for p in points_good}
 
         self._good_orig = points_good
         self._bad_orig = points_bad
-
-        self.type_good = type_good
-        if type_good == "upper":
-            self.bad = set(map(tuple, points_bad))
-            self.good = set(map(tuple, points_good))
-            self.inverted = False
-        elif type_good == "lower":
-            # ensure good is an upper set
-            self.bad = set(map(not_tuple, points_bad))
-            self.good = set(map(not_tuple, points_good))
-            self.inverted = True
-        elif type_good == TYPE_GOOD_GENERIC:
-            self.bad = set(map(tuple, points_bad))
-            self.good = set(map(tuple, points_good))
-            self.inverted = False
-        else:
-            raise
 
         self.i2bad = sorted(self.bad)
         self.bad2i = {p: i for i, p in enumerate(self.i2bad)}
@@ -239,14 +243,12 @@ class InequalitiesPool:
         self._system = None
 
     def init_system(self):
-        if self.type_good in ("lower", "upper"):
+        if self.is_monotone:
             for pi, p in enumerate(self.i2bad):
-                self.gen_basic_ineq_convex(pi, p)
-        elif self.type_good == TYPE_GOOD_GENERIC:
+                self.gen_basic_ineq_monotone(pi, p)
+        else:
             for pi, p in enumerate(self.i2bad):
                 self.gen_basic_ineq_single(pi, p)
-        else:
-            assert 0
 
     @property
     def oracle(self):
@@ -269,7 +271,7 @@ class InequalitiesPool:
         system.attach_to_pool(self)
         self.init_system()
 
-    def gen_basic_ineq_convex(self, pi, p):
+    def gen_basic_ineq_monotone(self, pi, p):
         fset = self.system.encode_bad_subset((pi,))
         # does not belong to LowerSet({p})
         # <=>
@@ -357,8 +359,8 @@ class InequalitiesPool:
             if sol[take]:
                 ineq = info.ineq
                 ineqs.append(ineq)
-                if self.inverted:
-                    ineq = invert_ineq(ineq)
+                if self.shift:
+                    ineq = shift_ineq(ineq, self.shift)
                 ineqs_ret.append(ineq)
 
         for q in self.good:
@@ -369,13 +371,27 @@ class InequalitiesPool:
         return ineqs_ret
 
 
-def invert_ineq(ineq):
+def invert_ineq(ineq: tuple):
     # a1x1 + a2x2 + ... + c >= 0
     # a1(1-x1) + a2(1-x2) + ... + c >= 0
     # -a1x1 -a2x2 - ... + c + a1 + a2 - ... >= 0
     val = ineq[-1] + sum(ineq[:-1])
     ineq = tuple(-ai for ai in ineq[:-1]) + (val,)
     return ineq
+
+
+def shift_ineq(ineq: tuple, shift: tuple):
+    assert len(ineq) == len(shift) + 1
+    val = ineq[-1]
+    ineq2 = []
+    for a, s in zip(ineq, shift):
+        if s:
+            ineq2.append(-a)
+            val += a
+        else:
+            ineq2.append(a)
+    ineq2.append(val)
+    return tuple(ineq2)
 
 
 class LazySparseSystem:
@@ -392,10 +408,11 @@ class LazySparseSystem:
         self.solution = {}
         self.stat = {}
 
-    def refresh(self):
+    def refresh(self, extremize=True):
         self.log.info("refreshing system")
-        self.feasible.do_MaxSet()
-        self.infeasible.do_MinSet()
+        if extremize:
+            self.feasible.do_MaxSet()
+            self.infeasible.do_MinSet()
         try:
             self.save()
         except KeyboardInterrupt:
@@ -459,3 +476,8 @@ class LazySparseSystem:
             )
             cachestr = len(s.cache) if s.cache is not None else None
             log.info(f"   {name}: {len(s)}: {freqstr}, cache {cachestr}")
+
+
+def tuple_xor(t, mask):
+    assert len(t) == len(mask)
+    return tuple(a ^ b for a, b in zip(t, mask))
