@@ -17,9 +17,9 @@ log = logging.getLogger(__name__)
 
 
 class LearnModule:
-    bad_learn_hard_limit = 100
-    good_learn_hard_limit = 250
-    max_repeated_streak = 3
+    bad_learn_hard_limit = 5
+    good_learn_hard_limit = 5
+    max_repeated_streak = 2
 
     def init(self, system, oracle):
         self.N = system.N
@@ -545,7 +545,7 @@ class UnknownFillSAT(LearnModule):
     def find_new_unknown(self):
         while True:
             # <= level
-            self.log.info(f"itr #{self.itr}: optimizing (level={self.level}...")
+            self.log.info(f"itr #{self.itr}: optimizing (level={self.level})...")
             if self.minimization:
                 assum = [-self.xsum[self.level]]
             else:
