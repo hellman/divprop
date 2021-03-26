@@ -236,6 +236,7 @@ class Gurobi(MILP):
             self.model.setParam("LogToConsole", 0)
         else:
             self.model.setParam("LogToConsole", 1)
+            self.model.setParam("OutputFlag", 1)
 
         if solution_limit <= 1:
             self.model.setParam("PoolSearchMode", 0)
