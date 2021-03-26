@@ -29,6 +29,7 @@ class LearnModule:
         self.milp = None
         self.sat = None
         self.itr = 0
+        self.use_point_prec = system.pool.use_point_prec
 
     def milp_init(self, maximization=True, init=True):
         if maximization:
@@ -82,6 +83,8 @@ class LearnModule:
             self.log.info("init done")
 
     def model_exclude_subcliques(self, fset):
+        if self.use_point_prec:
+            fset = self.system.pool.point_prec_lower_set(fset)
         if self.milp:
             self.milp.add_constraint(
                 sum(self.xs[i] for i in range(self.N) if i not in fset) >= 1
@@ -92,6 +95,8 @@ class LearnModule:
             ))
 
     def model_exclude_supercliques(self, fset):
+        if self.use_point_prec:
+            fset = self.system.pool.point_prec_max_set(fset)
         if self.milp:
             self.milp.add_constraint(
                 sum(self.xs[i] for i in fset) <= len(fset) - 1
@@ -545,7 +550,9 @@ class UnknownFillSAT(LearnModule):
     def find_new_unknown(self):
         while True:
             # <= level
-            self.log.info(f"itr #{self.itr}: optimizing (level={self.level})...")
+            self.log.info(
+                f"itr #{self.itr}: optimizing (level={self.level})..."
+            )
             if self.minimization:
                 assum = [-self.xsum[self.level]]
             else:
@@ -591,7 +598,6 @@ class UnknownFillSAT(LearnModule):
                 self.n_bad += 1
                 self.system.add_infeasible(fset)
                 self.model_exclude_supercliques(fset)
-
         return True
 
 

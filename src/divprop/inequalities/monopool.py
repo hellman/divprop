@@ -129,8 +129,6 @@ class LPbasedOracle:
         self.i2cs = []
         for q in self.pool.i2bad:
             self.i2cs.append(inner(q, self.xs) <= self.c - 1)
-        #     print(q, inner(q, self.xs))
-        # quit()
 
     def query(self, bads: Bin):
         assert isinstance(bads, Bin)
@@ -138,11 +136,8 @@ class LPbasedOracle:
 
         self.n_calls += 1
 
-        # self._prepare_constraints()
         LP = self.milp
         cs = [LP.add_constraint(self.i2cs[i]) for i in bads]
-        # LP.model.show()
-        # LP.model.write_mps("test.mps")
         res = LP.optimize(log=0)
         LP.remove_constraints(cs)
 
@@ -160,15 +155,6 @@ class LPbasedOracle:
             pass
 
         ineq = val_xs + (-val_c,)
-        # print("ineq", ineq)
-        # for p in self.pool.good:
-        #     print("p", p, "v", inner(p, ineq), "vs", -ineq[-1])
-        # # print()
-        # for i in bads:
-        #     q = self.pool.i2bad[i]
-        #     print("q", q, "v", inner(q, ineq), "vs", -ineq[-1])
-        #     print("cons", self.i2cs[i])
-        #     assert not satisfy(self.pool.i2bad[i], ineq)
         assert all(satisfy(p, ineq) for p in self.pool.good)
         assert all(not satisfy(self.pool.i2bad[i], ineq) for i in bads)
         return ineq
@@ -206,7 +192,11 @@ class InequalitiesPool:
         assert pool.N == len(points_bad)
         return pool
 
-    def __init__(self, points_good, points_bad, type_good=TYPE_GOOD_GENERIC, shift=None):
+    def __init__(
+        self,
+        points_good, points_bad, type_good=TYPE_GOOD_GENERIC, shift=None,
+        use_point_prec=False,
+    ):
         for p in points_bad:
             self.n = len(p)
             break
@@ -241,12 +231,19 @@ class InequalitiesPool:
         self.bad2i = {p: i for i, p in enumerate(self.i2bad)}
         self.N = len(self.bad)
 
+        if use_point_prec:
+            assert self.is_monotone
+        self.use_point_prec = use_point_prec
+
         self._oracle = None
         self._system = None
 
     def init_system(self):
         if self.is_monotone:
             for pi, p in enumerate(self.i2bad):
+                if self.use_point_prec:
+                    if any(tuple_preceq(p, q) for q in self.i2bad if q != p):
+                        continue
                 self.gen_basic_ineq_monotone(pi, p)
         else:
             for pi, p in enumerate(self.i2bad):
@@ -409,31 +406,24 @@ class InequalitiesPool:
             self.log.info(f"itr #{itr}: {cur[0]} ineqs")
             if cur < best:
                 best = cur
-        log.info(f"best: {cur[0]} inequalities")
-        return self._oracle(best[1])
+        log.info(f"best: {best[0]} inequalities")
+        return best[1]
 
+    def point_prec_max_set(self, fset):
+        res = set()
+        qs = [self.i2bad[i] for i in fset]
+        for q in qs:
+            if not any(tuple_preceq(q, p) and q != p for p in qs):
+                res.add(q)
+        return self.system.encode_bad_subset(res)
 
-def invert_ineq(ineq: tuple):
-    # a1x1 + a2x2 + ... + c >= 0
-    # a1(1-x1) + a2(1-x2) + ... + c >= 0
-    # -a1x1 -a2x2 - ... + c + a1 + a2 - ... >= 0
-    val = ineq[-1] + sum(ineq[:-1])
-    ineq = tuple(-ai for ai in ineq[:-1]) + (val,)
-    return ineq
-
-
-def shift_ineq(ineq: tuple, shift: tuple):
-    assert len(ineq) == len(shift) + 1
-    val = ineq[-1]
-    ineq2 = []
-    for a, s in zip(ineq, shift):
-        if s:
-            ineq2.append(-a)
-            val += a
-        else:
-            ineq2.append(a)
-    ineq2.append(val)
-    return tuple(ineq2)
+    def point_prec_lower_set(self, fset):
+        res = set()
+        qs = [self.i2bad[i] for i in fset]
+        for pi, p in enumerate(self.i2bad):
+            if any(tuple_preceq(p, q) for q in qs):
+                res.add(pi)
+        return self.system.encode_bad_subset(res)
 
 
 class LazySparseSystem:
@@ -501,6 +491,10 @@ class LazySparseSystem:
 
     def add_feasible(self, fset, sol=None):
         assert isinstance(fset, frozenset)
+
+        if self.pool.use_point_prec:
+            fset = self.pool.point_prec_lower_set(fset)
+
         self.feasible.add(fset)
 
         if sol is not None:
@@ -508,6 +502,10 @@ class LazySparseSystem:
 
     def add_infeasible(self, fset):
         assert isinstance(fset, frozenset)
+
+        if self.pool.use_point_prec:
+            fset = self.pool.point_prec_max_set(fset)
+
         self.infeasible.add(fset)
 
     def remove_redundant(self):
@@ -530,3 +528,30 @@ class LazySparseSystem:
 def tuple_xor(t, mask):
     assert len(t) == len(mask)
     return tuple(a ^ b for a, b in zip(t, mask))
+
+
+def tuple_preceq(a, b):
+    return all(aa <= bb for aa, bb in zip(a, b))
+
+
+def invert_ineq(ineq: tuple):
+    # a1x1 + a2x2 + ... + c >= 0
+    # a1(1-x1) + a2(1-x2) + ... + c >= 0
+    # -a1x1 -a2x2 - ... + c + a1 + a2 - ... >= 0
+    val = ineq[-1] + sum(ineq[:-1])
+    ineq = tuple(-ai for ai in ineq[:-1]) + (val,)
+    return ineq
+
+
+def shift_ineq(ineq: tuple, shift: tuple):
+    assert len(ineq) == len(shift) + 1
+    val = ineq[-1]
+    ineq2 = []
+    for a, s in zip(ineq, shift):
+        if s:
+            ineq2.append(-a)
+            val += a
+        else:
+            ineq2.append(a)
+    ineq2.append(val)
+    return tuple(ineq2)
