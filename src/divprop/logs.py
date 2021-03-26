@@ -3,6 +3,8 @@ import coloredlogs
 import logging
 from datetime import datetime
 
+_console_handler = None
+
 
 # https://stackoverflow.com/questions/25194864/python-logging-time-since-start-of-program
 class DeltaTimeColoredFormatter(coloredlogs.ColoredFormatter):
@@ -30,15 +32,22 @@ def setup(level='INFO'):
     logger = logging.getLogger()
     logger.setLevel(getattr(logging, level))
 
+    global _console_handler
     console = logging.StreamHandler()
     console.setFormatter(formatter)
     logger.addHandler(console)
+    _console_handler = console
 
     now = datetime.now().strftime("%Y-%m-%d.%H:%M:%S")
     logger.info(f"starting at {now}")
 
     if os.path.exists("logs/.divprop"):
         addFileHandler(f"logs/.{now}")
+
+
+def setLevel(level):
+    logger = logging.getLogger()
+    logger.setLevel(getattr(logging, level))
 
 
 def addFileHandler(filename, append_date=True):
