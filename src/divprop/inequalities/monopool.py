@@ -1,6 +1,7 @@
+import os
 import logging
 import pickle
-from random import sample, randrange, choices, shuffle
+from random import sample, randrange, choices, shuffle, choice
 from collections import Counter, namedtuple, defaultdict
 from itertools import combinations
 
@@ -211,11 +212,12 @@ class InequalitiesPool:
             break
 
         assert type_good in ("lower", "upper", TYPE_GOOD_GENERIC)
-        if shift is not None:
-            assert type_good == "lower"
-        elif type_good == "upper":
-            type_good = "lower"
-            shift = (1,) * self.n
+        if type_good != TYPE_GOOD_GENERIC:
+            if shift is None:
+                shift = (0,) * self.n
+            if type_good == "lower":
+                shift = tuple_xor(shift, (1,) * self.n)
+            type_good = "upper"
 
         if type_good == TYPE_GOOD_GENERIC:
             self.is_monotone = False
@@ -302,6 +304,30 @@ class InequalitiesPool:
     # port polyhedron
     # port subset greedy
 
+    def _output_fsets(self, fsets):
+        self.log.info(
+            f"sanity checking {len(fsets)} ineqs on "
+            f"{len(self.good)} good and "
+            f"{len(self.bad)} bad points..."
+        )
+        ineqs = [self.system.solution[fset].ineq for fset in fsets]
+        for q in self.good:
+            assert all(satisfy(q, ineq) for ineq in ineqs)
+        for q in self.bad:
+            assert any(not satisfy(q, ineq) for ineq in ineqs)
+
+        self.log.info(f"processing ineqs (shifting by {self.shift})...")
+        ineqs_ret = []
+        for ineq in ineqs:
+            if self.shift:
+                ineq = shift_ineq(ineq, self.shift)
+            ineqs_ret.append(ineq)
+        return ineqs_ret
+
+    def choose_all(self):
+        fsets = list(self.system.feasible)
+        return self._output_fsets(fsets)
+
     def choose_subset_milp(self, solver=None):
         """
         [SecITC:SasTod17]
@@ -311,15 +337,6 @@ class InequalitiesPool:
         self.log.info(f"{len(self.system.feasible)} ineqs {len(self.bad)} bad points")
 
         i2fset = list(self.system.feasible)
-        i2info = [self.system.solution[fset] for fset in i2fset]
-
-        # for i, ineq in enumerate(i2info):
-        #     fset = i2fset[i]
-            # print("ineq", i, ":", ineq, "covers", len(fset), ":", tuple(fset))
-
-        # self.check_good(L)  # to avoid surprises
-        # fset2i = {fset: i for i, fset in enumerate(i2fset)}
-        # ineq2i = {ineq: i for i, ineq in enumerate(i2ineq)}
 
         milp = MILP.minimization(solver=solver)
         n = len(i2fset)
@@ -340,35 +357,60 @@ class InequalitiesPool:
         # minimize number of ineqs
         milp.set_objective(sum(v_take_ineq))
 
-        self.log.info(
-            f"solving milp with {n} variables, "
-            f"{self.N} constraints"
-        )
+        self.log.info(f"solving milp with {n} variables, {self.N} constraints")
 
         # show log for large problems
         res = milp.optimize(log=(n >= 10000))
         assert res is not None
-        sol = milp.solutions[0]
+        milpsol = milp.solutions[0]
         self.log.info(f"objective {res}")
 
-        # print("obj", res, "sol", sol)
+        # print("obj", res, "milpsol", milpsol)
 
-        ineqs = []
-        ineqs_ret = []
-        for take, info in zip(v_take_ineq, i2info):
-            if sol[take]:
-                ineq = info.ineq
-                ineqs.append(ineq)
-                if self.shift:
-                    ineq = shift_ineq(ineq, self.shift)
-                ineqs_ret.append(ineq)
+        ineqs = [
+            i2fset[i] for i, take in enumerate(v_take_ineq) if milpsol[take]
+        ]
+        return self._output_fsets(ineqs)
 
-        for q in self.good:
-            assert all(satisfy(q, ineq) for ineq in ineqs)
-            # assert all(satisfy(not_tuple(q), invert_ineq(ineq)) for ineq in ineqs)
-        for q in self.bad:
-            assert any(not satisfy(q, ineq) for ineq in ineqs)
-        return ineqs_ret
+    def choose_subset_greedy_once(self, eps=0):
+        Lstar = set()
+        Lover = set(self.system.feasible)
+        B = set(range(len(self.bad)))
+        while B:
+            lst = [
+                (len(B & fset), fset)
+                for fset in Lover
+            ]
+            max_remov, _ = max(lst)
+            fset = choice([
+                fset for num_remov, fset in lst
+                if num_remov >= max_remov - eps
+            ])
+            B -= fset
+            Lstar.add(fset)
+            Lover.remove(fset)
+        return Lstar
+
+    def choose_subset_greedy(self, iterations: int = 10, eps: int = 0):
+        self.log.info(
+            f"InequalitiesPool.choose_subset_greedy("
+            f"iterations={iterations},eps={eps}"
+            ")"
+        )
+        self.log.info(
+            f"{len(self.system.feasible)} ineqs {len(self.bad)} bad points"
+        )
+
+        best = len(self.system.feasible), set(self.system.feasible)
+        for itr in range(iterations):
+            Lstar = self.choose_subset_greedy_once(eps=eps)
+
+            cur = len(Lstar), Lstar
+            self.log.info(f"itr #{itr}: {cur[0]} ineqs")
+            if cur < best:
+                best = cur
+        log.info(f"best: {cur[0]} inequalities")
+        return self._oracle(best[1])
 
 
 def invert_ineq(ineq: tuple):
@@ -407,6 +449,8 @@ class LazySparseSystem:
         self.infeasible = GrowingUpperFrozen(self.N)
         self.solution = {}
         self.stat = {}
+        if self.sysfile and os.path.exists(self.sysfile):
+            self.load()
 
     def refresh(self, extremize=True):
         self.log.info("refreshing system")
@@ -422,7 +466,12 @@ class LazySparseSystem:
         # self.log_info()  # save triggers log info
 
     def save(self):
-        self.save_to_file(self.sysfile)
+        if self.sysfile:
+            self.save_to_file(self.sysfile)
+
+    def load(self):
+        if self.sysfile:
+            self.load_from_file(self.sysfile)
 
     def load_from_file(self, filename):
         with open(filename, "rb") as f:
