@@ -1,3 +1,4 @@
+import time
 from divprop.milp import MILP, has_scip, has_sage, has_gurobi
 
 
@@ -6,13 +7,19 @@ def test_milp():
     if has_scip:
         solvers.append("scip")
     if has_sage:
-        solvers.append("glpk")
-        solvers.append("coin")
+        solvers.append("sage/glpk")
+        solvers.append("sage/coin")
+        if has_gurobi:
+            solvers.append("sage/gurobi")
     if has_gurobi:
         solvers.append("gurobi")
 
+    solvers.append("external/glpk")
+
     for solver in solvers:
+        t0 = time.time()
         check_solver(solver)
+        print("solver", solver, "elapsed", f"{time.time() - t0:.3f}")
 
 
 def check_solver(solver):
