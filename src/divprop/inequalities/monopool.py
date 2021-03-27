@@ -512,7 +512,6 @@ class LazySparseSystem:
         self.feasible.do_MaxSet()
 
     def log_info(self):
-        self.log.info("stat:")
         for (name, s) in [
             ("feasible", self.feasible),
             ("infeasible", self.infeasible),

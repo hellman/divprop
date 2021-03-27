@@ -17,8 +17,8 @@ log = logging.getLogger(__name__)
 
 
 class LearnModule:
-    bad_learn_hard_limit = 5
-    good_learn_hard_limit = 5
+    bad_learn_hard_limit = 1
+    good_learn_hard_limit = 1
     max_repeated_streak = 2
 
     def init(self, system, oracle):
@@ -30,6 +30,11 @@ class LearnModule:
         self.sat = None
         self.itr = 0
         self.use_point_prec = system.pool.use_point_prec
+
+    def query(self, fset):
+        if self.use_point_prec:
+            fset = self.system.pool.point_prec_max_set(fset)
+        return self.oracle.query(Bin(fset, self.N))
 
     def milp_init(self, maximization=True, init=True):
         if maximization:
@@ -111,7 +116,7 @@ class LearnModule:
         if fset in self.system.infeasible:
             return
 
-        log.info(f"itr #{self.itr}: learning from inf. wt={len(fset)}: {tuple(fset)}")
+        log.debug(f"itr #{self.itr}: learning from inf. wt={len(fset)}: {tuple(fset)}")
         orig = fset
 
         stat = Counter()
@@ -130,7 +135,7 @@ class LearnModule:
                     break
 
                 ineq = (and_fset in self.system.feasible.cache) or \
-                    self.oracle.query(Bin(and_fset, self.N))
+                    self.query(and_fset)
 
                 if not ineq:
                     fset = and_fset
@@ -154,13 +159,13 @@ class LearnModule:
                 break
 
         statstr = " ".join(f"{l}:{cnt}" for l, cnt in sorted(stat.items()))
-        self.log.info(f"learnt new infeasibles, stat: {statstr}")
+        self.log.debug(f"learnt new infeasibles, stat: {statstr}")
 
     def middle_feasible_learn(self, fset, sol):
         if fset in self.system.feasible:
             return
 
-        log.info(f"itr #{self.itr}: learning from feas. wt={len(fset)}: {tuple(fset)}")
+        log.debug(f"itr #{self.itr}: learning from feas. wt={len(fset)}: {tuple(fset)}")
         orig = fset
 
         stat = Counter()
@@ -180,7 +185,7 @@ class LearnModule:
                     break
 
                 ineq = (and_fset in self.system.feasible.cache) or \
-                    self.oracle.query(Bin(and_fset, self.N))
+                    self.query(and_fset)
 
                 if ineq:
                     cursol = ineq
@@ -206,7 +211,7 @@ class LearnModule:
                 break
 
         statstr = " ".join(f"{l}:{cnt}" for l, cnt in sorted(stat.items()))
-        self.log.info(f"learnt new feasibles, stat: {statstr}")
+        self.log.debug(f"learnt new feasibles, stat: {statstr}")
 
 
 class SupportLearner(LearnModule):
@@ -378,10 +383,10 @@ class RandomMaxFeasible(LearnModule):
 
             if lp_only:
                 ineq = (fset2 in self.system.feasible.cache) \
-                    or self.oracle.query(Bin(fset2, self.N))
+                    or self.query(fset2)
             else:
                 ineq = (fset2 in self.system.feasible) \
-                    or self.oracle.query(Bin(fset2, self.N))
+                    or self.query(fset2)
 
             if ineq:
                 fset = fset2
@@ -448,6 +453,7 @@ class UnknownFillMILP(LearnModule):
             if not self.find_new_unknown():
                 if level is None:
                     self.refresh()
+                    self.log.info(f"exhausted on #{self.itr}")
                     raise EOFError("all groups exhausted!")
                 break
 
@@ -478,7 +484,7 @@ class UnknownFillMILP(LearnModule):
             )
             assert fset
 
-            ineq = self.oracle.query(Bin(fset, self.N))
+            ineq = self.query(fset)
 
             self.log.info(f"ineq: {ineq}")
 
@@ -519,6 +525,7 @@ class UnknownFillSAT(LearnModule):
         self.log.info("")
         self.log.info("---------------------------")
         self.log.info(f"refreshing, iteration {self.itr}")
+        self.log.info(f"n_good {self.n_good} n_bad {self.n_bad}")
         self.system.refresh()
         self.log.info("---------------------------")
         self.log.info("")
@@ -550,7 +557,7 @@ class UnknownFillSAT(LearnModule):
     def find_new_unknown(self):
         while True:
             # <= level
-            self.log.info(
+            self.log.debug(
                 f"itr #{self.itr}: optimizing (level={self.level})..."
             )
             if self.minimization:
@@ -559,7 +566,7 @@ class UnknownFillSAT(LearnModule):
                 assum = ()
 
             sol = self.sat.solve(assumptions=assum)
-            self.log.info(f"SAT solve: {bool(sol)}")
+            self.log.debug(f"SAT solve: {bool(sol)}")
             if sol:
                 break
 
@@ -573,15 +580,15 @@ class UnknownFillSAT(LearnModule):
         fset = self.system.encode_bad_subset(
             i for i, x in enumerate(self.xs) if sol[x] == 1
         )
-        self.log.info(
+        self.log.debug(
             f"clique #{self.itr}, size {len(fset)}: "
             f"{tuple(fset)} (good: {self.n_good}, bads: {self.n_bad})"
         )
         assert fset
 
-        ineq = self.oracle.query(Bin(fset, self.N))
+        ineq = self.query(fset)
 
-        self.log.info(f"ineq: {ineq}")
+        self.log.debug(f"ineq: {ineq}")
 
         if not self.minimization:
             if ineq:
@@ -614,12 +621,12 @@ class Verifier(LearnModule):
         self.log.info("verifying system")
 
         for fset in self.system.feasible:
-            assert self.oracle.query(Bin(fset, self.N))
+            assert self.query(fset)
 
         self.log.info("feasible good!")
 
         for fset in self.system.infeasible:
-            assert not self.oracle.query(Bin(fset, self.N))
+            assert not self.query(fset)
 
         self.log.info("infeasible good!")
 
@@ -651,12 +658,12 @@ class SATVerifier(LearnModule):
         self.log.info("verifying system")
 
         for fset in self.system.feasible:
-            assert self.oracle.query(Bin(fset, self.N))
+            assert self.query(fset)
 
         self.log.info("feasible good!")
 
         for fset in self.system.infeasible:
-            assert not self.oracle.query(Bin(fset, self.N))
+            assert not self.query(fset)
 
         self.log.info("infeasible good!")
 
