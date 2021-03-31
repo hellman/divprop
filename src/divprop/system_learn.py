@@ -306,10 +306,10 @@ class SupportLearner(LearnModule):
 class RandomMaxFeasible(LearnModule):
     log = logging.getLogger(f"{__name__}:RandomMaxFeasible")
 
-    def __init__(self, base_level=2, refresh_rate=50):
+    def __init__(self, base_level=2, extremize_rate=50):
         assert base_level >= 2
         self.base_level = int(base_level)
-        self.refresh_rate = int(refresh_rate)
+        self.extremize_rate = int(extremize_rate)
 
         self._options = self.__dict__.copy()
 
@@ -329,7 +329,7 @@ class RandomMaxFeasible(LearnModule):
         self.itr = 0
         while self.itr < num:
             self.itr += 1
-            if self.itr % self.refresh_rate == 1:
+            if self.itr % self.extremize_rate == 1:
                 self.refresh()
 
             method = self.sample_random_max_feasible
@@ -415,8 +415,8 @@ class RandomMaxFeasible(LearnModule):
 class UnknownFillMILP(LearnModule):
     log = logging.getLogger(f"{__name__}:UnknownFillMILP")
 
-    def __init__(self, solver="gurobi", batch_size=10, refresh_rate=5):
-        self.refresh_rate = int(refresh_rate)
+    def __init__(self, solver="gurobi", batch_size=10, extremize_rate=5):
+        self.extremize_rate = int(extremize_rate)
         self.solver = solver
         self.batch_size = int(batch_size)
 
@@ -448,7 +448,7 @@ class UnknownFillMILP(LearnModule):
         self.itr = 0
         while self.itr < num:
             self.itr += 1
-            if self.itr % self.refresh_rate == 1:
+            if self.itr % self.extremize_rate == 1:
                 self.refresh()
             if not self.find_new_unknown():
                 if level is None:
@@ -514,8 +514,11 @@ class UnknownFillSAT(LearnModule):
 
     good_learn_hard_limit = 1
 
-    def __init__(self, minimization=True, solver="cadical", refresh_rate=5):
-        self.refresh_rate = int(refresh_rate)
+    def __init__(
+            self, minimization=True, solver="cadical",
+            save_rate=100,
+        ):
+        self.save_rate = int(save_rate)
         self.solver = solver
         self.minimization = minimization
 
@@ -531,11 +534,21 @@ class UnknownFillSAT(LearnModule):
         self.log.info("")
 
     def learn(self, num=10):
-        self.log.info(f"searching for {num} unknowns")
+        self.log.info(
+            f"searching for {num} unknowns (minimization={self.minimization}"
+        )
         self.sat_init(init_sum=self.minimization)
+
+        # check if not exhausted
+        self.level = None
+        unk = self.find_new_unknown(skip_minimization=True)
+        if not unk:
+            self.log.info("already exhausted, exiting")
+            return
 
         if self.minimization:
             self.level = getattr(self.system, "_support_learned", 1) + 1
+            self.log.info(f"starting at level {self.level}")
         else:
             self.level = None
 
@@ -544,23 +557,24 @@ class UnknownFillSAT(LearnModule):
 
         self.itr = 0
         while self.itr < num:
+            if self.itr and self.itr % self.save_rate == 0:
+                self.system.refresh(extremize=False)
             self.itr += 1
-            if self.refresh == 1 or self.itr % self.refresh_rate == 1:
-                self.refresh()
 
-            if not self.find_new_unknown():
+            unk = self.find_new_unknown()
+            if not unk:
                 self.refresh()
                 raise EOFError("all groups exhausted!")
 
         self.refresh()
 
-    def find_new_unknown(self):
+    def find_new_unknown(self, skip_minimization=False):
         while True:
             # <= level
             self.log.debug(
                 f"itr #{self.itr}: optimizing (level={self.level})..."
             )
-            if self.minimization:
+            if self.minimization and not skip_minimization:
                 assum = [-self.xsum[self.level]]
             else:
                 assum = ()
@@ -568,24 +582,27 @@ class UnknownFillSAT(LearnModule):
             sol = self.sat.solve(assumptions=assum)
             self.log.debug(f"SAT solve: {bool(sol)}")
             if sol:
-                break
+                fset = self.system.encode_bad_subset(
+                    i for i, x in enumerate(self.xs) if sol[x] == 1
+                )
+                self.log.debug(
+                    f"clique #{self.itr}, size {len(fset)}: "
+                    f"{tuple(fset)} (good: {self.n_good}, bads: {self.n_bad})"
+                )
+                assert fset
+                if self.minimization:
+                    assert len(fset) == self.level, "start level set incorrectly?"
+                return fset
 
             if self.minimization:
                 self.level += 1
+                self.log.info(f"increasing level to {self.level}")
                 if self.level <= self.N:
                     continue
             self.log.info("no new cliques")
             return False
 
-        fset = self.system.encode_bad_subset(
-            i for i, x in enumerate(self.xs) if sol[x] == 1
-        )
-        self.log.debug(
-            f"clique #{self.itr}, size {len(fset)}: "
-            f"{tuple(fset)} (good: {self.n_good}, bads: {self.n_bad})"
-        )
-        assert fset
-
+    def learn_unknown(self, fset):
         ineq = self.query(fset)
 
         self.log.debug(f"ineq: {ineq}")
@@ -615,7 +632,6 @@ class Verifier(LearnModule):
         self.solver = solver
 
     def learn(self, clean=False):
-        self.log.info("refreshing system")
         self.system.refresh()
 
         self.log.info("verifying system")
@@ -651,31 +667,34 @@ class SATVerifier(LearnModule):
     def __init__(self, solver=None):
         self.solver = solver
 
-    def learn(self, clean=False):
-        self.log.info("refreshing system")
+    def learn(self, clean=False, correctness=True, completeness=True):
         self.system.refresh()
 
-        self.log.info("verifying system")
+        if correctness:
+            self.log.info("verifying correctness")
 
-        for fset in self.system.feasible:
-            assert self.query(fset)
+            for fset in self.system.feasible:
+                assert self.query(fset)
 
-        self.log.info("feasible good!")
+            self.log.info("feasible good!")
 
-        for fset in self.system.infeasible:
-            assert not self.query(fset)
+            for fset in self.system.infeasible:
+                assert not self.query(fset)
 
-        self.log.info("infeasible good!")
+            self.log.info("infeasible good!")
 
-        self.sat_init(init_sum=False)
+        if completeness:
+            self.log.info("verifying completeness")
 
-        res = self.sat.solve()
-        self.log.info(f"sat solve: {res}")
-        assert not res, "not all cliques explored!"
+            self.sat_init(init_sum=False)
+            res = self.sat.solve()
+            self.log.info(f"sat solve: {res}")
+            assert not res, "not all cliques explored!"
 
         self.log.info("all good!")
 
         if clean:
+            self.log.info("cleaning")
             self.system.feasible.clean_cache()
             self.system.infeasible.clean_cache()
             self.system.save()

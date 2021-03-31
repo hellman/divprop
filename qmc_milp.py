@@ -1,4 +1,4 @@
-import os, pickle
+import os, sys, pickle
 from itertools import combinations
 from collections import Counter
 
@@ -19,11 +19,17 @@ from divprop.subsets import DenseSet, QMC1
 from divprop import logging
 from divprop.tools import get_sbox, get_sbox_sizes
 
-logging.setup(level="WARNING")
+logging.setup(level="INFO")
 log = logging.getLogger()
+
+n = 10
 
 name = "present"
 name = "aes"
+# name = "ascon"
+name = sys.argv[1]
+log.info(f"starting qmc_milp with name {name}")
+
 sbox = get_sbox(name)
 n, m = get_sbox_sizes(sbox)
 assert n == m
@@ -37,7 +43,7 @@ for x in range(2**n):
         dy = sbox[x] ^ sbox[x ^ dx]
         ddt.set((dx << n) | dy)
 nddt = ddt.Complement()
-print("ddt compl", nddt)
+log.info(f"ddt compl {nddt}")
 
 sysfile = f"data/cache/qmc_{name}_main"
 sysfile = None
@@ -48,7 +54,6 @@ mainpool = InequalitiesPool(
 )
 mainpool.set_system(LazySparseSystem(sysfile=sysfile))
 
-logging.setLevel("INFO")
 mainpool.system.refresh(extremize=False)
 
 if 0:
@@ -66,13 +71,14 @@ if 0:
 
     quit()
 
-logging.setLevel("WARNING")
-
 itr = 0
+itreal = 0
 for a in range(2**(2*n)):
     itr += 1
     if a in ddt:
         continue
+
+    itreal += 1
 
     d = ddt.Not(a)
     good = d.MinSet()
@@ -82,6 +88,11 @@ for a in range(2**(2*n)):
     # d.do_MaxSet()
     bad = d
 
+    log.info(
+        f"#{itr}/{4**n}: a = {Bin(a, 2*n).str} = {Bin(a, 2*n).hex} | "
+        f"up {len(good)} lo {len(bad)} full {fullsz}"
+    )
+
     shift = Bin(a, 2*n)
     pool = InequalitiesPool(
         points_good=good.to_Bins(),
@@ -89,15 +100,10 @@ for a in range(2**(2*n)):
         type_good="upper",
     )
     sysfile = f"data/cache/qmc_{name}_a{a:x}"
-    sysfile = None
+    # sysfile = None
 
-    pool.set_oracle(LPbasedOracle(solver="glpk"))
+    pool.set_oracle(LPbasedOracle(solver="sage/glpk"))
     pool.set_system(LazySparseSystem(sysfile=sysfile))
-
-    print(
-        f"#{itr}/{4**n}:", "a =", Bin(a, 2*n).str, "|",
-        "up", len(good), "lo", len(bad), "full", fullsz
-    )
 
     # for fset, sol in pool.system.solution.items():
     #     for q in pool.good:
@@ -109,19 +115,30 @@ for a in range(2**(2*n)):
     #     for q in mainpool.good:
     #         assert satisfy(q, shift_ineq(sol.ineq, shift))
 
+    good = 1
     try:
-        sat = UnknownFillSAT(
-            minimization=True,
-            refresh_rate=1000,
-            solver="cadical",
-        )
-        sat.init(system=pool.system, oracle=pool.oracle)
-        sat.learn(num=10**6)
-    except EOFError:
-        print("solved, best:", len(pool.system.feasible))
-    else:
-        print("ouch??")
-        quit()
+        Ver = SATVerifier(solver="cadical")
+        Ver.init(system=pool.system, oracle=pool.oracle)
+        Ver.learn(clean=False, correctness=False)
+        log.info("existing system verify ok")
+    except AssertionError:
+        log.info("existing system verify fail, solving")
+        good = 0
+
+    if not good:
+        try:
+            sat = UnknownFillSAT(
+                minimization=True,
+                refresh_rate=1000,
+                solver="cadical",
+            )
+            sat.init(system=pool.system, oracle=pool.oracle)
+            sat.learn(num=10**6)
+        except EOFError:
+            log.info(f"solved, feasible set: {len(pool.system.feasible)}")
+        else:
+            print("ouch??")
+            quit()
 
     d = DenseSet(2*n)
     for fset in pool.system.feasible:
@@ -138,21 +155,19 @@ for a in range(2**(2*n)):
         mainfset = frozenset(mainpool.bad2i[q.tuple] for q in d.to_Bins())
         mainpool.system.add_feasible(mainfset, sol=sol)
 
-    if itr % 1000 == 0:
-        logging.setLevel("INFO")
+    if itreal % 256 == 0:
         # ineqs = mainpool.choose_subset_greedy(1)
         # log.info(f"cur best greedy: {len(ineqs)}")
         mainpool.system.refresh(extremize=False)
-        logging.setLevel("WARNING")
 
-logging.setLevel("INFO")
+
 mainpool.system.refresh(extremize=False)
 mainpool.system.refresh()
 
 if 1:
     ineqs = mainpool.choose_subset_greedy(1)
 
-    print("greedy:", len(ineqs))
+    log.info(f"greedy: {len(ineqs)}")
 
     file = f"data/qmc_{name}" + ".ineqs.%d" % len(ineqs)
     with open(file, "w") as f:

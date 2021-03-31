@@ -443,8 +443,9 @@ class LazySparseSystem:
             self.load()
 
     def refresh(self, extremize=True):
-        self.log.info("refreshing system")
+        self.log.info(f"refreshing system, extremize={extremize}")
         if extremize:
+            self.log_info()
             self.feasible.do_MaxSet()
             self.infeasible.do_MinSet()
         try:
