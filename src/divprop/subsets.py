@@ -282,7 +282,7 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
                 else:
                     self.sets[w1] = {
                         v for v in self.sets[w1]
-                        if not any(v & u == v for u in self.sets[w2])
+                        if not any(v <= u for u in self.sets[w2])
                     }
         self.extreme = True
 
@@ -318,7 +318,7 @@ class GrowingUpperFrozen(GrowingExtremeFrozen):
                                 is_red = 1
                                 break
                     else:
-                        if any(v | u == v for u in self.sets[w2]):
+                        if any(v >= u for u in self.sets[w2]):
                             is_red = 1
 
                     if is_red:
