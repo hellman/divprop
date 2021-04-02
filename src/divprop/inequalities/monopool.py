@@ -1,6 +1,7 @@
 import os
 import logging
 import pickle
+from math import ceil
 from random import sample, randrange, choices, shuffle, choice
 from collections import Counter, namedtuple, defaultdict
 from itertools import combinations
@@ -22,6 +23,7 @@ from divprop.subsets import (
 )
 
 from divprop.milp import MILP
+from divprop.milp.symbase import LPwriter
 
 TYPE_GOOD_SHIFTED = "shifted"
 TYPE_GOOD_GENERIC = "-"
@@ -314,12 +316,12 @@ class InequalitiesPool:
             assert any(not satisfy(q, ineq) for ineq in ineqs)
 
         self.log.info(f"processing ineqs (shifting by {self.shift})...")
-        ineqs_ret = []
-        for ineq in ineqs:
-            if self.shift:
-                ineq = shift_ineq(ineq, self.shift)
-            ineqs_ret.append(ineq)
-        return ineqs_ret
+        return list(map(self._output_ineq, ineqs))
+
+    def _output_ineq(self, ineq):
+        if self.shift:
+            ineq = shift_ineq(ineq, self.shift)
+        return ineq
 
     def choose_all(self):
         fsets = list(self.system.feasible)
@@ -369,26 +371,105 @@ class InequalitiesPool:
         ]
         return self._output_fsets(ineqs)
 
-    def choose_subset_greedy_once(self, eps=0):
-        Lstar = set()
-        Lover = set(self.system.feasible)
-        B = set(range(len(self.bad)))
-        while B:
-            lst = [
-                (len(B & fset), fset)
-                for fset in Lover
-            ]
-            max_remov, _ = max(lst)
-            fset = choice([
-                fset for num_remov, fset in lst
-                if num_remov >= max_remov - eps
-            ])
-            B -= fset
-            Lstar.add(fset)
-            Lover.remove(fset)
-        return Lstar
+    def choose_subset_greedy_once(
+            self, eps=0,
+            lp_snapshot_step=None,
+            lp_snapshot_format=None,
+        ):
+        self.log.debug("preparing greedy")
 
-    def choose_subset_greedy(self, iterations: int = 10, eps: int = 0):
+        order = list(self.system.feasible)
+        M = len(order)
+
+        by_fset = {j: set(order[j]) for j in range(M)}
+        by_point = {i: [] for i in range(self.N)}
+        for j, fset in enumerate(order):
+            for i in fset:
+                by_point[i].append(j)
+
+        self.log.debug("running greedy")
+
+        n_removed = 0
+        Lstar = set()
+        while by_fset:
+            max_remove = max(map(len, by_fset.values()))
+            assert max_remove >= 1
+
+            cands = [
+                j for j, rem in by_fset.items()
+                if len(rem) >= max_remove - eps
+            ]
+            j = choice(cands)
+
+            Lstar.add(order[j])
+            n_removed += max_remove
+
+            for i in order[j]:
+                js = by_point.get(i, ())
+                if js:
+                    for j2 in js:
+                        s = by_fset.get(j2)
+                        if s:
+                            s.discard(i)
+                            if not s:
+                                del by_fset[j2]
+                    del by_point[i]
+            assert j not in by_fset
+
+            lb = len(Lstar) + ceil(self.N / max_remove)
+            self.log.debug(
+                f"removing {max_remove} points: "
+                f"cur {len(Lstar)} ineqs, left {len(by_fset)} ineqs"
+                f"removed {n_removed}/{self.N} points; "
+                f"bound {lb} ineqs"
+            )
+
+            if lp_snapshot_step and len(Lstar) % lp_snapshot_step == 0:
+                self.do_greedy_snapshot(
+                    order, Lstar, by_fset, by_point,
+                    lp_snapshot_format
+                )
+
+        self.log.debug(f"greedy result: {len(Lstar)}")
+        return self._output_fsets(Lstar)
+
+    def do_greedy_snapshot(
+            self, fset_order, Lstar, by_fset, by_point,
+            lp_snapshot_format,
+        ):
+        prefix = lp_snapshot_format % dict(
+            selected=len(Lstar),
+            remaining=len(fset_order)
+        )
+
+        self.log.info(
+            f"snapshot to {prefix} "
+            f"(selected={len(Lstar)}, points_left={len(by_point)})"
+        )
+
+        with open(prefix + ".meta", "w") as f:
+            for i, fset in enumerate(fset_order):
+                ineq = self._output_ineq(self.system.solution[fset].ineq)
+                print(repr((i, tuple(fset), ineq, fset in Lstar)), file=f)
+
+        lp = LPwriter(filename=prefix + ".lp")
+
+        var_fset = {}
+        for j in by_fset:
+            var_fset[j] = "x%d" % j  # take ineq j
+
+        lp.objective(
+            objective=lp.sum(var_fset.values()),
+            sense="minimize",
+        )
+
+        for i, js in by_point.items():
+            lp.constraint(lp.sum(var_fset[j] for j in js) + " >= 1")
+
+        lp.binaries(var_fset.values())
+        lp.close()
+
+    def choose_subset_greedy(self, iterations=10, eps=0):
         self.log.info(
             f"InequalitiesPool.choose_subset_greedy("
             f"iterations={iterations},eps={eps}"
@@ -398,7 +479,7 @@ class InequalitiesPool:
             f"{len(self.system.feasible)} ineqs {len(self.bad)} bad points"
         )
 
-        best = len(self.system.feasible), set(self.system.feasible)
+        best = len(self.system.feasible) + 1, None
         for itr in range(iterations):
             Lstar = self.choose_subset_greedy_once(eps=eps)
 
@@ -407,6 +488,7 @@ class InequalitiesPool:
             if cur < best:
                 best = cur
         log.info(f"best: {best[0]} inequalities")
+        assert best[1] is not None
         return best[1]
 
     def point_prec_max_set(self, fset):
