@@ -19,7 +19,7 @@ from divprop.subsets import DenseSet, QMC1
 from divprop import logging
 from divprop.tools import get_sbox, get_sbox_sizes
 
-logging.setup(level="INFO")
+logging.setup(level="DEBUG")
 log = logging.getLogger()
 
 n = 10
@@ -46,7 +46,7 @@ nddt = ddt.Complement()
 log.info(f"ddt compl {nddt}")
 
 sysfile = f"data/cache/qmc_{name}_main"
-sysfile = None
+# sysfile = None
 mainpool = InequalitiesPool(
     points_good=ddt.to_Bins(),
     points_bad=nddt.to_Bins(),
@@ -54,10 +54,22 @@ mainpool = InequalitiesPool(
 )
 mainpool.set_system(LazySparseSystem(sysfile=sysfile))
 
-mainpool.system.refresh(extremize=False)
+
+mainpool.system.log_info()
 
 if 0:
-    ineqs = mainpool.choose_subset_greedy(iter=1)
+    mainpool.system.refresh(extremize=True)
+    mainpool.system.save()
+    quit()
+
+if 1:
+    # ineqs = mainpool.choose_subset_greedy(1)
+    ineqs = mainpool.choose_subset_greedy_once(
+        eps=0,
+        lp_snapshot_step=20,
+        lp_snapshot_format=f"data/lp/{name}_%(selected)s"
+    )
+    # ineqs = mainpool.choose_subset_milp(solver="scip")
 
     print("minimum:", len(ineqs))
 
@@ -89,7 +101,7 @@ for a in range(2**(2*n)):
     bad = d
 
     log.info(
-        f"#{itr}/{4**n}: a = {Bin(a, 2*n).str} = {Bin(a, 2*n).hex} | "
+        f"#{itr}/{4**n} ({itreal}): a = {Bin(a, 2*n).str} = {Bin(a, 2*n).hex} | "
         f"up {len(good)} lo {len(bad)} full {fullsz}"
     )
 
@@ -129,7 +141,7 @@ for a in range(2**(2*n)):
         try:
             sat = UnknownFillSAT(
                 minimization=True,
-                refresh_rate=1000,
+                save_rate=100,
                 solver="cadical",
             )
             sat.init(system=pool.system, oracle=pool.oracle)
@@ -161,10 +173,11 @@ for a in range(2**(2*n)):
         mainpool.system.refresh(extremize=False)
 
 
+mainpool.system.log_info()
 mainpool.system.refresh(extremize=False)
-mainpool.system.refresh()
+# mainpool.system.refresh()
 
-if 1:
+if 0:
     ineqs = mainpool.choose_subset_greedy(1)
 
     log.info(f"greedy: {len(ineqs)}")
@@ -190,7 +203,7 @@ if 1:
 
     print("written to", file)
 
-if len(ineqs) < 50:
-    for ineq in ineqs:
-        cnt = sum(1 for q in mainpool._bad_orig if not satisfy(q, ineq))
-        print(ineq, ":", cnt)
+# if len(ineqs) < 50:
+#     for ineq in ineqs:
+#         cnt = sum(1 for q in mainpool._bad_orig if not satisfy(q, ineq))
+#         print(ineq, ":", cnt)
