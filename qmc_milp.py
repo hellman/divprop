@@ -66,7 +66,7 @@ if 1:
     # ineqs = mainpool.choose_subset_greedy(1)
     ineqs = mainpool.choose_subset_greedy_once(
         eps=0,
-        lp_snapshot_step=20,
+        lp_snapshot_step=100,
         lp_snapshot_format=f"data/lp/{name}_%(selected)s"
     )
     # ineqs = mainpool.choose_subset_milp(solver="scip")

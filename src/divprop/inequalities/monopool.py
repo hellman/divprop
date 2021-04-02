@@ -449,8 +449,16 @@ class InequalitiesPool:
 
         with open(prefix + ".meta", "w") as f:
             for i, fset in enumerate(fset_order):
+                if fset not in Lstar and i not in by_fset:
+                    continue
                 ineq = self._output_ineq(self.system.solution[fset].ineq)
-                print(repr((i, tuple(fset), ineq, fset in Lstar)), file=f)
+                print(
+                    i,
+                    ":".join(map(str, fset)),
+                    ":".join(map(str, ineq)),
+                    int(fset in Lstar),
+                    file=f
+                )
 
         lp = LPwriter(filename=prefix + ".lp")
 
