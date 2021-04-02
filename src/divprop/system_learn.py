@@ -432,7 +432,7 @@ class UnknownFillMILP(LearnModule):
 
     def learn(self, maximization=False, num=10, level=None):
         self.log.info(
-            f"searching for {num} unknowns, "
+            f"searching for {num} iterations, "
             f"maximization? {maximization}, "
             f"fixed level {level}"
         )
@@ -534,6 +534,9 @@ class UnknownFillSAT(LearnModule):
         self.log.info("")
 
     def learn(self, num=10):
+        self.n_good = 0
+        self.n_bad = 0
+
         self.log.info(
             f"searching for {num} unknowns (minimization={self.minimization}"
         )
@@ -552,9 +555,6 @@ class UnknownFillSAT(LearnModule):
         else:
             self.level = None
 
-        self.n_good = 0
-        self.n_bad = 0
-
         self.itr = 0
         while self.itr < num:
             if self.itr and self.itr % self.save_rate == 0:
@@ -565,6 +565,7 @@ class UnknownFillSAT(LearnModule):
             if not unk:
                 self.refresh()
                 raise EOFError("all groups exhausted!")
+            self.learn_unknown(unk)
 
         self.refresh()
 
@@ -590,7 +591,7 @@ class UnknownFillSAT(LearnModule):
                     f"{tuple(fset)} (good: {self.n_good}, bads: {self.n_bad})"
                 )
                 assert fset
-                if self.minimization:
+                if self.level is not None:
                     assert len(fset) == self.level, "start level set incorrectly?"
                 return fset
 
@@ -688,7 +689,7 @@ class SATVerifier(LearnModule):
 
             self.sat_init(init_sum=False)
             res = self.sat.solve()
-            self.log.info(f"sat solve: {res}")
+            self.log.info(f"sat solve: {bool(res)}")
             assert not res, "not all cliques explored!"
 
         self.log.info("all good!")
