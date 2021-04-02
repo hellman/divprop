@@ -8,6 +8,7 @@ class SymBase(MILP):
         self.obj = None
 
         self.vars = {}
+        self.vartype = {}
         self.n_ints = 0
         self.n_reals = 0
 
@@ -16,16 +17,17 @@ class SymBase(MILP):
         self.ub = {}
 
     def set_lb(self, var: "Var", lb=None):
-        assert var.name in self.vars
+        assert var in self.vars
         self.lb[var] = lb
 
     def set_ub(self, var: "Var", ub=None):
-        assert var.name in self.vars
+        assert var in self.vars
         self.ub[var] = ub
 
     def var_int(self, name, lb=None, ub=None):
         self.n_ints += 1
-        v = Var(name, vtype="I")
+        v = Var(name)
+        self.vartype[v] = "I"
         assert name not in self.vars
         self.vars[name] = v
         self.set_lb(v, lb)
@@ -34,7 +36,8 @@ class SymBase(MILP):
 
     def var_real(self, name, lb=None, ub=None):
         self.n_reals += 1
-        v = Var(name, vtype="C")
+        v = Var(name)
+        self.vartype[v] = "C"
         assert name not in self.vars
         self.vars[name] = v
         self.set_lb(v, lb)
@@ -78,7 +81,7 @@ class SymBase(MILP):
                 print(tab, f"0 {v} >= 0", file=f)  # dummy
             print("Bounds", file=f)
             for varname, var in self.vars.items():
-                assert var.name == varname
+                assert var == varname
                 lb = self.lb.get(var)
                 ub = self.ub.get(var)
                 if lb is None and ub is None:
@@ -92,34 +95,41 @@ class SymBase(MILP):
             if self.n_reals:
                 print("Generals", file=f)
                 for varname, var in self.vars.items():
-                    if var.vtype == "C":
+                    if self.vartype[var] == "C":
                         print(tab, f"{varname}", file=f)
 
             bins = set()
             for varname, var in self.vars.items():
-                if var.vtype == "I" and \
+                if self.vartype[var] == "I" and \
                    self.lb.get(var) == 0 and self.ub.get(var) == 1:
                     bins.add(var)
 
             if self.n_ints - len(bins):
                 print("Integers", file=f)
                 for varname, var in self.vars.items():
-                    if var.vtype == "I" and var not in bins:
+                    if self.vartype[var] == "I" and var not in bins:
                         print(tab, f"{varname}", file=f)
 
             if bins:
                 print("Binary", file=f)
                 for var in bins:
-                    print(tab, f"{var.name}", file=f)
+                    print(tab, f"{var}", file=f)
             print("End", file=f)
         return
 
+    def _sumvars(self, args):
+        res = {}
+        for v in args:
+            assert isinstance(v, Var)
+            res[v] = 1
+        return LinExpr(pairs=res, const=0)
 
-class Var:
-    def __init__(self, name, vtype):
-        assert vtype in "IR"
-        self.vtype = vtype
-        self.name = name
+
+class Var(str):
+    # def __init__(self, name, vtype):
+    #     assert vtype in "IR"
+    #     self.vtype = vtype
+    #     self.name = name
 
     def lift(self):
         return LinExpr(
@@ -153,17 +163,17 @@ class Var:
         assert isinstance(other, (int, float))
         return self.cmul(other)
 
-    def __hash__(self):
-        return hash(self.name)
+    # def __hash__(self):
+    #     return hash(self.name)
 
-    def __eq__(self, other):
-        return self.name == other.name
+    # def __eq__(self, other):
+    #     return self.name == other.name
 
     def __neg__(self):
         return self.cmul(-1)
 
-    def __str__(self):
-        return self.name
+    # def __str__(self):
+    #     return self.name
 
 
 class LinExpr:
@@ -172,6 +182,7 @@ class LinExpr:
         self.const = const
 
     def _combine(self, other, cself=1, cother=1):
+        # print("combine", self, other, cself, cother)
         assert isinstance(other, (LinExpr, Var, int, float))
         if isinstance(other, (int, float)):
             return LinExpr(
@@ -224,7 +235,10 @@ class LinExpr:
         return hash(tuple(sorted(self.pairs.items()))) ^ hash(self.const)
 
     def strvars(self):
-        return " + ".join(f"{coef} {var}" for var, coef in self.pairs.items())
+        return " + ".join(
+            f"{coef} {var}" if coef != 1 else f"{var}"
+            for var, coef in self.pairs.items()
+        )
 
     def __str__(self):
         return self.strvars() + " + " + str(self.const)
@@ -241,3 +255,51 @@ class Ineq:
             return f"{self.expr.strvars()} = {-self.expr.const}"
         else:
             return f"{self.expr.strvars()} >= {-self.expr.const}"
+
+
+class LPwriter:
+    def __init__(self, filename):
+        self.f = open(filename, "w")
+
+    def print(self, *args):
+        print(*args, file=self.f)
+
+    def sum(self, args):
+        return " + ".join(args)
+
+    def objective(self, objective, sense="Maximize"):
+        assert sense.lower() in ("maximize", "minimize")
+        self.print(sense.capitalize())
+
+        self.print("", objective)
+
+        self.print("Subject To")
+
+    def constraint(self, cons):
+        self.print("", cons)
+
+    def binaries(self, vs):
+        self.print("Binary")
+        for v in vs:
+            self.print("", v)
+
+    def generals(self, vs):
+        """non-negative integers..."""
+        self.print("General")
+        for v in vs:
+            self.print("", v)
+
+    def bounds(self, vbs):
+        for lb, varname, ub in vbs:
+            if lb is None and ub is None:
+                self.print("", f"{varname} Free")
+            elif lb is None:
+                self.print("", f"{varname} <= {ub}")
+            elif ub is None:
+                self.print("", f"{lb} <= {varname}")
+            else:
+                self.print("", f"{lb} <= {varname} <= {ub}")
+
+    def close(self):
+        self.print("End")
+        self.f.close()
