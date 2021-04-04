@@ -16,10 +16,12 @@ def test_milp():
 
     solvers.append("external/glpk")
 
-    for solver in solvers:
-        t0 = time.time()
-        check_solver(solver)
-        print("solver", solver, "elapsed", f"{time.time() - t0:.3f}")
+    for i in range(2):
+        for solver in solvers:
+            t0 = time.time()
+            check_solver(solver)
+            print("solver", solver, "elapsed", f"{time.time() - t0:.3f}")
+        print()
 
 
 def check_solver(solver):

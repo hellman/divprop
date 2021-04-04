@@ -86,10 +86,10 @@ if 0:
         except EOFError:
             break
 
-if 1:
+if 0:
     try:
         sat = UnknownFillSAT(
-            minimization=True,
+            minimization=False,
             save_rate=100,
             solver="cadical",
         )
@@ -99,7 +99,7 @@ if 1:
         print("solved?!")
         pass
 
-if 1:
+if 0:
     # Ver = Verifier(solver="gurobi")
     Ver = SATVerifier(solver="cadical")
     Ver.init(system=pool.system, oracle=pool.oracle)
@@ -107,17 +107,20 @@ if 1:
 
 pool.system.log_info()
 
-for fset in pool.system.infeasible:
-    assert not pool.oracle.query(Bin(fset, pool.N))
+if 0:
+    print("test 1")
+    for fset in pool.system.infeasible:
+        assert not pool.oracle.query(Bin(fset, pool.N))
 
-for v in pool.system.feasible:
-    ineq = pool.system.solution[v].ineq
-    badinds = Bin(v, pool.N).support()
-    # print("v", Bin(v, pool.N), "badinds", badinds, "ineq", ineq)
-    res = pool.oracle.query(Bin(v, pool.N))
-    # print("query", res)
-    assert all(satisfy(q, ineq) for q in pool.good)
-    assert all(not satisfy(pool.i2bad[i], ineq) for i in badinds)
+    print("test 2")
+    for v in pool.system.feasible:
+        ineq = pool.system.solution[v].ineq
+        badinds = Bin(v, pool.N).support()
+        # print("v", Bin(v, pool.N), "badinds", badinds, "ineq", ineq)
+        res = pool.oracle.query(Bin(v, pool.N))
+        # print("query", res)
+        assert all(satisfy(q, ineq) for q in pool.good)
+        assert all(not satisfy(pool.i2bad[i], ineq) for i in badinds)
 
 print("minimizing...")
 

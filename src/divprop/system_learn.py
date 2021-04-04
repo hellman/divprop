@@ -542,14 +542,13 @@ class UnknownFillSAT(LearnModule):
         )
         self.sat_init(init_sum=self.minimization)
 
-        # check if not exhausted
-        self.level = None
-        unk = self.find_new_unknown(skip_minimization=True)
-        if not unk:
-            self.log.info("already exhausted, exiting")
-            return
-
         if self.minimization:
+            # check if not exhausted
+            unk = self.find_new_unknown(skip_minimization=True)
+            if not unk:
+                self.log.info("already exhausted, exiting")
+                return
+
             self.level = getattr(self.system, "_support_learned", 1) + 1
             self.log.info(f"starting at level {self.level}")
         else:
