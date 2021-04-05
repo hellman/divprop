@@ -274,6 +274,7 @@ class GrowingLowerFrozen(GrowingExtremeFrozen):
                     continue
                 # rough binomial(w2, w1)
                 nsub = w2**w1 if w1 < w2//2 else (w2-w1)**w1
+                # print("w2", w2, "w1", w1, ":", nsub, "vs", len(self.sets[w1]))
                 if nsub < len(self.sets[w1]):
                     # enum all subseqs
                     for u in self.sets[w2]:
