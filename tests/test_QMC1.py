@@ -1,5 +1,5 @@
 from random import randrange, seed
-from binteger import Bin
+from collections import Counter
 
 from divprop.subsets import DenseSet, QMC1
 
@@ -18,7 +18,7 @@ def test_QMC1():
                 for a, u in S:
                     Sa.setdefault(a, []).append(u)
 
-                print(len(S))
+                print(len(S), len(Sa))
                 for a in Sa:
                     # prec(u)
                     U = DenseSet(n)
@@ -115,7 +115,12 @@ def time_imp_diff():
         for a, u in S:
             if a & u == 0:
                 ans += 1
-        print(len(S), ans)
+
+        Sa = {}
+        for a, u in S:
+            Sa.setdefault(a, []).append(u)
+        cnt = Counter(map(len, Sa.values()))
+        print(len(S), len(Sa), sorted(cnt.items()), ans)
         # ss = []
         # for a, u in S:
         #     prec = DenseSet(2*n)
