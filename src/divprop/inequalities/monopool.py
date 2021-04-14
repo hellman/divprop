@@ -134,7 +134,7 @@ class LPbasedOracle:
 
     def query(self, bads: Bin):
         assert isinstance(bads, Bin)
-        bads = bads.support()
+        bads = bads.support
 
         self.n_calls += 1
 
@@ -504,7 +504,7 @@ class InequalitiesPool:
         qs = [self.i2bad[i] for i in fset]
         for q in qs:
             if not any(tuple_preceq(q, p) and q != p for p in qs):
-                res.add(q)
+                res.add(self.bad2i[q])
         return self.system.encode_bad_subset(res)
 
     def point_prec_lower_set(self, fset):
