@@ -8,7 +8,7 @@ from collections import Counter, defaultdict
 
 from binteger import Bin
 
-from divprop.inequalities.monopool import IneqInfo
+# from divprop.inequalities.monopool import IneqInfo
 
 from divprop.milp import MILP
 from divprop.sat import CNF

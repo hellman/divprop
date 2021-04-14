@@ -288,6 +288,9 @@ def tool_divcore2bounds():
     dclo = divcore_data  # = mid.MinSet()
     dcup = mid.MaxSet()
 
+    inter = (dcup.LowerSet().Complement() & dclo.UpperSet().Complement())
+    print("inter", inter)
+
     typs = args.type.lower().split(",")
     for typ in typs:
         log.info("")

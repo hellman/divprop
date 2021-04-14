@@ -4,8 +4,10 @@ Manipulations on sets of binary vectors / subsets of some set.
 
 from itertools import combinations
 
-from .libsubsets import *
-from .libsubsets import DenseSet
+from divprop.libsubsets import *
+from divprop.libsubsets import DenseSet
+
+from .SparseSet import SparseSet
 
 from binteger import Bin
 

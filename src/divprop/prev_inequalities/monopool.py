@@ -528,7 +528,6 @@ class LazySparseSystem:
         self.feasible = GrowingLowerFrozen(self.N)
         self.infeasible = GrowingUpperFrozen(self.N)
         self.solution = {}
-        self.stat = {}
         if self.sysfile and os.path.exists(self.sysfile):
             self.load()
 

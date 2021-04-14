@@ -18,8 +18,8 @@ qpypy:
 
 
 test:
-	python -m pytest tests/
-	python -m pytest tests_sage/
+	python -m pytest --doctest-modules tests/ src/divprop/
+	python -m pytest --doctest-modules tests_sage/ src/divprop/
 	#sage -sh -c 'pytest tests/ tests_sage/'
 
 clean:
