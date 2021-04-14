@@ -16,17 +16,113 @@ from divprop.subsets import SparseSet
 from divprop.logs import logging
 
 
-class Oracle:
-    def query(self, x: SparseSet):
-        raise NotImplementedError
-
-
 class ExtraPrec:
     def reduce(self, vec: SparseSet):
         return vec
 
     def expand(self, vec: SparseSet):
         return vec
+
+
+class LowerSetLearn:
+    log = logging.getLogger(f"{__name__}:LowerSetLearn")
+
+    def __init__(
+            self,
+            n: int,
+            file: str = None,
+            oracle: callable = None,
+            extra_prec: ExtraPrec = None,
+        ):
+
+        self.n = int(n)
+
+        self.oracle = None
+        self.extra_prec = extra_prec
+        self.file = file
+
+        self.lower = set()
+        self.upper = set()
+        self.lower_is_prime = True
+        self.upper_is_prime = True
+        self.meta = {}  # info per elements of lower/upper
+
+    def set_oracle(self, oracle: callable):
+        self.oracle = oracle
+
+    def save(self):
+        if self.file:
+            try:
+                self.save_to_file(self.file)
+            except KeyboardInterrupt:
+                self.log.error(
+                    "interrupted saving! trying again, please be patient"
+                )
+                self.save_to_file(self.file)
+                raise
+
+    def load(self):
+        if self.file:
+            self.load_from_file(self.file)
+
+    def load_from_file(self, filename):
+        prevn = self.n
+        with open(filename, "rb") as f:
+            data = pickle.load(f)
+        (
+            self.lower, self.upper, self.meta, self.n,
+            self.lower_is_prime, self.upper_is_prime,
+        ) = data
+        assert self.n == prevn
+        self.log.info(f"loaded state from file {filename}")
+        self.log_info()
+
+    def save_to_file(self, filename):
+        data = (
+            self.lower, self.upper, self.meta, self.n,
+            self.lower_is_prime, self.upper_is_prime,
+        )
+        with open(filename, "wb") as f:
+            pickle.dump(data, f)
+        self.log.info(f"saved state to file {filename}")
+        self.log_info()
+
+    def log_info(self):
+        for (name, s) in [
+            ("lower", self.lower),
+            ("upper", self.upper),
+        ]:
+            freq = Counter(len(v) for v in s)
+            freqstr = " ".join(
+                f"{sz}:{cnt}" for sz, cnt in sorted(freq.items())
+            )
+            self.log.info(f"  {name} {len(s)}: {freqstr}")
+
+    def add_lower(self, vec, info=None, is_prime=False):
+        assert isinstance(vec, SparseSet)
+        if not is_prime:
+            self.lower_is_prime = False
+
+        if self.extra_prec:
+            vec = self.extra_prec.expand(vec)
+
+        if vec not in self.lower:
+            self.lower.add(vec)
+            if info is not None:
+                self.meta[vec] = info
+
+    def add_upper(self, vec, info=None, is_prime=False):
+        assert isinstance(vec, SparseSet)
+        if not is_prime:
+            self.upper_is_prime = False
+
+        if self.extra_prec:
+            vec = self.extra_prec.reduce(vec)
+
+        if vec not in self.upper:
+            self.upper.add(vec)
+            if info is not None:
+                self.meta[vec] = info
 
 
 class ExtraPrec_LowerSet(ExtraPrec):
@@ -67,86 +163,3 @@ class ExtraPrec_LowerSet(ExtraPrec):
             if q in self.point2int:
                 res.append(self.point2int[q])
         return SparseSet(res)
-
-
-class LowerSetLearn:
-    log = logging.getLogger(f"{__name__}:LowerSetLearn")
-
-    def __init__(
-            self,
-            n: int,
-            oracle: Oracle,
-            file: str = None,
-            extra_prec: ExtraPrec = None,
-        ):
-
-        self.n = int(n)
-
-        self.oracle = oracle
-        self.extra_prec = extra_prec
-        self.file = file
-
-        self.lower = set()
-        self.upper = set()
-        self.meta = {}  # info per elements of lower/upper
-
-    def save(self):
-        if self.file:
-            try:
-                self.save_to_file(self.file)
-            except KeyboardInterrupt:
-                self.log.error("interrupted saving! trying again, please be patient")
-                self.save_to_file(self.file)
-                raise
-
-    def load(self):
-        if self.file:
-            self.load_from_file(self.file)
-
-    def load_from_file(self, filename):
-        with open(filename, "rb") as f:
-            data = pickle.load(f)
-        self.__dict__.update(data)
-        self.log.info(f"loaded state from file {filename}")
-        self.log_info()
-
-    def save_to_file(self, filename):
-        data = self.__dict__.copy()
-        del data["file"]
-        with open(filename, "wb") as f:
-            pickle.dump(data, f)
-        self.log.info(f"saved state to file {filename}")
-        self.log_info()
-
-    def log_info(self):
-        for (name, s) in [
-            ("lower", self.lower),
-            ("upper", self.upper),
-        ]:
-            freq = Counter(len(v) for v in s)
-            freqstr = " ".join(
-                f"{sz}:{cnt}" for sz, cnt in sorted(freq.items())
-            )
-            self.log.info(f"  {name} {len(s)}: {freqstr}")
-
-    def add_lower(self, vec, info=None):
-        assert isinstance(vec, SparseSet)
-
-        if self.extra_prec:
-            vec = self.extra_prec.expand(vec)
-
-        if vec not in self.lower:
-            self.lower.add(vec)
-            if info is not None:
-                self.meta[vec] = info
-
-    def add_upper(self, vec, info=None):
-        assert isinstance(vec, SparseSet)
-
-        if self.extra_prec:
-            vec = self.extra_prec.reduce(vec)
-
-        if vec not in self.upper:
-            self.upper.add(vec)
-            if info is not None:
-                self.meta[vec] = info

@@ -1,4 +1,4 @@
 from .base import (
-    Oracle, LowerSetLearn,
+    LowerSetLearn,
     ExtraPrec, ExtraPrec_LowerSet,
 )

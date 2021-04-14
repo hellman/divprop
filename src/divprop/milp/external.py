@@ -139,7 +139,7 @@ class ExtGLPK(External):
                 assert len(parts) == 3
                 varid = int(parts[1])
                 var = id2var[varid]
-                if var.vtype == "C":
+                if self.vartype[var] == "C":
                     value = float(parts[2])
                 else:
                     value = int(parts[2])

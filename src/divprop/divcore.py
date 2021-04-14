@@ -239,7 +239,7 @@ class SboxPeekANFs:
                 mask >>= n
             res = self.run_mask(mask, inverse=inverse)
 
-            added = {frozenset(Bin(uv, 2*n).support()) for uv in res}
+            added = {frozenset(Bin(uv, 2*n).support) for uv in res}
             divcore.update(added)
 
             if itr % 10 == 0:

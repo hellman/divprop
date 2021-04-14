@@ -39,5 +39,31 @@ def test_EP():
         0b11000,
         0b11100,
     })
-    assert EP.expand(vec) == exp
     assert EP.reduce(vec) == red
+    assert EP.expand(vec) == exp
+
+    vec = SparseSet({
+        0b01110,
+        0b11000,
+        0b01100,
+        0b00110,
+    })
+    red = SparseSet({
+        0b01110,
+        0b11000,
+    })
+    exp = SparseSet({
+        0b00000,
+        0b00010,
+        0b00100,
+        0b00110,
+        0b01000,
+        0b01010,
+        0b01100,
+        0b01110,
+
+        0b10000,
+        0b11000,
+    })
+    assert EP.reduce(vec) == red
+    assert EP.expand(vec) == exp
