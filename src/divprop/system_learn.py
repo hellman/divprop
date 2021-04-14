@@ -538,21 +538,20 @@ class UnknownFillSAT(LearnModule):
         self.n_bad = 0
 
         self.log.info(
-            f"searching for {num} unknowns (minimization={self.minimization}"
+            f"searching for {num} unknowns (minimization={self.minimization})"
         )
         self.sat_init(init_sum=self.minimization)
 
+        self.level = None
         if self.minimization:
             # check if not exhausted
             unk = self.find_new_unknown(skip_minimization=True)
             if not unk:
                 self.log.info("already exhausted, exiting")
-                return
+                raise EOFError("all groups exhausted!")
 
             self.level = getattr(self.system, "_support_learned", 1) + 1
             self.log.info(f"starting at level {self.level}")
-        else:
-            self.level = None
 
         self.itr = 0
         while self.itr < num:
@@ -594,7 +593,7 @@ class UnknownFillSAT(LearnModule):
                     assert len(fset) == self.level, "start level set incorrectly?"
                 return fset
 
-            if self.minimization:
+            if self.minimization and not skip_minimization:
                 self.level += 1
                 self.log.info(f"increasing level to {self.level}")
                 if self.level <= self.N:
