@@ -31,13 +31,11 @@ class LowerSetLearn:
             self,
             n: int,
             file: str = None,
-            oracle: callable = None,
             extra_prec: ExtraPrec = None,
         ):
 
         self.n = int(n)
 
-        self.oracle = None
         self.extra_prec = extra_prec
         self.file = file
 
@@ -46,9 +44,6 @@ class LowerSetLearn:
         self.lower_is_prime = True
         self.upper_is_prime = True
         self.meta = {}  # info per elements of lower/upper
-
-    def set_oracle(self, oracle: callable):
-        self.oracle = oracle
 
     def save(self):
         if self.file:
@@ -98,7 +93,7 @@ class LowerSetLearn:
             )
             self.log.info(f"  {name} {len(s)}: {freqstr}")
 
-    def add_lower(self, vec, info=None, is_prime=False):
+    def add_lower(self, vec, meta=None, is_prime=False):
         assert isinstance(vec, SparseSet)
         if not is_prime:
             self.lower_is_prime = False
@@ -108,10 +103,10 @@ class LowerSetLearn:
 
         if vec not in self.lower:
             self.lower.add(vec)
-            if info is not None:
-                self.meta[vec] = info
+            if meta is not None:
+                self.meta[vec] = meta
 
-    def add_upper(self, vec, info=None, is_prime=False):
+    def add_upper(self, vec, meta=None, is_prime=False):
         assert isinstance(vec, SparseSet)
         if not is_prime:
             self.upper_is_prime = False
@@ -121,8 +116,8 @@ class LowerSetLearn:
 
         if vec not in self.upper:
             self.upper.add(vec)
-            if info is not None:
-                self.meta[vec] = info
+            if meta is not None:
+                self.meta[vec] = meta
 
 
 class ExtraPrec_LowerSet(ExtraPrec):

@@ -158,17 +158,17 @@ class InequalitiesPool:
             f"{len(self.system.lower)} ineqs {len(self.bad)} bad points"
         )
 
-        i2fset = list(self.system.lower)
+        vec_order = list(self.system.lower)
 
         milp = MILP.minimization(solver=solver)
-        n = len(i2fset)
+        n = len(vec_order)
 
         # xi = take i-th inequality?
         v_take_ineq = [milp.var_binary("v_take_ineq%d" % i) for i in range(n)]
 
         by_bad = [[] for _ in range(self.N)]
-        for i, fset in enumerate(i2fset):
-            for q in fset:
+        for i, vec in enumerate(vec_order):
+            for q in vec:
                 by_bad[q].append(v_take_ineq[i])
 
         # each bad point is removed by at least one ineq
@@ -178,10 +178,10 @@ class InequalitiesPool:
 
         # minimize number of ineqs
         milp.set_objective(sum(v_take_ineq))
-        return v_take_ineq, i2fset, milp
+        return v_take_ineq, vec_order, milp
 
     def write_subset_milp(self, filename, solver=None):
-        v_take_ineq, i2fset, milp = self.create_subset_milp(solver=solver)
+        v_take_ineq, vec_order, milp = self.create_subset_milp(solver=solver)
         self.log.info(
             f"saving LP with {self.N} variables (per ineq), "
             f"{self.n} constraints (per bad point) to {filename}"
@@ -189,7 +189,7 @@ class InequalitiesPool:
         milp.write_lp(filename)
 
     def choose_subset_milp(self, lp_output=None, solver=None):
-        v_take_ineq, i2fset, milp = self.create_subset_milp(solver=solver)
+        v_take_ineq, vec_order, milp = self.create_subset_milp(solver=solver)
 
         if lp_output:
             self.log.info(
@@ -209,7 +209,7 @@ class InequalitiesPool:
         self.log.info(f"objective {res}")
 
         ineqs = [
-            i2fset[i] for i, take in enumerate(v_take_ineq) if milpsol[take]
+            vec_order[i] for i, take in enumerate(v_take_ineq) if milpsol[take]
         ]
         return self._output_results(ineqs)
 
@@ -220,12 +220,12 @@ class InequalitiesPool:
         ):
         self.log.debug("preparing greedy")
 
-        order = list(self.system.lower)
-        M = len(order)
+        vec_order = list(self.system.lower)
+        M = len(vec_order)
 
-        by_fset = {j: set(order[j]) for j in range(M)}
+        by_vec = {j: set(vec_order[j]) for j in range(M)}
         by_point = {i: [] for i in range(self.N)}
-        for j, fset in enumerate(order):
+        for j, fset in enumerate(vec_order):
             for i in fset:
                 by_point[i].append(j)
 
@@ -233,42 +233,42 @@ class InequalitiesPool:
 
         n_removed = 0
         Lstar = set()
-        while by_fset:
-            max_remove = max(map(len, by_fset.values()))
+        while by_vec:
+            max_remove = max(map(len, by_vec.values()))
             assert max_remove >= 1
 
             cands = [
-                j for j, rem in by_fset.items()
+                j for j, rem in by_vec.items()
                 if len(rem) >= max_remove - eps
             ]
             j = choice(cands)
 
-            Lstar.add(order[j])
+            Lstar.add(vec_order[j])
             n_removed += max_remove
 
-            for i in order[j]:
+            for i in vec_order[j]:
                 js = by_point.get(i, ())
                 if js:
                     for j2 in js:
-                        s = by_fset.get(j2)
+                        s = by_vec.get(j2)
                         if s:
                             s.discard(i)
                             if not s:
-                                del by_fset[j2]
+                                del by_vec[j2]
                     del by_point[i]
-            assert j not in by_fset
+            assert j not in by_vec
 
             lb = len(Lstar) + ceil(self.N / max_remove)
             self.log.debug(
                 f"removing {max_remove} points: "
-                f"cur {len(Lstar)} ineqs, left {len(by_fset)} ineqs"
+                f"cur {len(Lstar)} ineqs, left {len(by_vec)} ineqs"
                 f"removed {n_removed}/{self.N} points; "
                 f"bound {lb} ineqs"
             )
 
             if lp_snapshot_step and len(Lstar) % lp_snapshot_step == 0:
                 self.do_greedy_snapshot(
-                    order, Lstar, by_fset, by_point,
+                    vec_order, Lstar, by_vec, by_point,
                     lp_snapshot_format
                 )
 
@@ -276,12 +276,12 @@ class InequalitiesPool:
         return self._output_results(Lstar)
 
     def do_greedy_snapshot(
-            self, fset_order, Lstar, by_fset, by_point,
+            self, vec_order, Lstar, by_vec, by_point,
             lp_snapshot_format,
         ):
         prefix = lp_snapshot_format % dict(
             selected=len(Lstar),
-            remaining=len(fset_order)
+            remaining=len(vec_order)
         )
 
         self.log.info(
@@ -290,8 +290,8 @@ class InequalitiesPool:
         )
 
         with open(prefix + ".meta", "w") as f:
-            for i, fset in enumerate(fset_order):
-                if fset not in Lstar and i not in by_fset:
+            for i, fset in enumerate(vec_order):
+                if fset not in Lstar and i not in by_vec:
                     continue
                 ineq = self._output_ineq(self.system.solution[fset].ineq)
                 print(
@@ -305,7 +305,7 @@ class InequalitiesPool:
         lp = LPwriter(filename=prefix + ".lp")
 
         var_fset = {}
-        for j in by_fset:
+        for j in by_vec:
             var_fset[j] = "x%d" % j  # take ineq j
 
         lp.objective(
@@ -385,7 +385,7 @@ class LPbasedOracle:
         LP.remove_constraints(cs)
 
         if res is None:
-            return False
+            return False, None
 
         sol = LP.solutions[0]
         val_xs = tuple(sol[x] for x in self.xs)
@@ -400,7 +400,7 @@ class LPbasedOracle:
         ineq = val_xs + (-val_c,)
         assert all(satisfy(p, ineq) for p in self.pool.good)
         assert all(not satisfy(self.pool.i2bad[i], ineq) for i in bads)
-        return ineq
+        return True, ineq
 
 
 def shift_ineq(ineq: tuple, shift: Bin):

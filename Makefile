@@ -30,3 +30,5 @@ clean:
 
 venv:
 	sage -python -m venv --system-site-packages .envsage/
+	echo `pwd`/src >.envsage/lib/python3.8/site-packages/divprop.pth
+	ln -sf .envsage/bin/activate ./activate
