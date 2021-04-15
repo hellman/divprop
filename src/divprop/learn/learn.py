@@ -18,6 +18,8 @@ log = logging.getLogger(__name__)
 
 
 class LearnModule:
+    log = logging.getLogger(f"{__name__}:LearnModule")
+
     use_point_prec = True
 
     def init(self, system):
@@ -38,6 +40,15 @@ class LearnModule:
 
         if self.system.extra_prec is None:
             self.use_point_prec = False
+
+    def learn_safe(self):
+        try:
+            ret = self.learn()
+            return ret
+        except Exception as error:
+            self.log.error(f"learning error {error}, saving")
+            self.system.save()
+            raise
 
     def query(self, vec):
         if self.use_point_prec:
@@ -224,7 +235,7 @@ class GainanovSAT(LearnModule):
             # check if not exhausted
             if self.sat.solve() is False:
                 self.log.info("already exhausted, exiting")
-                raise EOFError("all groups exhausted!")
+                return True
 
             if self.do_min:
                 self.level = 0
@@ -240,12 +251,13 @@ class GainanovSAT(LearnModule):
             self.itr += 1
 
             unk = self.find_new_unknown()
-            if unk is None:
+            if unk is False:
                 self.system.save()
-                self.log.info("finished")
-                raise EOFError("all groups exhausted!")
+                return True
 
             self.learn_unknown(unk)
+        self.system.save()
+        return False
 
     def find_new_unknown(self):
         while True:
@@ -293,10 +305,10 @@ class GainanovSAT(LearnModule):
                         return False
                     self.log.info(f"decreasing level to {self.level}")
 
-                # on each level changecheck if not done already
+                # on each level change check if not done already
                 if self.sat.solve() is False:
-                    self.log.info(f"exhausted from level {self.level}, exiting")
-                    raise EOFError("all groups exhausted!")
+                    self.log.info(f"exhausted from level {self.level}")
+                    return False
         assert 0
 
     def learn_unknown(self, vec):

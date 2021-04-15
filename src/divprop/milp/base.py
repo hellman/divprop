@@ -10,9 +10,9 @@ class MILP:
     err = None
 
     @classmethod
-    def maximization(cls, *args, solver="sage/glpk", **opts):
+    def maximization(cls, *args, solver=None, **opts):
         if not solver:
-            solver = "glpk"
+            solver = "sage/glpk"
         log.info(f"MILP maximization with solver '{solver}'")
         assert cls is MILP
         return cls.BY_SOLVER[solver.lower()](
@@ -24,7 +24,7 @@ class MILP:
     @classmethod
     def minimization(cls, *args, solver="sage/glpk", **opts):
         if not solver:
-            solver = "glpk"
+            solver = "sage/glpk"
         log.info(f"MILP minimization with solver '{solver}'")
         assert cls is MILP
         return cls.BY_SOLVER[solver.lower()](
@@ -50,3 +50,6 @@ class MILP:
             return int(r)
         else:
             return v
+
+    def write_lp(self, filename):
+        self.model.write_lp(filename)

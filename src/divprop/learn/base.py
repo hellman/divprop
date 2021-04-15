@@ -1,17 +1,10 @@
-import time
+import os
 import logging
 import pickle
 
-from tqdm import tqdm
-from random import choice, shuffle, randrange
-from itertools import combinations
+from collections import Counter
+from queue import Queue
 
-from collections import Counter, defaultdict
-from queue import PriorityQueue, Queue
-
-from binteger import Bin
-
-from divprop.milp import MILP
 from divprop.subsets import SparseSet
 from divprop.logs import logging
 
@@ -47,22 +40,29 @@ class LowerSetLearn:
         self.upper_is_prime = True
         self.meta = {}  # info per elements of lower/upper
 
+        self.saved = False
+        if os.path.exists(self.file):
+            self.load()
+
     def save(self):
-        if self.file:
+        if self.file and not self.saved:
             try:
                 self.save_to_file(self.file)
+                self.saved = True
             except KeyboardInterrupt:
                 self.log.error(
                     "interrupted saving! trying again, please be patient"
                 )
                 self.save_to_file(self.file)
+                self.saved = True
                 raise
         self.log_info()
 
     def load(self):
         if self.file:
             self.load_from_file(self.file)
-        self.log_info()
+            self.log_info()
+            self.saved = True
 
     def load_from_file(self, filename):
         prevn = self.n
@@ -97,29 +97,35 @@ class LowerSetLearn:
 
     def add_lower(self, vec, meta=None, is_prime=False):
         assert isinstance(vec, SparseSet)
-        if not is_prime:
-            self.lower_is_prime = False
 
         if self.extra_prec:
             vec = self.extra_prec.expand(vec)
 
+        # in case of interrupt, consistency is kept
         if vec not in self.lower:
-            self.lower.add(vec)
+            self.saved = False
+            if not is_prime:
+                self.lower_is_prime = False
+
             if meta is not None:
                 self.meta[vec] = meta
+            self.lower.add(vec)
 
     def add_upper(self, vec, meta=None, is_prime=False):
         assert isinstance(vec, SparseSet)
-        if not is_prime:
-            self.upper_is_prime = False
 
         if self.extra_prec:
             vec = self.extra_prec.reduce(vec)
 
+        # in case of interrupt, consistency is kept
         if vec not in self.upper:
-            self.upper.add(vec)
+            self.saved = False
+            if not is_prime:
+                self.upper_is_prime = False
+
             if meta is not None:
                 self.meta[vec] = meta
+            self.upper.add(vec)
 
 
 class ExtraPrec_LowerSet(ExtraPrec):

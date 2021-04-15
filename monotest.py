@@ -56,7 +56,7 @@ if 0:
 pool = InequalitiesPool.from_DenseSet_files(
     fileprefix=fileprefix,
     oracle=LPbasedOracle(solver="sage/glpk"),
-    sysfile=None,
+    # sysfile=None,
 )
 
 # SL = SupportLearner(level=3)
