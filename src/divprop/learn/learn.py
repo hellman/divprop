@@ -20,12 +20,12 @@ log = logging.getLogger(__name__)
 class LearnModule:
     use_point_prec = True
 
-    def init(self, system, oracle):
+    def init(self, system):
         self._options = self.__dict__.copy()
 
-        self.N = system.N
+        self.N = system.n
         self.system = system
-        self.oracle = oracle
+        self.oracle = self.system.oracle
 
         self.milp = None
         self.sat = None
@@ -110,7 +110,7 @@ class LearnModule:
 
         if self.sat:
             self.sat.add_clause(tuple(
-                self.xs[i] for i in self.fset_full - vec
+                self.xs[i] for i in self.vec_full - vec
             ))
 
     def model_exclude_super(self, vec):
@@ -171,10 +171,10 @@ class LearnModule:
             f" wt {len(vec)}: {truncrepr(vec)}"
         )
 
-        inds = self.vec_full - vec
+        inds = list(self.vec_full - vec)
         shuffle(inds)
         for i in inds:
-            supvec = vec + i
+            supvec = vec | i
             assert supvec not in self.system.lower
             if supvec in self.system.upper:
                 continue
@@ -206,10 +206,10 @@ class GainanovSAT(LearnModule):
             save_rate=100,
             limit: int = None,
         ):
-        assert self.sense in ("min", "max", None)
-        self.do_min = self.sense == "min"
-        self.do_max = self.sense == "max"
-        self.do_opt = self.sense in ("min", "max")
+        assert sense in ("min", "max", None)
+        self.do_min = sense == "min"
+        self.do_max = sense == "max"
+        self.do_opt = sense in ("min", "max")
         self.solver = solver
         self.save_rate = int(save_rate)
         self.limit = None if limit is None else int(limit)
@@ -220,10 +220,9 @@ class GainanovSAT(LearnModule):
         self.sat_init(init_sum=self.do_opt)
 
         self.level = None
-        if not self.do_opt:
+        if self.do_opt:
             # check if not exhausted
-            unk = self.find_new_unknown(skip_optimization=True)
-            if not unk:
+            if self.sat.solve() is False:
                 self.log.info("already exhausted, exiting")
                 raise EOFError("all groups exhausted!")
 
@@ -241,14 +240,14 @@ class GainanovSAT(LearnModule):
             self.itr += 1
 
             unk = self.find_new_unknown()
-            if not unk:
-                self.refresh()
+            if unk is None:
+                self.system.save()
+                self.log.info("finished")
                 raise EOFError("all groups exhausted!")
+
             self.learn_unknown(unk)
 
-        self.refresh()
-
-    def find_new_unknown(self, skip_optimization=False):
+    def find_new_unknown(self):
         while True:
             # <= level
             self.log.debug(
@@ -256,61 +255,67 @@ class GainanovSAT(LearnModule):
             )
 
             assum = ()
-            if not skip_optimization:
-                if self.is_min:
-                    # <= self.level
-                    assum = [-self.xsum[self.level]]
-                elif self.is_max:
-                    # >= self.level
-                    assum = [self.xsum[self.level]]
+            if self.do_min:
+                # <= self.level
+                assum = [-self.xsum[self.level]]
+            elif self.do_max:
+                # >= self.level
+                assum = [self.xsum[self.level]]
 
             sol = self.sat.solve(assumptions=assum)
             self.log.debug(f"SAT solve: {bool(sol)}")
             if sol:
                 vec = SparseSet(
-                    i for i, x in enumerate(self.xs) if sol[x] == 1
+                    i for i, x in enumerate(self.xs) if sol.get(x, 0) == 1
                 )
                 self.log.debug(
                     f"unknown #{self.itr}, wt {len(vec)}: {truncrepr(vec)} "
                     f"(upper: {self.n_upper}, lower: {self.n_lower})"
                 )
-                assert vec
                 if self.level is not None:
-                    assert len(vec) == self.level, "start level set incorrectly?"
+                    assert len(vec) == self.level, \
+                        "start level set incorrectly?"
                 return vec
 
             # no sol at current level
-            if not skip_optimization:
-                if self.is_min:
+            if self.do_opt:
+                if self.do_min:
                     self.level += 1
                     if self.level > self.N:
                         self.log.info("no new unknowns")
                         return False
                     self.log.info(f"increasing level to {self.level}")
 
-                elif self.is_max:
+                elif self.do_max:
                     self.level -= 1
                     if self.level < 0:
                         self.log.info("no new unknowns")
                         return False
                     self.log.info(f"decreasing level to {self.level}")
+
+                # on each level changecheck if not done already
+                if self.sat.solve() is False:
+                    self.log.info(f"exhausted from level {self.level}, exiting")
+                    raise EOFError("all groups exhausted!")
         assert 0
 
     def learn_unknown(self, vec):
         is_lower, meta = self.query(vec)
 
-        self.log.debug(f"meta: {meta}")
-
         if is_lower:
             self.n_lower += 1
-            if self.is_max:
+            if self.do_max:
+                self.log.debug(f"fast lower: wt {len(vec)} meta {meta}")
                 self.system.add_lower(vec, meta)
+                self.model_exclude_sub(vec)
             else:
                 self.learn_up(vec, meta)
         else:
             self.n_upper += 1
-            if self.is_min:
+            if self.do_min:
+                self.log.debug(f"fast upper: wt {len(vec)} meta {meta}")
                 self.system.add_upper(vec, meta)
+                self.model_exclude_super(vec)
             else:
                 self.learn_down(vec, meta)
 

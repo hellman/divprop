@@ -41,7 +41,7 @@ class CNF:
 
     def solve(self, assumptions=()):
         sol = self._solver.solve(assumptions=assumptions)
-        if not sol:
+        if sol is None or sol is False:
             return False
         model = self._solver.get_model()
         return {(i+1): int(v > 0) for i, v in enumerate(model)}

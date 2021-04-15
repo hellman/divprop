@@ -1,39 +1,37 @@
 import os
-from itertools import combinations
 
 from binteger import Bin
 
-from divprop.inequalities.monopool import (
-    InequalitiesPool, LPbasedOracle, LazySparseSystem,
+from divprop.inequalities import (
+    InequalitiesPool, LPbasedOracle, satisfy,
 )
-from divprop.system_learn import (
+from divprop.learn.learn import (
     SupportLearner, RandomMaxFeasible,
-    UnknownFillSAT, UnknownFillMILP,
+    GainanovSAT, UnknownFillMILP,
     SATVerifier, Verifier,
 )
 
-from divprop.inequalities.base import satisfy, inner
 from divprop.subsets import DenseSet
 from divprop import logging
 
 logging.setup(level="DEBUG")
 log = logging.getLogger()
 
-fileprefix = "/work/division/workspace/data/sbox_skinny_4/divcore.lb"
+# fileprefix = "/work/division/workspace/data/sbox_skinny_4/divcore.lb"
 
-fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
-fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
-fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
+# fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
+# fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
+# fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
 
-fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
-fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
-fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
+# fileprefix = "/work/division/workspace/data/sbox_present/divcore.lb"
+# fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
+# fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
 
-# fileprefix = "/work/division/workspace/data/sbox_present/ddt"
-fileprefix = "/work/division/workspace/data/sbox_presentmod/ptt"
+fileprefix = "/work/division/workspace/data/sbox_present/ddt"
+# fileprefix = "/work/division/workspace/data/sbox_presentmod/ptt"
 # fileprefix = "/work/division/workspace/data/sbox_present/ptt"
 
-fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
+# fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
 # fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
 #fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubo"
 
@@ -45,7 +43,7 @@ fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
 # fileprefix = "/work/division/workspace/data/sbox_piccolo/ddt"
 # fileprefix = "/work/division/workspace/data/sbox_mibs/ddt"
 # fileprefix = "/work/division/workspace/data/sbox_lilliput_ae/ddt"
-fileprefix = "/work/division/workspace/data/sbox_ascon/ddt"
+# fileprefix = "/work/division/workspace/data/sbox_ascon/ddt"
 
 sysfile = fileprefix + ".system"
 
@@ -55,9 +53,11 @@ if 0:
     except Exception as err:
         pass
 
-pool = InequalitiesPool.from_DenseSet_files(fileprefix)
-pool.set_oracle(LPbasedOracle(solver="sage/glpk"))
-pool.set_system(LazySparseSystem(sysfile=sysfile))
+pool = InequalitiesPool.from_DenseSet_files(
+    fileprefix=fileprefix,
+    oracle=LPbasedOracle(solver="sage/glpk"),
+    sysfile=None,
+)
 
 # SL = SupportLearner(level=3)
 # SL.init(system=pool.system, oracle=pool.oracle)
@@ -65,62 +65,62 @@ pool.set_system(LazySparseSystem(sysfile=sysfile))
 
 if 0:
     RandMax = RandomMaxFeasible(base_level=2, extremize_rate=100)
-    RandMax.init(system=pool.system, oracle=pool.oracle)
+    RandMax.init(system=pool.system)
     RandMax.learn(num=5_000)
 
 if 0:
     Comp = UnknownFillMILP(extremize_rate=25, solver="sage/gurobi", batch_size=10)
-    Comp.init(system=pool.system, oracle=pool.oracle)
+    Comp.init(system=pool.system)
     Comp.learn(level=4, num=50)
 
 if 0:
     while True:
         try:
             Comp = UnknownFillMILP(extremize_rate=1, solver="sage/gurobi", batch_size=1)
-            Comp.init(system=pool.system, oracle=pool.oracle)
+            Comp.init(system=pool.system)
             Comp.learn(maximization=True, num=1)
 
             Comp = UnknownFillMILP(extremize_rate=1, solver="sage/gurobi", batch_size=1)
-            Comp.init(system=pool.system, oracle=pool.oracle)
+            Comp.init(system=pool.system)
             Comp.learn(maximization=False, num=1)
         except EOFError:
             break
 
-if 0:
+if 1:
     try:
-        sat = UnknownFillSAT(
-            minimization=False,
+        sat = GainanovSAT(
+            sense="min",
             save_rate=100,
             solver="cadical",
         )
-        sat.init(system=pool.system, oracle=pool.oracle)
-        sat.learn(num=10**9)
-    except EOFError:
-        print("solved?!")
+        sat.init(system=pool.system)
+        sat.learn()
+    except EOFError as e:
+        print("solved?!", e)
         pass
 
 if 0:
     # Ver = Verifier(solver="gurobi")
     Ver = SATVerifier(solver="cadical")
-    Ver.init(system=pool.system, oracle=pool.oracle)
+    Ver.init(system=pool.system)
     Ver.learn(clean=False)
 
 pool.system.log_info()
 
-if 0:
+pool.write_subset_milp("/tmp/test.lp")
+quit()
+
+if 1:
     print("test 1")
-    for fset in pool.system.infeasible:
-        assert not pool.oracle.query(Bin(fset, pool.N))
+    for vec in pool.system.upper:
+        assert not pool.oracle.query(vec)[0]
 
     print("test 2")
-    for v in pool.system.feasible:
-        ineq = pool.system.solution[v].ineq
-        badinds = Bin(v, pool.N).support()
-        # print("v", Bin(v, pool.N), "badinds", badinds, "ineq", ineq)
-        res = pool.oracle.query(Bin(v, pool.N))
-        # print("query", res)
+    for vec in pool.system.lower:
+        ineq = pool.system.meta[vec]
+        assert pool.oracle.query(vec)[0]
         assert all(satisfy(q, ineq) for q in pool.good)
-        assert all(not satisfy(pool.i2bad[i], ineq) for i in badinds)
+        assert all(not satisfy(pool.i2bad[i], ineq) for i in vec)
 
 print("minimizing...")
 

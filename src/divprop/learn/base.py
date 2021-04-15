@@ -31,13 +31,15 @@ class LowerSetLearn:
             self,
             n: int,
             file: str = None,
+            oracle: callable = None,
             extra_prec: ExtraPrec = None,
         ):
 
         self.n = int(n)
 
-        self.extra_prec = extra_prec
         self.file = file
+        self.oracle = oracle
+        self.extra_prec = extra_prec
 
         self.lower = set()
         self.upper = set()
@@ -55,10 +57,12 @@ class LowerSetLearn:
                 )
                 self.save_to_file(self.file)
                 raise
+        self.log_info()
 
     def load(self):
         if self.file:
             self.load_from_file(self.file)
+        self.log_info()
 
     def load_from_file(self, filename):
         prevn = self.n
@@ -70,7 +74,6 @@ class LowerSetLearn:
         ) = data
         assert self.n == prevn
         self.log.info(f"loaded state from file {filename}")
-        self.log_info()
 
     def save_to_file(self, filename):
         data = (
@@ -80,7 +83,6 @@ class LowerSetLearn:
         with open(filename, "wb") as f:
             pickle.dump(data, f)
         self.log.info(f"saved state to file {filename}")
-        self.log_info()
 
     def log_info(self):
         for (name, s) in [

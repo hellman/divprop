@@ -6,14 +6,14 @@ from binteger import Bin
 
 from divprop.subsets import DenseSet, SparseSet
 
-from divprop.inequalities import inner, satisfy
-
 from divprop.milp import MILP
 from divprop.milp.symbase import LPwriter
 
 from divprop.learn import LowerSetLearn, ExtraPrec_LowerSet
 
 from divprop.logs import logging
+
+from .base import inner, satisfy
 
 
 class TypeGood(Enum):
@@ -26,7 +26,7 @@ class InequalitiesPool:
     log = logging.getLogger(f"{__name__}:InequalitiesPool")
 
     @classmethod
-    def from_DenseSet_files(cls, fileprefix, checks=True):
+    def from_DenseSet_files(cls, fileprefix, checks=True, **opts):
         sysfile = fileprefix + ".system"
 
         points_good = DenseSet.load_from_file(fileprefix + ".good.set")
@@ -49,11 +49,12 @@ class InequalitiesPool:
                 # not necessary ("don't care" points)
                 # assert (points_good | points_bad).is_full()
 
+        opts.setdefault("sysfile", sysfile)
         pool = cls(
             points_good=points_good.to_Bins(),
             points_bad=points_bad.to_Bins(),
             type_good=type_good,
-            sysfile=sysfile,
+            **opts
         )
         assert pool.N == len(points_bad)
         return pool
@@ -108,7 +109,7 @@ class InequalitiesPool:
         if oracle is None:
             oracle = LPbasedOracle()
         self.oracle = oracle
-        self.oracle.attach_to_pool(self)
+        self.oracle.set_pool(self)
 
         self.system = LowerSetLearn(
             n=self.N,
@@ -374,6 +375,11 @@ class LPbasedOracle:
 
     def __call__(self, bads: SparseSet):
         assert isinstance(bads, SparseSet)
+        if not bads:
+            # trivial inequality
+            ineq = (0,) * self.pool.n + (0,)
+            return True, ineq
+
         if self.milp is None:
             self._prepare_constraints()
 
