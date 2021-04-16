@@ -1,7 +1,7 @@
 import os
-import logging
 import pickle
 
+from itertools import chain
 from collections import Counter
 from queue import Queue
 
@@ -18,6 +18,7 @@ class ExtraPrec:
 
 
 class LowerSetLearn:
+    DATA_VERSION = 1
     log = logging.getLogger(f"{__name__}:LowerSetLearn")
 
     def __init__(
@@ -34,14 +35,17 @@ class LowerSetLearn:
         self.oracle = oracle
         self.extra_prec = extra_prec
 
-        self.lower = set()
-        self.upper = set()
-        self.lower_is_prime = True
-        self.upper_is_prime = True
+        self._lower = set()
+        self._upper = set()
+        self._lower_cache = set()
+        self._upper_cache = set()
+        self._lower_cache_level = None
+        self._upper_cache_level = None
+
         self.meta = {}  # info per elements of lower/upper
 
         self.saved = False
-        if os.path.exists(self.file):
+        if self.file and os.path.exists(self.file):
             self.load()
 
     def save(self):
@@ -69,16 +73,21 @@ class LowerSetLearn:
         with open(filename, "rb") as f:
             data = pickle.load(f)
         (
-            self.lower, self.upper, self.meta, self.n,
-            self.lower_is_prime, self.upper_is_prime,
+            version,
+            self._lower, self._lower_cache, self._lower_cache_level,
+            self._upper, self._upper_cache, self._upper_cache_level,
+            self.meta, self.n,
         ) = data
+        assert version == self.DATA_VERSION, "system format updated?"
         assert self.n == prevn
         self.log.info(f"loaded state from file {filename}")
 
     def save_to_file(self, filename):
         data = (
-            self.lower, self.upper, self.meta, self.n,
-            self.lower_is_prime, self.upper_is_prime,
+            self.DATA_VERSION,
+            self._lower, self._lower_cache, self._lower_cache_level,
+            self._upper, self._upper_cache, self._upper_cache_level,
+            self.meta, self.n,
         )
         with open(filename, "wb") as f:
             pickle.dump(data, f)
@@ -86,14 +95,20 @@ class LowerSetLearn:
 
     def log_info(self):
         for (name, s) in [
-            ("lower", self.lower),
-            ("upper", self.upper),
+            ("lower", self._lower),
+            ("upper", self._upper),
         ]:
             freq = Counter(len(v) for v in s)
             freqstr = " ".join(
                 f"{sz}:{cnt}" for sz, cnt in sorted(freq.items())
             )
             self.log.info(f"  {name} {len(s)}: {freqstr}")
+
+    def is_known_lower(self, vec):
+        return vec in self._lower
+
+    def is_known_upper(self, vec):
+        return vec in self._upper
 
     def add_lower(self, vec, meta=None, is_prime=False):
         assert isinstance(vec, SparseSet)
@@ -102,14 +117,13 @@ class LowerSetLearn:
             vec = self.extra_prec.expand(vec)
 
         # in case of interrupt, consistency is kept
-        if vec not in self.lower:
+        if not self.is_known_lower(vec):
             self.saved = False
-            if not is_prime:
-                self.lower_is_prime = False
 
             if meta is not None:
                 self.meta[vec] = meta
-            self.lower.add(vec)
+
+            self._lower.add(vec)
 
     def add_upper(self, vec, meta=None, is_prime=False):
         assert isinstance(vec, SparseSet)
@@ -118,14 +132,25 @@ class LowerSetLearn:
             vec = self.extra_prec.reduce(vec)
 
         # in case of interrupt, consistency is kept
-        if vec not in self.upper:
+        if not self.is_known_upper(vec):
             self.saved = False
-            if not is_prime:
-                self.upper_is_prime = False
 
             if meta is not None:
                 self.meta[vec] = meta
-            self.upper.add(vec)
+
+            self._upper.add(vec)
+
+    def iter_lower(self):
+        return iter(self._lower)
+
+    def iter_upper(self):
+        return iter(self._upper)
+
+    def n_lower(self):
+        return len(self._lower)
+
+    def n_upper(self):
+        return len(self._upper)
 
 
 class ExtraPrec_LowerSet(ExtraPrec):

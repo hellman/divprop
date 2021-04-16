@@ -145,7 +145,7 @@ class InequalitiesPool:
         self.log.info(
             "InequalitiesPool.choose_all()"
         )
-        return self._output_results(self.system.lower)
+        return self._output_results(list(self.system.iter_lower()))
 
     def create_subset_milp(self, solver=None):
         """
@@ -156,10 +156,10 @@ class InequalitiesPool:
             f"InequalitiesPool.create_subset_milp(solver={solver})"
         )
         self.log.info(
-            f"{len(self.system.lower)} ineqs {len(self.bad)} bad points"
+            f"{self.system.n_lower()} ineqs {len(self.bad)} bad points"
         )
 
-        vec_order = list(self.system.lower)
+        vec_order = list(self.system.iter_lower())
 
         milp = MILP.minimization(solver=solver)
         n = len(vec_order)
@@ -221,7 +221,8 @@ class InequalitiesPool:
         ):
         self.log.debug("preparing greedy")
 
-        vec_order = list(self.system.lower)
+        # tbd update for non-prime option (clean up or ... ?)
+        vec_order = list(self.system.iter_lower())
         M = len(vec_order)
 
         by_vec = {j: set(vec_order[j]) for j in range(M)}
@@ -327,10 +328,10 @@ class InequalitiesPool:
             ")"
         )
         self.log.info(
-            f"{len(self.system.lower)} ineqs {len(self.bad)} bad points"
+            f"{self.system.n_lower()} ineqs {len(self.bad)} bad points"
         )
 
-        best = len(self.system.lower) + 1, None
+        best = float("+inf"), None
         for itr in range(iterations):
             Lstar = self.choose_subset_greedy_once(eps=eps)
 

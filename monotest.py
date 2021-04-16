@@ -5,10 +5,9 @@ from binteger import Bin
 from divprop.inequalities import (
     InequalitiesPool, LPbasedOracle, satisfy,
 )
-from divprop.learn.learn import (
-    SupportLearner, RandomMaxFeasible,
-    GainanovSAT, UnknownFillMILP,
-    SATVerifier, Verifier,
+from divprop.learn import (
+    GainanovSAT, RandomLower,
+    # SATVerifier, Verifier,
 )
 
 from divprop.subsets import DenseSet
@@ -27,11 +26,11 @@ log = logging.getLogger()
 # fileprefix = "/work/division/workspace/data/sbox_present/divcore.ubc"
 # fileprefix = "/work/division/workspace/data/sbox_present/divcore.full"
 
-fileprefix = "/work/division/workspace/data/sbox_present/ddt"
+# fileprefix = "/work/division/workspace/data/sbox_present/ddt"
 # fileprefix = "/work/division/workspace/data/sbox_presentmod/ptt"
 # fileprefix = "/work/division/workspace/data/sbox_present/ptt"
 
-# fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
+fileprefix = "/work/division/workspace/data/sbox_aes/divcore.lb"
 # fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubc"
 #fileprefix = "/work/division/workspace/data/sbox_aes/divcore.ubo"
 
@@ -56,7 +55,7 @@ if 0:
 pool = InequalitiesPool.from_DenseSet_files(
     fileprefix=fileprefix,
     oracle=LPbasedOracle(solver="sage/glpk"),
-    # sysfile=None,
+    sysfile=None,
 )
 
 # SL = SupportLearner(level=3)
@@ -64,61 +63,38 @@ pool = InequalitiesPool.from_DenseSet_files(
 # SL.learn()
 
 if 0:
-    RandMax = RandomMaxFeasible(base_level=2, extremize_rate=100)
-    RandMax.init(system=pool.system)
-    RandMax.learn(num=5_000)
-
-if 0:
-    Comp = UnknownFillMILP(extremize_rate=25, solver="sage/gurobi", batch_size=10)
-    Comp.init(system=pool.system)
-    Comp.learn(level=4, num=50)
-
-if 0:
-    while True:
-        try:
-            Comp = UnknownFillMILP(extremize_rate=1, solver="sage/gurobi", batch_size=1)
-            Comp.init(system=pool.system)
-            Comp.learn(maximization=True, num=1)
-
-            Comp = UnknownFillMILP(extremize_rate=1, solver="sage/gurobi", batch_size=1)
-            Comp.init(system=pool.system)
-            Comp.learn(maximization=False, num=1)
-        except EOFError:
-            break
+    low = RandomLower(max_repeat_rate=0.9)
+    low.init(system=pool.system)
+    low.learn()
 
 if 1:
-    try:
-        sat = GainanovSAT(
-            sense="min",
-            save_rate=100,
-            solver="cadical",
-        )
-        sat.init(system=pool.system)
-        sat.learn()
-    except EOFError as e:
-        print("solved?!", e)
-        pass
+    sat = GainanovSAT(
+        sense="min",
+        save_rate=100,
+        solver="cadical",
+    )
+    sat.init(system=pool.system)
+    ret = sat.learn_safe()
+    print("GainanovSAT returned", ret)
 
 if 0:
-    # Ver = Verifier(solver="gurobi")
     Ver = SATVerifier(solver="cadical")
     Ver.init(system=pool.system)
-    Ver.learn(clean=False)
+    Ver.learn()
 
 pool.system.log_info()
 
 pool.write_subset_milp("/tmp/test.lp")
-quit()
 
 if 1:
     print("test 1")
-    for vec in pool.system.upper:
-        assert not pool.oracle.query(vec)[0]
+    for vec in pool.system.iter_upper():
+        assert not pool.oracle(vec)[0]
 
     print("test 2")
-    for vec in pool.system.lower:
+    for vec in pool.system.iter_lower():
         ineq = pool.system.meta[vec]
-        assert pool.oracle.query(vec)[0]
+        assert pool.oracle(vec)[0]
         assert all(satisfy(q, ineq) for q in pool.good)
         assert all(not satisfy(pool.i2bad[i], ineq) for i in vec)
 
