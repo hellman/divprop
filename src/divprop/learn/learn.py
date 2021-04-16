@@ -6,8 +6,7 @@ from itertools import combinations
 from collections import Counter, defaultdict
 
 from binteger import Bin
-
-from divprop.subsets import SparseSet
+from subsets import SparseSet
 
 from divprop.logs import logging
 

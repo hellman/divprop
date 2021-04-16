@@ -4,12 +4,14 @@ Manipulations on sets of binary vectors / subsets of some set.
 
 from itertools import combinations
 
-from divprop.libsubsets import *
-from divprop.libsubsets import DenseSet
+from binteger import Bin
+
+from .lib import *
+
+from .lib import DenseSet
 
 from .SparseSet import SparseSet
 
-from binteger import Bin
 
 
 def QMC1(P, n=None):

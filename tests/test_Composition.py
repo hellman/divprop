@@ -1,8 +1,3 @@
-from functools import reduce
-from random import shuffle, randrange
-
-from binteger import Bin
-from divprop.subsets import DenseSet
 from divprop.divcore import DivCore
 from divprop.divcore import DivCore_StrongComposition
 import divprop.logs as logging

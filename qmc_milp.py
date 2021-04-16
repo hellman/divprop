@@ -9,13 +9,10 @@ from divprop.inequalities.monopool import (
     tuple_xor, IneqInfo, shift_ineq,
 )
 from divprop.system_learn import (
-    SupportLearner, RandomMaxFeasible,
-    UnknownFillSAT, UnknownFillMILP,
-    SATVerifier, Verifier,
+    RandomMaxFeasible, GainanovSAT
 )
 
-from divprop.inequalities.base import satisfy, inner
-from divprop.subsets import DenseSet, QMC1
+from subsets import DenseSet
 from divprop import logging
 from divprop.tools import get_sbox, get_sbox_sizes
 
@@ -25,7 +22,7 @@ log = logging.getLogger()
 n = 10
 
 name = "present"
-name = "aes"
+#name = "aes"
 # name = "ascon"
 name = sys.argv[1]
 log.info(f"starting qmc_milp with name {name}")

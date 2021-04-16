@@ -1,9 +1,9 @@
 from random import randint, seed, random
-from divprop.subsets import DenseSet
 from collections import defaultdict
 from functools import reduce
 
 from binteger import Bin
+from subsets import DenseSet
 
 from divprop.inequalities.monopool import (
     InequalitiesPool, LPbasedOracle, LazySparseSystem,

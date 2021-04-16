@@ -1,6 +1,6 @@
 from random import shuffle
 
-from divprop.subsets import SparseSet
+from subsets import SparseSet
 
 from divprop.logs import logging
 

@@ -1,5 +1,6 @@
 from binteger import Bin
-from divprop.subsets import SparseSet
+from subsets import SparseSet
+
 from divprop.learn import ExtraPrec_LowerSet
 
 

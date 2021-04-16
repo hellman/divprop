@@ -1,5 +1,5 @@
 from binteger import Bin
-from divprop.subsets import (
+from subsets import (
     DynamicLowerSet, DynamicUpperSet, DenseSet,
     GrowingUpperFrozen, GrowingLowerFrozen,
 )

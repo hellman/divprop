@@ -3,7 +3,7 @@ from queue import PriorityQueue
 
 from binteger import Bin
 
-from divprop.subsets import (
+from subsets import (
     DenseSet,
     DivCore_StrongComposition,
     DivCore_StrongComposition8,

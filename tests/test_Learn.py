@@ -4,8 +4,8 @@ logging.basicConfig(level=logging.DEBUG)
 from random import randrange, seed
 
 from binteger import Bin
+from subsets import DenseSet
 
-from divprop.subsets import DenseSet
 from divprop.learn import LowerSetLearn
 
 

@@ -6,7 +6,7 @@ from itertools import chain
 from collections import Counter
 from queue import Queue
 
-from divprop.subsets import SparseSet
+from subsets import SparseSet
 from divprop.logs import logging
 
 from .LevelLearn import LevelCache

@@ -1,4 +1,4 @@
-%module(package="divprop") libsubsets
+%module(package="subsets") lib
 
 %include <std_vector.i>
 %include <std_string.i>
@@ -36,9 +36,9 @@
     }
 }
 
-%include "subsets/DenseSet.hpp"
-%include "divprop/DivCore.hpp"
-%include "sbox/Sbox.hpp"
+%include "../subsets/DenseSet.hpp"
+%include "../divprop/divprop/DivCore.hpp"
+%include "../sbox/Sbox.hpp"
 
 %template(Sbox8) T_Sbox<uint8_t>;
 %template(Sbox16) T_Sbox<uint16_t>;

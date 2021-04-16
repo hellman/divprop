@@ -16,7 +16,7 @@ import argparse
 
 from binteger import Bin
 
-from divprop.subsets import DenseSet, Sbox, Sbox32
+from subsets import DenseSet, Sbox, Sbox32
 from divprop.divcore import DivCore, SboxPeekANFs
 
 import divprop.logs as logging

@@ -3,9 +3,16 @@ from distutils.core import Extension
 
 package_dir = {'': 'src'}
 
-packages = ['divprop', 'divprop.inequalities']
+packages = [
+    'divprop',
+    'subsets',
+]
 
-package_data = {'': ['*'], 'divprop': ['common/*', 'subsets/*', '*.so']}
+package_data = {
+    '': ['*'],
+    'divprop': ['../common/*', 'subsets/*'],
+    'subsets': ['../common/*', '*.so'],
+}
 
 install_requires = [
     'binteger>=0.7.0',
@@ -47,25 +54,25 @@ setup(
         # interaction between extensions is messy
         # so let's put everything in one...
         Extension(
-            "divprop._libsubsets",
+            "subsets._lib",
             include_dirs=[
                 "./src/",
-                "./src/divprop/common/",
-                "./src/divprop/subsets/",
+                "./src/common/",
+                "./src/subsets/",
+                "./src/sbox/",
                 "./src/divprop/divprop/",
-                "./src/divprop/sbox/",
             ],
             depends=[
-                "./src/divprop/common/common.hpp",
-                "./src/divprop/common/Sweep.hpp",
-                "./src/divprop/subsets/DenseSet.hpp",
+                "./src/common/common.hpp",
+                "./src/common/Sweep.hpp",
+                "./src/subsets/DenseSet.hpp",
                 "./src/divprop/divprop/DivCore.hpp",
-                "./src/divprop/sbox/Sbox.hpp",
+                "./src/sbox/Sbox.hpp",
             ],
             sources=[
-                "./src/divprop/libsubsets.i",
-                "./src/divprop/subsets/DenseSet.cpp",
-                "./src/divprop/sbox/Sbox.cpp",
+                "./src/subsets/lib.i",
+                "./src/subsets/DenseSet.cpp",
+                "./src/sbox/Sbox.cpp",
             ],
             swig_opts=["-c++", "-DSWIGWORDSIZE64"],  # https://github.com/swig/swig/issues/568
             extra_compile_args=["-std=c++2a", "-O2", "-fopenmp"],

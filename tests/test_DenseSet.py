@@ -1,5 +1,6 @@
 from random import randrange
-from divprop.subsets import DenseSet
+
+from subsets import DenseSet
 
 
 def assert_raises(f, err=RuntimeError):

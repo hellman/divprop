@@ -1,6 +1,6 @@
 lib:
 	python setup.py bdist_wheel
-	cp build/lib.linux-x86_64-3.8/divprop/*.so src/divprop/
+	cp build/lib.linux-x86_64-3.8/subsets/*.so src/subsets/
 	#make
 	# make test
 	
@@ -18,15 +18,15 @@ qpypy:
 
 
 test:
-	python -m pytest --doctest-modules tests/ src/divprop/
-	python -m pytest --doctest-modules tests_sage/ src/divprop/
+	python -m pytest --doctest-modules tests/ src/
+	python -m pytest --doctest-modules tests_sage/
 	#sage -sh -c 'pytest tests/ tests_sage/'
 
 clean:
 	rm -rf build dist *.egg-info __pycache__
-	rm -f src/divprop/*_wrap*
-	rm -f src/divprop/libsubsets.py
-	rm -f src/divprop/*.so
+	rm -f src/subsets/*_wrap*
+	rm -f src/subsets/libsubsets.py
+	rm -f src/subsets/*.so
 
 venv:
 	sage -python -m venv --system-site-packages .envsage/

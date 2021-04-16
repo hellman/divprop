@@ -1,6 +1,7 @@
 import os
 
 from binteger import Bin
+from subsets import DenseSet
 
 from divprop.inequalities import (
     InequalitiesPool, LPbasedOracle, satisfy,
@@ -10,7 +11,6 @@ from divprop.learn import (
     # SATVerifier, Verifier,
 )
 
-from divprop.subsets import DenseSet
 from divprop import logging
 
 logging.setup(level="DEBUG")

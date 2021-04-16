@@ -5,10 +5,10 @@ __pycache__
 poetry.lock
 *.so
 *_wrap.*
-src/divprop/libsubsets.py
 .envsage
 actisage
 results/
 logs/
 data/
 divcore_random/
+src/subsets/lib.py

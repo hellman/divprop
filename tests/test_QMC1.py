@@ -1,7 +1,7 @@
 from random import randrange, seed
 from collections import Counter
 
-from divprop.subsets import DenseSet, QMC1
+from subsets import DenseSet, QMC1
 
 
 def test_QMC1():

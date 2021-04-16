@@ -4,7 +4,7 @@ from enum import Enum
 
 from binteger import Bin
 
-from divprop.subsets import DenseSet, SparseSet
+from subsets import DenseSet, SparseSet
 
 from divprop.milp import MILP
 from divprop.milp.symbase import LPwriter

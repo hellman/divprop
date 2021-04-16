@@ -1,4 +1,4 @@
-from divprop.subsets import Sbox
+from subsets import Sbox
 
 
 def test_Sbox():

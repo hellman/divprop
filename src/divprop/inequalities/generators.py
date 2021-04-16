@@ -43,7 +43,7 @@ from . import (
     # Polyhedron,
 )
 
-from divprop.subsets import (
+from subsets import (
     DenseSet,
     neibs_up_tuple, not_tuple, support_int_le,
     WeightedFrozenSets,

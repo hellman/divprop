@@ -3,7 +3,7 @@ import os
 import argparse
 from argparse import RawTextHelpFormatter
 
-from divprop.subsets import DenseSet
+from subsets import DenseSet
 # from divprop.inequalities import InequalitiesPool
 import divprop.logs as logging
 
