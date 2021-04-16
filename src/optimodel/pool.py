@@ -5,11 +5,10 @@ from enum import Enum
 from binteger import Bin
 
 from subsets import DenseSet, SparseSet
+from subsets.learn import LowerSetLearn, Oracle, ExtraPrec_LowerSet
 
-from divprop.milp import MILP
-from divprop.milp.symbase import LPwriter
-
-from divprop.learn import LowerSetLearn, Oracle, ExtraPrec_LowerSet
+from optisolveapi.milp import MILP
+from optisolveapi.milp.symbase import LPwriter
 
 from divprop.logs import logging
 

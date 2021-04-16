@@ -4,8 +4,8 @@ from subsets import SparseSet
 
 from divprop.logs import logging
 
-from divprop.milp import MILP
-from divprop.sat import CNF
+from optisolveapi.milp import MILP
+from optisolveapi.sat import CNF
 
 from .utils import truncstr
 

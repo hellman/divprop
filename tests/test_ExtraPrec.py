@@ -1,7 +1,6 @@
 from binteger import Bin
 from subsets import SparseSet
-
-from divprop.learn import ExtraPrec_LowerSet
+from subsets.learn import ExtraPrec_LowerSet
 
 
 def test_EP():

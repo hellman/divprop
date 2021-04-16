@@ -6,6 +6,8 @@ package_dir = {'': 'src'}
 packages = [
     'divprop',
     'subsets',
+    'optisolveapi',
+    'optimodel',
 ]
 
 package_data = {
@@ -22,11 +24,11 @@ install_requires = [
 
 entry_points = {
     'console_scripts': [
+        'subsets.setinfo = subsets.tools:tool_setinfo',
         'divprop.sbox_ineqs = divprop.sbox_ineqs:main',
         'divprop.sbox2divcore = divprop.tools:tool_sbox2divcore',
         'divprop.sbox2ddt = divprop.tools:tool_sbox2ddt',
         'divprop.sbox2ptt = divprop.tools:tool_sbox2ptt',
-        'divprop.setinfo = divprop.tools:tool_setinfo',
         'divprop.divcore2bounds = divprop.tools:tool_divcore2bounds',
         'divprop.mono2ineqs = divprop.inequalities.tools:tool_mono2ineqs',
         'divprop.random_sbox_benchmark = divprop.tool_random_sbox_benchmark:tool_RandomSboxBenchmark',
@@ -36,7 +38,10 @@ entry_points = {
 setup(
     name='divprop',
     version='0.2.1',
-    description='Tools for Division Property Cryptanalysis',
+    description=''
+                'Tools for Cryptanalysis '
+                '(Subsets & Transforms, MILP modeling, Division property)'
+                '',
     long_description=None,
     author='Aleksei Udovenko',
     author_email="aleksei@affine.group",

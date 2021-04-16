@@ -1,6 +1,6 @@
 from divprop.sbox_ineqs import get_sbox, get_sbox_sizes
 from divprop.divcore import DivCore
-from divprop.inequalities import satisfy
+from optimodel import satisfy
 from binteger import Bin
 from glob import glob
 

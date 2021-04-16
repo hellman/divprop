@@ -6,7 +6,7 @@ from subsets import DenseSet
 from divprop.inequalities import (
     InequalitiesPool, LPbasedOracle, satisfy,
 )
-from divprop.learn import (
+from subsets.learn import (
     GainanovSAT, RandomLower, LevelLearn,
     # SATVerifier, Verifier,
 )

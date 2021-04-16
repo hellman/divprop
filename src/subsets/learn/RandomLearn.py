@@ -1,18 +1,12 @@
-import time
-
 from random import shuffle, random
 from itertools import combinations
 
 from collections import Counter, defaultdict
 
 from binteger import Bin
-
 from subsets import SparseSet
 
 from divprop.logs import logging
-
-from divprop.milp import MILP
-from divprop.sat import CNF
 
 from .LearnModule import LearnModule
 

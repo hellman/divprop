@@ -1,6 +1,6 @@
 import time
 
-from divprop.milp import MILP, has_scip, has_sage, has_gurobi
+from optisolveapi.milp import MILP, has_scip, has_sage, has_gurobi
 
 
 def test_milp():
@@ -15,7 +15,7 @@ def test_milp():
     if has_gurobi:
         solvers.append("gurobi")
 
-    solvers.append("external/glpk")
+    # solvers.append("external/glpk")
 
     for i in range(2):
         for solver in solvers:

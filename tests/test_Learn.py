@@ -6,7 +6,7 @@ from random import randrange, seed
 from binteger import Bin
 from subsets import DenseSet
 
-from divprop.learn import LowerSetLearn
+from subsets.learn import LowerSetLearn
 
 
 def atest_LSL():
