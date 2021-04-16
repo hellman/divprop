@@ -151,7 +151,7 @@ class LearnModule:
 
     def learn_down(self, vec: SparseSet, meta=None):
         """reduce given upper element to minimal one"""
-        if self.system.is_prime_upper(vec):
+        if self.system.is_known_upper(vec):
             return
 
         self.log.debug(
@@ -162,7 +162,7 @@ class LearnModule:
         shuffle(inds)
         for i in inds:
             new_vec = vec - i
-            assert not self.system.is_prime_upper(new_vec)
+            assert not self.system.is_known_upper(new_vec)
             if self.system.is_known_lower(new_vec):
                 continue
 
@@ -174,7 +174,7 @@ class LearnModule:
             meta = new_meta
 
         assert not self.system.is_known_lower(vec)
-        assert not self.system.is_prime_upper(vec)
+        assert not self.system.is_known_upper(vec)
 
         self.system.add_upper(vec, meta=meta, is_prime=True)
         self.model_exclude_super(vec)
@@ -184,7 +184,7 @@ class LearnModule:
 
     def learn_up(self, vec: SparseSet, meta=None):
         """lift given lower element to a maximal one"""
-        if self.system.is_prime_lower(vec):
+        if self.system.is_known_lower(vec):
             return
 
         self.log.debug(
@@ -195,7 +195,7 @@ class LearnModule:
         shuffle(inds)
         for i in inds:
             new_vec = vec | i
-            assert not self.system.is_prime_lower(new_vec)
+            assert not self.system.is_known_lower(new_vec)
             if self.system.is_known_upper(new_vec):
                 continue
 
@@ -206,7 +206,7 @@ class LearnModule:
             vec = new_vec
             meta = new_meta
 
-        assert not self.system.is_prime_lower(vec)
+        assert not self.system.is_known_lower(vec)
         assert not self.system.is_known_upper(vec)
 
         self.system.add_lower(vec, meta=meta, is_prime=True)

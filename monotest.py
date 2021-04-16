@@ -55,7 +55,7 @@ if 0:
 pool = InequalitiesPool.from_DenseSet_files(
     fileprefix=fileprefix,
     oracle=LPbasedOracle(solver="sage/glpk"),
-    sysfile=None,
+    # sysfile=None,
 )
 
 # SL = SupportLearner(level=3)
@@ -87,8 +87,6 @@ if 0:
     Ver = SATVerifier(solver="cadical")
     Ver.init(system=pool.system)
     Ver.learn()
-
-pool.system.log_info()
 
 pool.write_subset_milp("/tmp/test.lp")
 

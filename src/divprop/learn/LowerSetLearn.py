@@ -1,4 +1,5 @@
 import os
+import gzip
 import pickle
 
 from itertools import chain
@@ -20,7 +21,7 @@ class ExtraPrec:
 
 
 class LowerSetLearn:
-    DATA_VERSION = 1
+    DATA_VERSION = 2
     log = logging.getLogger(f"{__name__}:LowerSetLearn")
 
     def __init__(
@@ -37,17 +38,24 @@ class LowerSetLearn:
         self.oracle = oracle
         self.extra_prec = extra_prec
 
+        # "final" vectors, ideally prime elements
+        # but not always practical to check/push
         self._lower = set()
         self._upper = set()
-
-        self._lower_cache = LevelCache()
-        self._upper_cache = LevelCache()
 
         self.meta = {}  # info per elements of lower/upper
 
         self.saved = False
         if self.file and os.path.exists(self.file):
             self.load()
+
+    def clean(self):
+        self.oracle.clean()
+
+        self.meta = {
+            vec: meta for vec, meta in self.meta.items()
+            if vec in self._lower or vec in self._upper
+        }
 
     def save(self):
         if self.file and not self.saved:
@@ -71,12 +79,12 @@ class LowerSetLearn:
 
     def load_from_file(self, filename):
         prevn = self.n
-        with open(filename, "rb") as f:
+        with gzip.open(filename, "rb") as f:
             data = pickle.load(f)
         (
             version,
-            self._lower, self._lower_cache,
-            self._upper, self._upper_cache,
+            self._lower, self._upper,
+            self.oracle.data,
             self.meta, self.n,
         ) = data
         assert version == self.DATA_VERSION, "system format updated?"
@@ -86,11 +94,11 @@ class LowerSetLearn:
     def save_to_file(self, filename):
         data = (
             self.DATA_VERSION,
-            self._lower, self._lower_cache,
-            self._upper, self._upper_cache,
+            self._lower, self._upper,
+            self.oracle.data,
             self.meta, self.n,
         )
-        with open(filename, "wb") as f:
+        with gzip.open(filename, "wb") as f:
             pickle.dump(data, f)
         self.log.info(f"saved state to file {filename}")
 
@@ -106,16 +114,10 @@ class LowerSetLearn:
             self.log.info(f"  {name} {len(s)}: {freqstr}")
 
     def is_known_lower(self, vec):
-        return vec in self._lower or self._lower_cache.has(vec)
+        return vec in self._lower
 
     def is_known_upper(self, vec):
-        return vec in self._upper or self._upper_cache.has(vec)
-
-    def is_prime_lower(self, vec):
-        return vec in self._lower  # or vec in self._lower_cache
-
-    def is_prime_upper(self, vec):
-        return vec in self._upper  # or vec in self._upper_cache
+        return vec in self._upper
 
     def add_lower(self, vec, meta=None, is_prime=False):
         assert isinstance(vec, SparseSet)
@@ -198,3 +200,56 @@ class ExtraPrec_LowerSet(ExtraPrec):
             if q in self.point2int:
                 res.append(self.point2int[q])
         return SparseSet(res)
+
+
+class Oracle:
+    class UnknownMeta:
+        pass
+
+    def __init__(self):
+        self._lower_cache = LevelCache()
+        self._upper_cache = LevelCache()
+        self._cache = {}
+
+    def disable_cache(self):
+        self._cache = None
+
+    def clean(self, levels=True, main=True):
+        if levels:
+            self._lower_cache = LevelCache()
+            self._upper_cache = LevelCache()
+        if main:
+            self._cache = {}
+
+    @property
+    def data(self):
+        return (
+            self._lower_cache,
+            self._upper_cache,
+            self._cache,
+        )
+
+    @data.setter
+    def data(self, data):
+        (
+            self._lower_cache,
+            self._upper_cache,
+            self._cache,
+        ) = data
+
+    def __call__(self, vec: SparseSet):
+        if self._cache and vec in self._cache:
+            return self._cache[vec]
+
+        if self._lower_cache.has(vec):
+            meta = self._lower_cache.meta.get(vec, self.UnknownMeta)
+            return True, meta
+
+        if self._upper_cache.has(vec):
+            meta = self._upper_cache.meta.get(vec, self.UnknownMeta)
+            return False, meta
+
+        ret = self._query(vec)
+        if self._cache is not None:
+            self._cache[vec] = ret
+        return ret

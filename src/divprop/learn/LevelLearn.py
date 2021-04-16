@@ -28,7 +28,7 @@ class LevelLearn(LearnModule):
             self.learn_upper(down_to=self.n - self.levels_upper + 1)
 
     def learn_lower(self, up_to):
-        cache = self.system._lower_cache
+        cache = self.system.oracle._lower_cache
 
         if cache.range is None:
             current = -1
@@ -42,7 +42,7 @@ class LevelLearn(LearnModule):
             is_lower, meta = self.oracle(vec)
             if is_lower:
                 self.system.meta[vec] = meta
-                cache.add(vec)
+                cache.add(vec, meta)
             cache.set_range(0, 0)
             current = 0
 
@@ -75,7 +75,7 @@ class LevelLearn(LearnModule):
                 is_lower, meta = self.oracle(vec)
                 if is_lower:
                     self.system.meta[vec] = meta
-                    cache.add(vec)
+                    cache.add(vec, meta)
                     n_good += 1
                 else:
                     # print("upper", vec)
@@ -96,15 +96,22 @@ class LevelLearn(LearnModule):
         raise NotImplementedError()
 
 
+class UnknownMeta:
+    pass
+
+
 class LevelCache:
     def __init__(self):
         self.cache = []
+        self.meta = {}
         self.range = None
 
-    def add(self, vec):
+    def add(self, vec, meta=None):
         while len(self.cache) <= len(vec):
-            self.cache.append(set())
-        self.cache[len(vec)].add(vec)
+            self.cache.append({})
+        if meta is not None:
+            self.meta[vec] = meta
+        self.cache[len(vec)][vec] = meta
 
     def has(self, vec):
         if self.range is None or not self.range[0] <= len(vec) <= self.range[1]:

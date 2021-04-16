@@ -9,7 +9,7 @@ from divprop.subsets import DenseSet, SparseSet
 from divprop.milp import MILP
 from divprop.milp.symbase import LPwriter
 
-from divprop.learn import LowerSetLearn, ExtraPrec_LowerSet
+from divprop.learn import LowerSetLearn, Oracle, ExtraPrec_LowerSet
 
 from divprop.logs import logging
 
@@ -344,8 +344,10 @@ class InequalitiesPool:
         return best[1]
 
 
-class LPbasedOracle:
+class LPbasedOracle(Oracle):
     def __init__(self, solver=None):
+        super().__init__()
+
         self.solver = solver
         self.n_calls = 0
         self.milp = None
@@ -374,7 +376,7 @@ class LPbasedOracle:
         for q in self.pool.i2bad:
             self.i2cs.append(inner(q, self.xs) <= self.c - 1)
 
-    def __call__(self, bads: SparseSet):
+    def _query(self, bads: SparseSet):
         assert isinstance(bads, SparseSet)
         if not bads:
             # trivial inequality
