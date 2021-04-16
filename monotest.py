@@ -6,7 +6,7 @@ from divprop.inequalities import (
     InequalitiesPool, LPbasedOracle, satisfy,
 )
 from divprop.learn import (
-    GainanovSAT, RandomLower,
+    GainanovSAT, RandomLower, LevelLearn,
     # SATVerifier, Verifier,
 )
 
@@ -62,6 +62,12 @@ pool = InequalitiesPool.from_DenseSet_files(
 # SL.init(system=pool.system, oracle=pool.oracle)
 # SL.learn()
 
+if 1:
+    lev = LevelLearn(levels_lower=3)  # 0, 1, 2
+    lev.init(system=pool.system)
+    print(lev.__dict__)
+    lev.learn()
+
 if 0:
     low = RandomLower(max_repeat_rate=0.9)
     low.init(system=pool.system)
@@ -74,7 +80,7 @@ if 1:
         solver="cadical",
     )
     sat.init(system=pool.system)
-    ret = sat.learn_safe()
+    ret = sat.learn()
     print("GainanovSAT returned", ret)
 
 if 0:

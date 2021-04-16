@@ -11,7 +11,7 @@ from .utils import truncstr
 
 
 class LearnModule:
-    log = logging.getLogger(f"{__name__}:LearnModule")
+    log = logging.getLogger(f"{__name__}")
 
     use_point_prec = True
 
@@ -30,18 +30,36 @@ class LearnModule:
         self.n_lower = 0
 
         self.vec_full = SparseSet(range(self.N))
+        self.vec_empty = SparseSet(())
 
         if self.system.extra_prec is None:
             self.use_point_prec = False
 
-    def learn_safe(self):
-        try:
-            ret = self.learn()
-            return ret
-        except BaseException as error:
-            self.log.error(f"learning error {error}, saving")
-            self.system.save()
-            raise
+    def learn(self, safe=True):
+        self.log.info("===============")
+        self.log.info(f"# {type(self).__name__}")
+        self.log.info("===============")
+        self.log.info(f"options {self._options}")
+        self.log.info("starting, stat:")
+        self.system.log_info()
+        self.log.info("---------------")
+
+        if safe:
+            try:
+                ret = self._learn()
+            except BaseException as error:
+                self.log.error(f"learning error {error}, saving")
+                self.system.save()
+                raise
+        else:
+            ret = self._learn()
+
+        self.log.info("---------------")
+        self.log.info("finished, stat:")
+        self.system.save()
+        self.log.info("===============")
+        self.log.info("")
+        return ret
 
     def query(self, vec):
         if self.use_point_prec:
@@ -133,7 +151,7 @@ class LearnModule:
 
     def learn_down(self, vec: SparseSet, meta=None):
         """reduce given upper element to minimal one"""
-        if self.system.is_known_upper(vec):
+        if self.system.is_prime_upper(vec):
             return
 
         self.log.debug(
@@ -143,20 +161,20 @@ class LearnModule:
         inds = list(vec)
         shuffle(inds)
         for i in inds:
-            subvec = vec - i
-            assert not self.system.is_known_upper(vec)
-            if self.system.is_known_lower(subvec):
+            new_vec = vec - i
+            assert not self.system.is_prime_upper(new_vec)
+            if self.system.is_known_lower(new_vec):
                 continue
 
-            is_lower, new_meta = self.query(subvec)
+            is_lower, new_meta = self.query(new_vec)
             if is_lower:
                 continue
 
-            vec = subvec
+            vec = new_vec
             meta = new_meta
 
         assert not self.system.is_known_lower(vec)
-        assert not self.system.is_known_upper(vec)
+        assert not self.system.is_prime_upper(vec)
 
         self.system.add_upper(vec, meta=meta, is_prime=True)
         self.model_exclude_super(vec)
@@ -166,7 +184,7 @@ class LearnModule:
 
     def learn_up(self, vec: SparseSet, meta=None):
         """lift given lower element to a maximal one"""
-        if self.system.is_known_lower(vec):
+        if self.system.is_prime_lower(vec):
             return
 
         self.log.debug(
@@ -176,19 +194,19 @@ class LearnModule:
         inds = list(self.vec_full - vec)
         shuffle(inds)
         for i in inds:
-            supvec = vec | i
-            assert not self.system.is_known_lower(vec)
-            if self.system.is_known_upper(supvec):
+            new_vec = vec | i
+            assert not self.system.is_prime_lower(new_vec)
+            if self.system.is_known_upper(new_vec):
                 continue
 
-            is_lower, new_meta = self.query(supvec)
+            is_lower, new_meta = self.query(new_vec)
             if not is_lower:
                 continue
 
-            vec = supvec
+            vec = new_vec
             meta = new_meta
 
-        assert not self.system.is_known_lower(vec)
+        assert not self.system.is_prime_lower(vec)
         assert not self.system.is_known_upper(vec)
 
         self.system.add_lower(vec, meta=meta, is_prime=True)

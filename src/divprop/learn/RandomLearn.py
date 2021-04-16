@@ -18,7 +18,7 @@ from .LearnModule import LearnModule
 
 
 class RandomLearn(LearnModule):
-    log = logging.getLogger(f"{__name__}:RandomLearn")
+    log = logging.getLogger(f"{__name__}")
 
     prob_lower = 0.5
 

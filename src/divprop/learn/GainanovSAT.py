@@ -7,7 +7,7 @@ from .LearnModule import LearnModule
 
 
 class GainanovSAT(LearnModule):
-    log = logging.getLogger(f"{__name__}:GainanovSAT")
+    log = logging.getLogger(f"{__name__}")
 
     def __init__(
             self,
@@ -24,7 +24,7 @@ class GainanovSAT(LearnModule):
         self.save_rate = int(save_rate)
         self.limit = None if limit is None else int(limit)
 
-    def learn(self):
+    def _learn(self):
         self.log.info(f"options: {self._options}")
 
         self.sat_init(init_sum=self.do_opt)

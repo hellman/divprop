@@ -8,6 +8,8 @@ from queue import Queue
 from divprop.subsets import SparseSet
 from divprop.logs import logging
 
+from .LevelLearn import LevelCache
+
 
 class ExtraPrec:
     def reduce(self, vec: SparseSet):
@@ -37,10 +39,9 @@ class LowerSetLearn:
 
         self._lower = set()
         self._upper = set()
-        self._lower_cache = set()
-        self._upper_cache = set()
-        self._lower_cache_level = None
-        self._upper_cache_level = None
+
+        self._lower_cache = LevelCache()
+        self._upper_cache = LevelCache()
 
         self.meta = {}  # info per elements of lower/upper
 
@@ -74,8 +75,8 @@ class LowerSetLearn:
             data = pickle.load(f)
         (
             version,
-            self._lower, self._lower_cache, self._lower_cache_level,
-            self._upper, self._upper_cache, self._upper_cache_level,
+            self._lower, self._lower_cache,
+            self._upper, self._upper_cache,
             self.meta, self.n,
         ) = data
         assert version == self.DATA_VERSION, "system format updated?"
@@ -85,8 +86,8 @@ class LowerSetLearn:
     def save_to_file(self, filename):
         data = (
             self.DATA_VERSION,
-            self._lower, self._lower_cache, self._lower_cache_level,
-            self._upper, self._upper_cache, self._upper_cache_level,
+            self._lower, self._lower_cache,
+            self._upper, self._upper_cache,
             self.meta, self.n,
         )
         with open(filename, "wb") as f:
@@ -105,10 +106,16 @@ class LowerSetLearn:
             self.log.info(f"  {name} {len(s)}: {freqstr}")
 
     def is_known_lower(self, vec):
-        return vec in self._lower
+        return vec in self._lower or self._lower_cache.has(vec)
 
     def is_known_upper(self, vec):
-        return vec in self._upper
+        return vec in self._upper or self._upper_cache.has(vec)
+
+    def is_prime_lower(self, vec):
+        return vec in self._lower  # or vec in self._lower_cache
+
+    def is_prime_upper(self, vec):
+        return vec in self._upper  # or vec in self._upper_cache
 
     def add_lower(self, vec, meta=None, is_prime=False):
         assert isinstance(vec, SparseSet)
