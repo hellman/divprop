@@ -21,11 +21,11 @@ except ImportError:
 AutoMono = (
     "Learn:LevelLearn,levels_lower=3",
     # "Learn:RandomLower:max_repeat_rate=3",
-    "Learn:GainanovSAT,sense=min,save_rate=100,solver=cadical"
+    "Learn:GainanovSAT,sense=min,save_rate=100,solver=cadical",
     # min vs None?
-    "SubsetGreedy",
-    "SubsetWriteMILP",
-    "SubsetMILP",
+    "SubsetGreedy:",
+    #"SubsetWriteMILP:",
+    "SubsetMILP:",
 )
 AutoGeneric = (
     "Sub:Learn:LevelLearn,levels_lower=3",
@@ -38,7 +38,7 @@ class ToolMILP:
     log = logging.getLogger(__name__)
 
     def main(self):
-        TOOL = sys.argv[0]
+        TOOL = os.path.basename(sys.argv[0])
 
         log = logging.getLogger(TOOL)
         logging.setup(level="INFO")
@@ -76,12 +76,10 @@ class ToolMILP:
         )
 
         commands = args.commands
-        if self.pool.type_good in (TypeGood.LOWER, TypeGood.UPPER):
+        if self.pool.is_monotone:
             commands = commands or AutoMono
-        elif self.pool.type_good == TypeGood.GENERIC:
-            commands = commands or AutoGeneric
         else:
-            assert 0
+            commands = commands or AutoGeneric
 
         self.log.info(f"commands: {' '.join(commands)}")
 
@@ -105,7 +103,11 @@ class ToolMILP:
         pass
 
     def SubsetGreedy(self, *args, **kwargs):
-        res = self.pool.choose_subset_greedy(*self.args, **self.kwargs)
+        res = self.pool.choose_subset_greedy(*args, **kwargs)
+        self.save_ineqs(res)
+
+    def SubsetMILP(self, *args, **kwargs):
+        res = self.pool.choose_subset_milp(*args, **kwargs)
         self.save_ineqs(res)
 
     #     "ShiftLearn": NotImplemented,
@@ -116,19 +118,20 @@ class ToolMILP:
     def save_ineqs(self, ineqs):
         filename = f"{self.output_ineqs}.{len(ineqs)}"
 
-        self.log.info(f"saving {len(ineqs)} ineqs to {filename}")
-
-        with open(filename, "w") as f:
-            print(len(ineqs), file=f)
-            for eq in ineqs:
-                print(*eq, file=f)
-
-        self.log.info(f"saved {len(ineqs)} ineqs to {filename}")
+        if os.path.exists(filename):
+            self.log.warning(f"file {filename} exists, skipping overwrite!")
+        else:
+            self.log.info(f"saving {len(ineqs)} ineqs to {filename}")
+            with open(filename, "w") as f:
+                print(len(ineqs), file=f)
+                for eq in ineqs:
+                    print(*eq, file=f)
+            self.log.info(f"saved {len(ineqs)} ineqs to {filename}")
 
         if len(ineqs) < 50:
             self.log.info(f"inequalities ({len(ineqs)}):")
-            for ineq in ineqs[100:]:
-                log.info(f"{ineq}")
+            for ineq in ineqs:
+                self.log.info(f"{ineq}")
             self.log.info("end")
 
 

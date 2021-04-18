@@ -21,7 +21,7 @@ class ExtraPrec:
 
 
 class LowerSetLearn:
-    DATA_VERSION = 2
+    DATA_VERSION = 3
     log = logging.getLogger(f"{__name__}:LowerSetLearn")
 
     def __init__(
@@ -42,6 +42,7 @@ class LowerSetLearn:
         # but not always practical to check/push
         self._lower = set()
         self._upper = set()
+        self.is_complete = False
 
         self.meta = {}  # info per elements of lower/upper
 
@@ -83,7 +84,7 @@ class LowerSetLearn:
             data = pickle.load(f)
         (
             version,
-            self._lower, self._upper,
+            self._lower, self._upper, self.is_complete,
             self.oracle.data,
             self.meta, self.n,
         ) = data
@@ -94,7 +95,7 @@ class LowerSetLearn:
     def save_to_file(self, filename):
         data = (
             self.DATA_VERSION,
-            self._lower, self._upper,
+            self._lower, self._upper, self.is_complete,
             self.oracle.data,
             self.meta, self.n,
         )

@@ -14,6 +14,7 @@ class LearnModule:
     log = logging.getLogger(f"{__name__}")
 
     use_point_prec = True
+    force_learn_complete = False
 
     def init(self, system):
         self._options = self.__dict__.copy()
@@ -36,6 +37,9 @@ class LearnModule:
             self.use_point_prec = False
 
     def learn(self, safe=True):
+        if self.system.is_complete and not self.force_learn_complete:
+            self.log.info("skipping learning - already marked complete")
+            return
         self.log.info("===============")
         self.log.info(f"# {type(self).__name__}")
         self.log.info("===============")
