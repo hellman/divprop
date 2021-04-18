@@ -66,6 +66,7 @@ class InequalitiesPool:
         use_point_prec=False,
         sysfile=None,
         oracle=None,
+        pre_shift=0,
     ):
         for p in points_bad:
             self.n = len(p)
@@ -76,20 +77,23 @@ class InequalitiesPool:
         self._good_orig = self.good
         self._bad_orig = self.bad
 
+        assert pre_shift is None or isinstance(pre_shift, (int, Bin))
+        pre_shift = Bin(pre_shift, self.n)
+
         if type_good == TypeGood.GENERIC:
             self.is_monotone = False
             self.shift = None
+            assert pre_shift in (0, None)
 
         elif type_good == TypeGood.LOWER:
             self.is_monotone = True
-            self.shift = ~Bin(0, self.n)
-
-            self.bad = {v ^ self.shift for v in self.bad}
-            self.good = {v ^ self.shift for v in self.good}
+            self.shift = pre_shift ^ ~Bin(0, self.n)
+            self.bad = {~v for v in self.bad}
+            self.good = {~v for v in self.good}
 
         elif type_good == TypeGood.UPPER:
             self.is_monotone = True
-            self.shift = Bin(0, self.n)
+            self.shift = pre_shift
 
         self.i2bad = sorted(self.bad)
         self.bad2i = {p: i for i, p in enumerate(self.i2bad)}

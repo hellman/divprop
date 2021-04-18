@@ -50,6 +50,10 @@ class LowerSetLearn:
         if self.file and os.path.exists(self.file):
             self.load()
 
+    def set_complete(self):
+        self.is_complete = True
+        self.saved = False
+
     def clean(self):
         self.oracle.clean()
 
@@ -113,6 +117,8 @@ class LowerSetLearn:
                 f"{sz}:{cnt}" for sz, cnt in sorted(freq.items())
             )
             self.log.info(f"  {name} {len(s)}: {freqstr}")
+        if self.is_complete:
+            self.log.info("  system is complete !")
 
     def is_known_lower(self, vec):
         return vec in self._lower

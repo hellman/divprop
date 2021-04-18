@@ -34,6 +34,9 @@ class GainanovSAT(LearnModule):
             # check if not exhausted
             if self.sat.solve() is False:
                 self.log.info("already exhausted, exiting")
+                # if was not marked, we won't be here
+                # so mark
+                self.system.set_complete()
                 return True
 
             if self.do_min:
@@ -51,7 +54,8 @@ class GainanovSAT(LearnModule):
 
             unk = self.find_new_unknown()
             if unk is False:
-                self.system.save()
+                self.log.info("system is completed, saving")
+                self.system.set_complete()
                 return True
 
             self.learn_unknown(unk)

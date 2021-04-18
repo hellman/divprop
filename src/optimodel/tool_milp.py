@@ -18,16 +18,16 @@ except ImportError:
     pass
 
 
-AutoMono = (
+AutoSimple = (
     "Learn:LevelLearn,levels_lower=3",
     # "Learn:RandomLower:max_repeat_rate=3",
     "Learn:GainanovSAT,sense=min,save_rate=100,solver=cadical",
     # min vs None?
     "SubsetGreedy:",
-    #"SubsetWriteMILP:",
+    "SubsetWriteMILP:",
     "SubsetMILP:",
 )
-AutoGeneric = (
+AutoShifts = (
     "Sub:Learn:LevelLearn,levels_lower=3",
     "Sub:Learn:GainanovSAT,sense=min,save_rate=100,solver=cadical"
     "ShiftLearn:threads=4",
@@ -40,15 +40,14 @@ class ToolMILP:
     def main(self):
         TOOL = os.path.basename(sys.argv[0])
 
-        log = logging.getLogger(TOOL)
         logging.setup(level="INFO")
 
         parser = argparse.ArgumentParser(description=f"""
     Generate inequalities to model a set.
-    AutoMono: alias for
-        {" ".join(AutoMono)}
-    AutoGeneric: alias for
-        {" ".join(AutoGeneric)}
+    AutoSimple: alias for
+        {" ".join(AutoSimple)}
+    AutoShifts: alias for
+        {" ".join(AutoShifts)}
         """.strip(), formatter_class=RawTextHelpFormatter)
 
         parser.add_argument(
@@ -63,34 +62,47 @@ class ToolMILP:
 
         args = self.args = parser.parse_args()
 
-        assert os.path.exists(args.fileprefix + ".good.set")
-        assert os.path.exists(args.fileprefix + ".bad.set")
-        assert os.path.exists(args.fileprefix + ".type_good")
+        self.fileprefix = args.fileprefix
 
-        logging.addFileHandler(args.fileprefix + f".log.{TOOL}")
+        assert os.path.exists(self.fileprefix + ".good.set")
+        assert os.path.exists(self.fileprefix + ".bad.set")
+        assert os.path.exists(self.fileprefix + ".type_good")
+
+        logging.addFileHandler(self.fileprefix + f".log.{TOOL}")
 
         self.log.info(args)
 
         self.pool = InequalitiesPool.from_DenseSet_files(
-            fileprefix=args.fileprefix,
+            fileprefix=self.fileprefix,
         )
 
         commands = args.commands
         if self.pool.is_monotone:
-            commands = commands or AutoMono
+            commands = commands or AutoSimple
         else:
-            commands = commands or AutoGeneric
+            commands = commands or AutoShifts
 
         self.log.info(f"commands: {' '.join(commands)}")
 
         self.output_ineqs = args.fileprefix + ".ineqs"
-        log.info(f"using output prefix {self.output_ineqs}")
+        self.log.info(f"using output prefix {self.output_ineqs}")
 
         for cmd in commands:
-            method, args, kwargs = parse_method(cmd)
-            log.info(f"running command {method} {args} {kwargs}")
-            ret = getattr(self, method)(*args, **kwargs)
-            log.info(f"command {method} returned {ret}")
+            self.run_command_string(cmd)
+
+    def run_command_string(self, cmd):
+        method, args, kwargs = parse_method(cmd)
+        self.log.info(f"running command {method} {args} {kwargs}")
+        ret = getattr(self, method)(*args, **kwargs)
+        self.log.info(f"command {method} returned {ret}")
+
+    def AutoSimple(self):
+        for cmd in AutoSimple:
+            self.run_command_string(cmd)
+
+    def AutoShifts(self):
+        for cmd in AutoShifts:
+            self.run_command_string(cmd)
 
     def Learn(self, module, *args, **kwargs):
         if module not in LearnModules:
@@ -110,10 +122,15 @@ class ToolMILP:
         res = self.pool.choose_subset_milp(*args, **kwargs)
         self.save_ineqs(res)
 
+    def SubsetWriteMILP(self, *args, **kwargs):
+        prefix = os.path.join(self.fileprefix, "lp/")
+        os.makedirs(prefix, exist_ok=True)
+        prefix = os.path.join(prefix, "lp/full")
+
+        self.pool.write_subset_milp(filename=prefix + ".lp", **kwargs)
+
     #     "ShiftLearn": NotImplemented,
     #     "Polyhedron": NotImplemented,
-    #     "SubsetWriteMILP": NotImplemented,
-    #     "SubsetMILP": NotImplemented,
 
     def save_ineqs(self, ineqs):
         filename = f"{self.output_ineqs}.{len(ineqs)}"
@@ -178,9 +195,7 @@ class ToolMILP:
 def parse_method(s):
     """
     >>> parse_method("Test")
-    Traceback (most recent call last):
-    ...
-    ValueError: Separator ":" must be present
+    ('Test', (), {})
     >>> parse_method("Test:")
     ('Test', (), {})
     >>> parse_method("Test:asd")
@@ -193,7 +208,7 @@ def parse_method(s):
     ('Pre', ('Test', 'asd'), {})
     """
     if ":" not in s:
-        raise ValueError('Separator ":" must be present')
+        s += ":"
     method, str_opts = s.split(":", 1)
     assert method
 
