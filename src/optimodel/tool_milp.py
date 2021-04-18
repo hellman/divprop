@@ -18,21 +18,24 @@ try:
 except ImportError:
     pass
 
-
-AutoSimple = (
-    "Learn:LevelLearn,levels_lower=3",
-    # "Learn:RandomLower:max_repeat_rate=3",
-    "Learn:GainanovSAT,sense=min,save_rate=100,solver=cadical",
-    # min vs None?
+AutoSelect = (
     "SubsetGreedy:",
     "SubsetWriteMILP:",
     "SubsetMILP:",
 )
+
+AutoSimple = (
+    "Learn:LevelLearn,levels_lower=3",
+    # "Learn:RandomLower:max_repeat_rate=3",
+    # min vs None?
+    "Learn:GainanovSAT,sense=min,save_rate=100,solver=cadical",
+) + AutoSelect
+
 AutoShifts = (
     "Chain:LevelLearn,levels_lower=3",
     "Chain:GainanovSAT,sense=min,save_rate=100,solver=cadical",
-    "ShiftLearn:threads=4",
-)
+    "ShiftLearn:threads=7",
+) + AutoSelect
 
 
 class ToolMILP:
@@ -126,6 +129,7 @@ class ToolMILP:
             learn_chain=self.chain,
         )
         sl.process_all_shifts(threads=threads)
+        sl.compose()
 
     def SubsetGreedy(self, *args, **kwargs):
         res = self.pool.choose_subset_greedy(*args, **kwargs)

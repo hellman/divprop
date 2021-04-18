@@ -21,3 +21,25 @@ greedy 0000 + milp: 2007.6 - 3994.0
 
   5346  5347 1690.96353  334 8701 1858.00000 1671.27640  10.0%  6120 610471s
   5348  5348 1680.79727  181 8548 1858.00000 1671.27640  10.0%  6118 623064s
+
+
+
+
+
+
+union:
+a0 + prec(u0)  v  a0 + prec(u1)  v  a0 + prec(u2)
+
+111|000 + prec(000|011)
+111|000 + prec(001|010) = 110|000 + prec(001|010)
+111|000 + prec(110|010) = 001|000 + prec(110|000)
+
+
+base point must be in the intersection of precs?
+to have this union be *a lower set* at this other base point
+
+if this lower set is maximal, is it true that it's inclusion into another shift must be a lower set?
+
+
+
+

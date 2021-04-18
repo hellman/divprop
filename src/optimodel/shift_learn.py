@@ -1,6 +1,7 @@
 import os
 from collections import defaultdict
 from functools import reduce
+import multiprocessing
 
 from binteger import Bin
 
@@ -10,6 +11,13 @@ from subsets.learn import Modules as LearnModules
 from optimodel.pool import InequalitiesPool, TypeGood, shift_ineq
 
 from divprop.logs import logging
+
+# multiprocessing is nuts
+HACK = None
+
+
+def worker(shift):
+    return HACK.worker(shift)
 
 
 class ShiftLearn:
@@ -36,18 +44,60 @@ class ShiftLearn:
         assert os.path.isdir(self.path)
 
     def process_all_shifts(self, threads=1):
+        if self.pool.system.is_complete:
+            self.log.warning("system is complete, nothign to learn...")
+            return
+
         self.counts = defaultdict(int)
-        self.dimension = {}
-        for shift in self.bad:
-            shift = Bin(shift, self.pool.n)
+        self.core = {}  # sanity check
+        self.solutions = {}
 
-            self.log.info(f"processing shift {shift.hex}")
-            subpool = self.process_shift(shift)
+        if threads == 1:
+            for shift in self.bad.to_Bins():
+                self.log.info(f"processing shift {shift.hex}")
+                core, solutions = self.process_shift(shift)
 
-            self.log.info(f"merging subpool of shift {shift.hex}")
-            self.merge_subpool(subpool)
+                self.log.info(f"merging solutions of shift {shift.hex}")
+                for vec in solutions:
+                    if vec not in self.core:
+                        self.core.setdefault(vec, core[vec])
+                    assert self.core[vec] == core[vec]
+                    self.counts[vec] += 1
+                self.solutions.update(solutions)
+        else:
+            shifts = list(self.bad.to_Bins())
+            print(shifts)
+
+            global HACK
+            HACK = self
+            p = multiprocessing.Pool(processes=threads)
+            for shift, core, solutions in p.imap_unordered(worker, shifts):
+                self.log.info(f"merging solutions of shift {shift.hex}")
+                for vec in solutions:
+                    if vec not in self.core:
+                        self.core.setdefault(vec, core[vec])
+                    assert self.core[vec] == core[vec]
+                    self.counts[vec] += 1
+                self.solutions.update(solutions)
+
+    def compose(self):
+        self.log.info("composing")
+        for vec, ineq in self.solutions.items():
+            if self.counts[vec] == 2**self.core[vec].weight:
+                self.pool.system.add_lower(vec, meta=ineq, is_prime=True)
+        self.pool.system.save()
+
+    def worker(self, shift: Bin):
+        core, solutions = self.process_shift(shift)
+        return shift, core, solutions
 
     def process_shift(self, shift: Bin):
+        subpool = self.process_shift_get_subpool(shift)
+        self.log.info(f"extracting solutions for shift {shift.hex}")
+        core, solutions = self.extract_subpool_solutions(subpool)
+        return core, solutions
+
+    def process_shift_get_subpool(self, shift: Bin):
         # xor
         assert shift.n == self.pool.n
         s = self.good.copy()
@@ -89,7 +139,9 @@ class ShiftLearn:
             self.module.init(system=subpool.system)
             self.module.learn()
 
-    def merge_subpool(self, subpool):
+    def extract_subpool_solutions(self, subpool):
+        solutions = {}
+        core = {}
         for vec in subpool.system.iter_lower():
             qsi = [subpool.i2bad[i].int for i in vec]
             d = DenseSet(qsi, self.pool.n)
@@ -103,8 +155,6 @@ class ShiftLearn:
             qs = [subpool.i2bad[i] ^ subpool.shift for i in vec]
             mainvec = SparseSet(self.pool.bad2i[q] for q in qs)
 
-            self.counts[mainvec] += 1
-            if mainvec not in self.dimension:
-                self.dimension[mainvec] = dand
-            else:
-                assert self.dimension[mainvec] == dand
+            core[mainvec] = dand
+            solutions[mainvec] = ineq
+        return core, solutions

@@ -78,14 +78,18 @@ class LowerSetLearn:
 
     def load(self):
         if self.file:
-            self.load_from_file(self.file)
-            self.log_info()
-            self.saved = True
+            if self.load_from_file(self.file):
+                self.log_info()
+                self.saved = True
 
     def load_from_file(self, filename):
         prevn = self.n
         with gzip.open(filename, "rb") as f:
-            data = pickle.load(f)
+            try:
+                data = pickle.load(f)
+            except EOFError as err:
+                self.log.error(f"loading system {filename} failed: {err}")
+                return False
         (
             version,
             self._lower, self._upper, self.is_complete,
@@ -95,6 +99,7 @@ class LowerSetLearn:
         assert version == self.DATA_VERSION, "system format updated?"
         assert self.n == prevn
         self.log.info(f"loaded state from file {filename}")
+        return True
 
     def save_to_file(self, filename):
         data = (
