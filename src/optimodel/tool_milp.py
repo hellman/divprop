@@ -8,6 +8,7 @@ from subsets import DenseSet, SparseSet
 from subsets.learn import Modules as LearnModules
 
 from optimodel.pool import InequalitiesPool, TypeGood
+from optimodel.shift_learn import ShiftLearn
 
 import divprop.logs as logging
 
@@ -28,8 +29,8 @@ AutoSimple = (
     "SubsetMILP:",
 )
 AutoShifts = (
-    "Sub:Learn:LevelLearn,levels_lower=3",
-    "Sub:Learn:GainanovSAT,sense=min,save_rate=100,solver=cadical"
+    "Chain:LevelLearn,levels_lower=3",
+    "Chain:GainanovSAT,sense=min,save_rate=100,solver=cadical",
     "ShiftLearn:threads=4",
 )
 
@@ -87,6 +88,8 @@ class ToolMILP:
         self.output_ineqs = args.fileprefix + ".ineqs"
         self.log.info(f"using output prefix {self.output_ineqs}")
 
+        self.chain = []
+
         for cmd in commands:
             self.run_command_string(cmd)
 
@@ -95,6 +98,9 @@ class ToolMILP:
         self.log.info(f"running command {method} {args} {kwargs}")
         ret = getattr(self, method)(*args, **kwargs)
         self.log.info(f"command {method} returned {ret}")
+
+    def Chain(self, module, *args, **kwargs):
+        self.chain.append((module, args, kwargs))
 
     def AutoSimple(self):
         for cmd in AutoSimple:
@@ -111,8 +117,15 @@ class ToolMILP:
         self.module.init(system=self.pool.system)
         self.module.learn()
 
-    def ShiftLearn(self):
-        pass
+    def ShiftLearn(self, threads):
+        path = self.fileprefix + ".shifts"
+        os.makedirs(path, exist_ok=True)
+        sl = ShiftLearn(
+            pool=self.pool,
+            path=path,
+            learn_chain=self.chain,
+        )
+        sl.process_all_shifts(threads=threads)
 
     def SubsetGreedy(self, *args, **kwargs):
         res = self.pool.choose_subset_greedy(*args, **kwargs)

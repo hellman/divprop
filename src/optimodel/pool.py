@@ -68,6 +68,7 @@ class InequalitiesPool:
         oracle=None,
         pre_shift=0,
     ):
+        assert points_bad, "no bad points? nothing to do..."
         for p in points_bad:
             self.n = len(p)
             break
@@ -94,6 +95,9 @@ class InequalitiesPool:
         elif type_good == TypeGood.UPPER:
             self.is_monotone = True
             self.shift = pre_shift
+
+        else:
+            assert 0, type_good
 
         self.i2bad = sorted(self.bad)
         self.bad2i = {p: i for i, p in enumerate(self.i2bad)}
