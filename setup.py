@@ -25,13 +25,15 @@ install_requires = [
 entry_points = {
     'console_scripts': [
         'subsets.setinfo = subsets.tools:tool_setinfo',
-        'divprop.sbox_ineqs = divprop.sbox_ineqs:main',
-        'divprop.sbox2divcore = divprop.tools:tool_sbox2divcore',
+        'optimodel.milp = optimodel.tool_milp:main',
+
         'divprop.sbox2ddt = divprop.tools:tool_sbox2ddt',
         'divprop.sbox2ptt = divprop.tools:tool_sbox2ptt',
+        'divprop.sbox2divcore = divprop.tools:tool_sbox2divcore',
         'divprop.divcore2bounds = divprop.tools:tool_divcore2bounds',
-        'divprop.mono2ineqs = divprop.inequalities.tools:tool_mono2ineqs',
-        'divprop.random_sbox_benchmark = divprop.tool_random_sbox_benchmark:tool_RandomSboxBenchmark',
+
+        'divprop.random_sbox_benchmark = '
+        + 'divprop.tool_random_sbox_benchmark:tool_RandomSboxBenchmark',
     ]
 }
 

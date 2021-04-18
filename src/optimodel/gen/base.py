@@ -23,26 +23,18 @@ from itertools import combinations
 
 from binteger import Bin
 
-from . import (
+from optimodel.base import (
     inner, satisfy,
-    # MixedIntegerLinearProgram, MIPSolverException,
-    # Polyhedron,
 )
 
 from subsets import (
-    DenseSet,
-    neibs_up_tuple, not_tuple, support_int_le,
-    WeightedFrozenSets,
-    GrowingLowerFrozen,
-    GrowingUpperFrozen,
+    DenseSet, SparseSet,
+    neibs_up_tuple,
 )
 
 
-
-# TBD: polyhedron
-
 class Generator:
-    def generate(self, pool):
+    def run(self, pool):
         raise NotImplementedError()
 
 
