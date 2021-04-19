@@ -27,8 +27,8 @@ class LowerSetLearn:
     def __init__(
             self,
             n: int,
-            file: str = None,
             oracle: callable = None,
+            file: str = None,
             extra_prec: ExtraPrec = None,
         ):
 
@@ -265,3 +265,21 @@ class Oracle:
         if self._cache is not None:
             self._cache[vec] = ret
         return ret
+
+
+class OracleFunction(Oracle):
+    def __init__(self, func):
+        self.func = func
+        super().__init__()
+
+    def _query(self, vec: SparseSet):
+        return self.func(vec), None
+
+
+class OracleFunctionWithMeta(Oracle):
+    def __init__(self, func):
+        self.func = func
+        super().__init__()
+
+    def _query(self, vec: SparseSet):
+        return self.func(vec)

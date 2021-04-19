@@ -1,5 +1,6 @@
 from .LowerSetLearn import (
-    LowerSetLearn, Oracle,
+    LowerSetLearn,
+    Oracle, OracleFunction, OracleFunctionWithMeta,
     ExtraPrec, ExtraPrec_LowerSet,
 )
 from .LearnModule import LearnModule

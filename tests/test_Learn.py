@@ -4,56 +4,38 @@ logging.basicConfig(level=logging.DEBUG)
 from random import randrange, seed
 
 from binteger import Bin
+
 from subsets import DenseSet
 
-from subsets.learn import LowerSetLearn
+from subsets.learn import LowerSetLearn, OracleFunction
+from subsets.learn import GainanovSAT
 
 
-def atest_LSL():
-    # seed(123)
+def test_LSL():
+    seed(123)
 
-    for n in range(2, 12):
+    for n in range(2, 18):
         a = DenseSet(n)
-        for i in range(200):
+        for i in range(500 // n):
             a.set(randrange(2**n))
             if i % 10 == 0:
                 lower = set(a.LowerSet())
-                oracle = lambda v: v.int in lower
-                LSL = LowerSetLearn(n, oracle)
+
+                oracle = OracleFunction(lambda v: v.as_Bin(n).int in lower)
+                system = LowerSetLearn(n=n, oracle=oracle)
+
+                g = GainanovSAT(sense="min", solver="pysat/cadical")
+                g.init(system)
+                g.learn()
+
                 answer = set(a.MaxSet())
-                test = LSL.learn()
-                assert {v.int for v in test} == answer
+                test = {vec.as_Bin(n).int for vec in system.iter_lower()}
+                assert test == answer
 
-
-def atest_DenseLowerSetLearn():
-    # seed(123)
-
-    for n in range(2, 12):
-        a = DenseSet(n)
-        for i in range(200):
-            a.set(randrange(2**n))
-            if i % 10 == 0:
-                lower = set(a.LowerSet())
-                answer = set(a.MaxSet())
-                print("learning:", n, *[v.str for v in a.MaxSet().to_Bins()])
-
-                class Oracle:
-                    n_calls = 0
-
-                    def query(self, v):
-                        self.n_calls = self.n_calls + 1
-                        return v.int in lower
-
-                o = Oracle()
-                LSL = DenseLowerSetLearn(n)
-                test = LSL.learn_simple(oracle=o)
-
-                assert {v.int for v in test} == answer
-                print("learnt in", o.n_calls)
-                print()
+                answer = set(a.LowerSet().Complement().MinSet())
+                test = {vec.as_Bin(n).int for vec in system.iter_upper()}
+                assert test == answer
 
 
 if __name__ == '__main__':
-    # atest_LSL()
-    # atest_DenseLowerSetLearn()
-    pass
+    test_LSL()
