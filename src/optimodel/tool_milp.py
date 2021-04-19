@@ -28,14 +28,20 @@ AutoSimple = (
     "Learn:LevelLearn,levels_lower=3",
     # "Learn:RandomLower:max_repeat_rate=3",
     # min vs None?
-    "Learn:GainanovSAT,sense=min,save_rate=100,solver=cadical",
-) + AutoSelect
+    "Learn:GainanovSAT,sense=min,save_rate=100,solver=pysat/cadical",
+    "AutoSelect",
+)
+
+AutoChain = (
+    "Chain:LevelLearn,levels_lower=3",
+    "Chain:GainanovSAT,sense=min,save_rate=100,solver=pysat/cadical",
+)
 
 AutoShifts = (
-    "Chain:LevelLearn,levels_lower=3",
-    "Chain:GainanovSAT,sense=min,save_rate=100,solver=cadical",
+    "AutoChain",
     "ShiftLearn:threads=7",
-) + AutoSelect
+    "AutoSelect",
+)
 
 
 class ToolMILP:
@@ -50,8 +56,12 @@ class ToolMILP:
     Generate inequalities to model a set.
     AutoSimple: alias for
         {" ".join(AutoSimple)}
+    AutoSelect: alias for
+        {" ".join(AutoSimple)}
     AutoShifts: alias for
         {" ".join(AutoShifts)}
+    AutoChain: alias for
+        {" ".join(AutoChain)}
         """.strip(), formatter_class=RawTextHelpFormatter)
 
         parser.add_argument(
@@ -113,6 +123,14 @@ class ToolMILP:
         for cmd in AutoShifts:
             self.run_command_string(cmd)
 
+    def AutoSelect(self):
+        for cmd in AutoSelect:
+            self.run_command_string(cmd)
+
+    def AutoChain(self):
+        for cmd in AutoChain:
+            self.run_command_string(cmd)
+
     def Learn(self, module, *args, **kwargs):
         if module not in LearnModules:
             raise KeyError(f"Learn module {module} is not registered")
@@ -146,7 +164,6 @@ class ToolMILP:
 
         self.pool.write_subset_milp(filename=prefix + ".lp", **kwargs)
 
-    #     "ShiftLearn": NotImplemented,
     #     "Polyhedron": NotImplemented,
 
     def save_ineqs(self, ineqs):
