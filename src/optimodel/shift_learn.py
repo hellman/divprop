@@ -66,7 +66,6 @@ class ShiftLearn:
                 self.solutions.update(solutions)
         else:
             shifts = list(self.bad.to_Bins())
-            print(shifts)
 
             global HACK
             HACK = self

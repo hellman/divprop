@@ -191,8 +191,8 @@ class InequalitiesPool:
     def write_subset_milp(self, filename, solver=None):
         v_take_ineq, vec_order, milp = self.create_subset_milp(solver=solver)
         self.log.info(
-            f"saving LP with {self.N} variables (per ineq), "
-            f"{self.n} constraints (per bad point) to {filename}"
+            f"saving LP with {len(v_take_ineq)} variables (per ineq), "
+            f"{len(self.bad)} constraints (per bad point) to {filename}"
         )
         milp.write_lp(filename)
 
@@ -201,13 +201,14 @@ class InequalitiesPool:
 
         if lp_output:
             self.log.info(
-                f"saving LP with {self.N} variables (per ineq), "
-                f"{self.n} constraints (per bad point) to {lp_output}"
+                f"saving LP with {len(v_take_ineq)} variables (per ineq), "
+                f"{len(self.bad)} constraints (per bad point) to {lp_output}"
             )
             milp.write_lp(lp_output)
 
         self.log.info(
-            f"solving milp with {self.n} variables, {self.N} constraints"
+            f"solving milp with {len(v_take_ineq)} variables, "
+            f"{len(self.bad)} constraints"
         )
 
         # show log for large problems
