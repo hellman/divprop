@@ -17,20 +17,28 @@ from random import shuffle
 
 try:
     from pysat.solvers import Solver
-    has_sat = True
+    has_pysat = True
 except ImportError:
-    has_sat = False
+    has_pysat = False
+
+from .base import SolverBase
 
 
-class CNF:
-    def __init__(self, solver="cadical"):
+class CNF(SolverBase):
+    def __init__(self, solver="pysat/cadical"):
+        self.init_solver(solver)
         self._var_cnt = 0
-        self._solver = Solver(name=solver)
 
         self.ZERO = self.var()
         self.ONE = self.var()
         self.add_clause([-self.ZERO])
         self.add_clause([self.ONE])
+
+    def init_solver(self, solver):
+        raise NotImplementedError()
+
+    def solve(self, assumptions=()):
+        raise NotImplementedError()
 
     def var(self):
         self._var_cnt += 1
@@ -38,13 +46,6 @@ class CNF:
 
     def add_clause(self, c):
         self._solver.add_clause(c)
-
-    def solve(self, assumptions=()):
-        sol = self._solver.solve(assumptions=assumptions)
-        if sol is None or sol is False:
-            return False
-        model = self._solver.get_model()
-        return {(i+1): int(v > 0) for i, v in enumerate(model)}
 
     def constraint_unary(self, vec):
         for a, b in zip(vec, vec[1:]):
@@ -211,3 +212,28 @@ class CNF:
         # 0
         for i in range(n):
             self.add_clause([-a[i], b[i]])
+
+
+@CNF.register("pysat/cadical")  # CaDiCaL SAT solver
+@CNF.register("pysat/glucose3")  # Glucose 3 SAT solver
+@CNF.register("pysat/glucose4")  # Glucose 4.1 SAT solver
+@CNF.register("pysat/lingeling")  # Lingeling SAT solver
+@CNF.register("pysat/maplechrono")  # MapleLCMDistChronoBT SAT solver
+@CNF.register("pysat/maplecm")  # MapleCM SAT solver
+@CNF.register("pysat/maplesat")  # MapleCOMSPS_LRB SAT solver
+@CNF.register("pysat/minicard")  # Minicard SAT solver
+@CNF.register("pysat/minisat22")  # MiniSat 2.2 SAT solver
+@CNF.register("pysat/minisatgh")  # MiniSat SAT solver (version from github)
+class PySAT(CNF):
+    def init_solver(self, solver):
+        assert has_pysat
+        assert solver.startswith("pysat/")
+        solver = solver[len("pysat/"):]
+        self._solver = Solver(name=solver)
+
+    def solve(self, assumptions=()):
+        sol = self._solver.solve(assumptions=assumptions)
+        if sol is None or sol is False:
+            return False
+        model = self._solver.get_model()
+        return {(i+1): int(v > 0) for i, v in enumerate(model)}

@@ -101,7 +101,7 @@ class LearnModule:
             self.log.info("milp: initialization done")
 
     def sat_init(self, init_sum=True, init=True):
-        self.sat = CNF(solver=self.solver)
+        self.sat = CNF.new(solver=self.solver)
 
         self.xs = [self.sat.var() for i in range(self.N)]
         if init_sum:

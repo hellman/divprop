@@ -12,7 +12,7 @@ class GainanovSAT(LearnModule):
     def __init__(
             self,
             sense: str = None,  # min/max/None
-            solver: str = "cadical",
+            solver: str = "pysat/cadical",
             save_rate: int = 100,
             limit: int = None,
         ):

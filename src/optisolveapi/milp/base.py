@@ -1,9 +1,11 @@
 import logging
 
+from ..base import SolverBase
+
 log = logging.getLogger(__name__)
 
 
-class MILP:
+class MILP(SolverBase):
     BY_SOLVER = {}
     EPS = 1e-9
     debug = 0
@@ -32,14 +34,6 @@ class MILP:
             maximization=False, solver=solver,
             **opts
         )
-
-    @classmethod
-    def register(cls, name):
-        def deco(subcls):
-            assert name not in cls.BY_SOLVER
-            cls.BY_SOLVER[name.lower()] = subcls
-            return subcls
-        return deco
 
     def var_binary(self, name):
         return self.var_int(name, lb=0, ub=1)
