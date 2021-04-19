@@ -15,6 +15,9 @@ class SparseSet(tuple):
                 assert a < b
         return self
 
+    def as_Bin(self, n):
+        return Bin(set(self[:]), n)
+
     def _coerce(self, other):
         if isinstance(other, (list, set, tuple)):
             return SparseSet(other)
