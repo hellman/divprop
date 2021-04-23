@@ -20,8 +20,8 @@ except ImportError:
 
 AutoSelect = (
     "SubsetGreedy:",
-    "SubsetWriteMILP:",
-    "SubsetMILP:",
+    "SubsetWriteMILP:solver=gurobi",
+    "SubsetMILP:solver=gurobi",
 )
 
 AutoSimple = (
