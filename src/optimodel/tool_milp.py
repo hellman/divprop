@@ -158,11 +158,11 @@ class ToolMILP:
         self.save_ineqs(res)
 
     def SubsetWriteMILP(self, *args, **kwargs):
-        prefix = os.path.join(self.fileprefix, "lp/")
+        prefix = self.fileprefix + ".lp"
         os.makedirs(prefix, exist_ok=True)
-        prefix = os.path.join(prefix, "lp/full")
+        filename = os.path.join(prefix, "full.lp")
 
-        self.pool.write_subset_milp(filename=prefix + ".lp", **kwargs)
+        self.pool.write_subset_milp(filename=filename, **kwargs)
 
     #     "Polyhedron": NotImplemented,
 
