@@ -189,12 +189,37 @@ class InequalitiesPool:
         return v_take_ineq, vec_order, milp
 
     def write_subset_milp(self, filename, solver=None):
+        assert filename.endswith(".lp")
+
         v_take_ineq, vec_order, milp = self.create_subset_milp(solver=solver)
         self.log.info(
             f"saving LP with {len(v_take_ineq)} variables (per ineq), "
             f"{len(self.bad)} constraints (per bad point) to {filename}"
         )
         milp.write_lp(filename)
+
+        self.write_subset_milp_meta(
+            filename=filename[:-3] + ".meta",
+            vec_order=vec_order,
+            pre_selected=(),
+        )
+
+    def write_subset_milp_meta(self, filename, vec_order, pre_selected):
+        M = len(vec_order)
+        by_vec = {j: set(vec_order[j]) for j in range(M)}
+
+        with open(filename, "w") as f:
+            for i, vec in enumerate(vec_order):
+                if vec not in pre_selected and i not in by_vec:
+                    continue
+                ineq = self._output_ineq(self.system.meta[vec])
+                print(
+                    i,
+                    ":".join(map(str, vec)),
+                    ":".join(map(str, ineq)),
+                    int(vec in pre_selected),
+                    file=f
+                )
 
     def choose_subset_milp(self, lp_output=None, solver=None):
         v_take_ineq, vec_order, milp = self.create_subset_milp(solver=solver)
@@ -299,18 +324,12 @@ class InequalitiesPool:
             f"(pre-selected={len(Lstar)}, points_left={len(by_point)})"
         )
 
-        with open(prefix + ".meta", "w") as f:
-            for i, fset in enumerate(vec_order):
-                if fset not in Lstar and i not in by_vec:
-                    continue
-                ineq = self._output_ineq(self.system.solution[fset].ineq)
-                print(
-                    i,
-                    ":".join(map(str, fset)),
-                    ":".join(map(str, ineq)),
-                    int(fset in Lstar),
-                    file=f
-                )
+        self.write_subset_milp_meta(
+            filename=prefix + ".meta",
+            vec_order=vec_order,
+            by_vec=by_vec,
+            pre_selected=Lstar,
+        )
 
         lp = LPwriter(filename=prefix + ".lp")
 
