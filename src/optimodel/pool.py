@@ -212,7 +212,7 @@ class InequalitiesPool:
         )
 
         # show log for large problems
-        res = milp.optimize(log=(self.N >= 10000))
+        res = milp.optimize(log=(len(v_take_ineq) >= 5000))
         assert res is not None, "insufficient inequalities pool?"
         milpsol = milp.solutions[0]
         self.log.info(f"objective {res}")
