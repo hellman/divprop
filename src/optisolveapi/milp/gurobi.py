@@ -101,3 +101,7 @@ class Gurobi(MILP):
                 vec = {v: self.trunc(v.Xn) for v in self.vars}
                 self.solutions.append(vec)
         return obj
+
+    def write_lp(self, filename):
+        assert filename.endswith(".lp")
+        self.model.write(filename)
