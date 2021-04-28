@@ -1,6 +1,6 @@
 lib:
 	python setup.py bdist_wheel
-	cp build/lib.linux-x86_64-3.8/subsets/*.so src/subsets/
+	cp build/lib.linux-x86_64-*/subsets/*.so src/subsets/
 	#make
 	# make test
 	
@@ -30,5 +30,6 @@ clean:
 
 venv:
 	sage -python -m venv --system-site-packages .envsage/
-	echo `pwd`/src >.envsage/lib/python3.8/site-packages/divprop.pth
+	echo `pwd`/src >.envsage/lib/python*/site-packages/divprop.pth
 	ln -sf .envsage/bin/activate ./activate
+
