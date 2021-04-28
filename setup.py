@@ -6,7 +6,9 @@ package_dir = {'': 'src'}
 packages = [
     'divprop',
     'subsets',
+    'subsets.learn',
     'optisolveapi',
+    'optisolveapi.milp',
     'optimodel',
 ]
 
@@ -20,11 +22,12 @@ install_requires = [
     'binteger>=0.7.0',
     'coloredlogs>=15.0',
     'tqdm>=4.58.0',
+    'python-sat[pblib,aiger]',
 ]
 
 entry_points = {
     'console_scripts': [
-        'subsets.setinfo = subsets.tools:tool_setinfo',
+        'subsets.setinfo = divprop.tools:tool_setinfo',
         'optimodel.milp = optimodel.tool_milp:main',
 
         'divprop.sbox2ddt = divprop.tools:tool_sbox2ddt',
