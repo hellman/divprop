@@ -1,4 +1,4 @@
-%module(package="subsets") lib
+%module(package="divprop") divprop
 
 %include <std_vector.i>
 %include <std_string.i>
@@ -36,8 +36,17 @@
     }
 }
 
-%include "../subsets/DenseSet.hpp"
-%include "../divprop/divprop/DivCore.hpp"
+%{
+#include "DenseSet.hpp"
+#include "DivCore.hpp"
+#include "Sbox.hpp"
+%}
+
+%pythoncode %{
+	from subsets.subsets import DenseSet
+%}
+
+%include "DivCore.hpp"
 %include "../sbox/Sbox.hpp"
 
 %template(Sbox8) T_Sbox<uint8_t>;
@@ -55,12 +64,6 @@ Sbox.classes = Sbox8, Sbox16, Sbox32, Sbox64
 %template(DivCore_StrongComposition64) T_DivCore_StrongComposition<uint64_t>;
 %pythoncode %{
 DivCore_StrongComposition = DivCore_StrongComposition32
-%}
-
-%{
-#include "DenseSet.hpp"
-#include "DivCore.hpp"
-#include "Sbox.hpp"
 %}
 
 %template(Vec_DenseSet) std::vector<DenseSet>;

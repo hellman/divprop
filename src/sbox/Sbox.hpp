@@ -210,8 +210,8 @@ struct T_Sbox {
             ensure(sizeof(T) == vt, "can not load sbox of different word size, sorry");
 
             T_Sbox<T> res(vn, vm);
-            uint64_t y = 0;
             fread(res.data.data(), vt, 1ull << vn, fd);
+            // uint64_t y = 0;
             // fori (x, 1ull << vn) {
             //     fread(&y, vt, 1, fd);
             //     res.set(x, y);
