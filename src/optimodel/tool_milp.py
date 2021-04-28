@@ -57,7 +57,7 @@ class ToolMILP:
     AutoSimple: alias for
         {" ".join(AutoSimple)}
     AutoSelect: alias for
-        {" ".join(AutoSimple)}
+        {" ".join(AutoSelect)}
     AutoShifts: alias for
         {" ".join(AutoShifts)}
     AutoChain: alias for
