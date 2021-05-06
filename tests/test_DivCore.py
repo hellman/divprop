@@ -62,6 +62,7 @@ def test_DPPT():
         sbox = Sbox(sbox, n, m)
         check_one_DPPT(sbox, n, m, dppt)
         check_one_relations(sbox, n, m)
+        check_propagation_map(sbox)
 
     for n in range(4, 10):
         for i in range(5):
@@ -137,7 +138,6 @@ def form_partition(*sets):
 
 
 def test_peekanfs():
-
     for n in range(2, 10):
         m = n
         sbox = list(range(2**n))
@@ -148,6 +148,18 @@ def test_peekanfs():
     test2 = sorted(DivCore.from_sbox(sbox, method="peekanfs").to_Bins())
     assert test1 == test2
     print("OK")
+
+
+# ===========================================
+# old code for division for comparison
+# ===========================================
+
+
+def check_propagation_map(sbox):
+    mp1 = sbox_division(sbox, sbox.n, sbox.m)
+    divcore = DivCore.from_sbox(sbox, method="dense")
+    mp2 = divcore.to_propagation_map()
+    assert tuple(mp1) == tuple(mp2)
 
 
 def sbox_division(sbox, n, m):
@@ -173,7 +185,7 @@ def sbox_division(sbox, n, m):
 
     by_hw = defaultdict(list)
     for x in range(2**n):
-        by_hw[Bin(x).hw()].append(x)
+        by_hw[Bin(x).hw].append(x)
 
     # propagate info to "lower" monomials (at the input)
     # do in levels by HW
@@ -190,6 +202,14 @@ def sbox_division(sbox, n, m):
     return tuple(sorted(by_k[k]) for k in range(2**n))
 
 
+def hw(x):
+    return sum(map(int, bin(x)[2:]))
+
+
+def covers(a, b):
+    return a & b == b
+
+
 def size_reduce_set_naive(kset):
     kset = sorted(kset, key=hw)
     i = 0
@@ -202,6 +222,23 @@ def size_reduce_set_naive(kset):
         kset[i+1:] = top
         i += 1
     return set(kset)
+
+
+def log2ceil(n):
+    return int(n-1).bit_length()
+
+
+def anf(arr):
+    arr = list(arr)
+    n = log2ceil(len(arr))
+    assert len(arr) == 2**n, len(arr)
+    for k in range(n):
+        halfstep = 1 << k
+        step = 2 << k
+        for i in range(0, len(arr), step):
+            for j in range(0, halfstep):
+                arr[i + j + halfstep] ^= arr[i + j]
+    return arr
 
 
 if __name__ == '__main__':
