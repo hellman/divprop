@@ -68,9 +68,6 @@ struct T_Sbox {
         );
         return string(buf);
     }
-    std::string __str__() const {
-        return info();
-    }
 
     void invert_in_place() {
         ensure(n == m);
@@ -88,9 +85,6 @@ struct T_Sbox {
         }
         return ret;
     }
-    T_Sbox<T> __invert__() const {
-        return inverse();
-    }
 
     T get(uint64_t x) const {
         ensure(x <= xmask);
@@ -102,14 +96,18 @@ struct T_Sbox {
         data[x] = y;
         return y;
     }
-    T __getitem__(uint64_t x) const {
-        return get(x);
-    }
-    T __setitem__(uint64_t x, const T y) {
-        return set(x, y);
-    }
     #ifdef SWIG
     %pythoncode %{
+        def __str__(self):
+            return self.info()
+        def __invert__(self):
+            return self.inverse()
+        def __getitem__(self, x):
+            return self.get(x)
+        def __setitem__(self, x, v):
+            return self.set(x, v)
+        def __len__(self):
+            return len(self.data)
         def __iter__(self):
             return iter(self.data)
     %}
@@ -185,9 +183,6 @@ struct T_Sbox {
         fwrite(&vm, 8, 1, fd);
 
         fwrite(data.data(), vt, 1ull << vn, fd);
-        // for (auto y: data) {
-        //     fwrite(&y, vt, 1, fd);
-        // }
 
         uint64_t marker = MARKER_END;
         fwrite(&marker, 8, 1, fd);
@@ -211,11 +206,6 @@ struct T_Sbox {
 
             T_Sbox<T> res(vn, vm);
             fread(res.data.data(), vt, 1ull << vn, fd);
-            // uint64_t y = 0;
-            // fori (x, 1ull << vn) {
-            //     fread(&y, vt, 1, fd);
-            //     res.set(x, y);
-            // }
 
             uint64_t marker;
             fread(&marker, 8, 1, fd);
