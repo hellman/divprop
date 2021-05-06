@@ -24,9 +24,9 @@ test:
 
 clean:
 	rm -rf build dist *.egg-info __pycache__
-	rm -f src/subsets/*_wrap*
-	rm -f src/subsets/libsubsets.py
-	rm -f src/subsets/*.so
+	rm -f src/divprop/*_wrap*
+	rm -f src/divprop/divprop.py
+	rm -f src/divprop/*.so
 
 venv:
 	sage -python -m venv --system-site-packages .envsage/
