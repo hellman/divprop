@@ -1,4 +1,4 @@
-from collections import Counter, defaultdict
+from collections import Counter
 from queue import PriorityQueue
 
 from binteger import Bin
@@ -88,10 +88,10 @@ class DivCore:
 
     def to_propagation_map(self):
         d = self.get_Minimal()
-        ret = defaultdict(list)
+        ret = [list() for _ in range(2**self.n)]
         for uv in d.to_Bins():
-            u, v = uv.split(parts=(self.n, self.m))
-            ret[~u].append(v)
+            u, v = uv.split(ns=(self.n, self.m))
+            ret[(~u).int].append(v.int)
         return ret
 
     def get_Invalid(self) -> DenseSet:
