@@ -2,9 +2,20 @@ import os
 from setuptools import setup
 from distutils.core import Extension
 
+# https://stackoverflow.com/questions/29477298/setup-py-run-build-ext-before-anything-else/48942866#48942866
+from setuptools.command.build_py import build_py as _build_py
+
+
+class build_py(_build_py):
+    def run(self):
+        self.run_command("build_ext")
+        return super().run()
+
+
 try:
     import hackycpp
     HACKYCPP_ROOT = os.path.dirname(hackycpp.__file__)
+    HACKYCPP_HPP = os.path.join(HACKYCPP_ROOT, "hackycpp.h")
 except ImportError:
     print("Package 'hackycpp' must be instaled before building")
     print("Build dependencies can not be specified yet...")
@@ -14,6 +25,7 @@ except ImportError:
 try:
     import subsets
     SUBSETS_ROOT = os.path.dirname(subsets.__file__)
+    SUBSETS_SO = subsets._subsets.__file__
 except ImportError:
     print("Package 'subsets' must be instaled before building")
     print("Build dependencies can not be specified yet...")
@@ -28,7 +40,7 @@ packages = [
 
 package_data = {
     # '': ['*'],
-    'divprop': ['*.so'],
+    'divprop': ['*.so', '*.hpp'],
 }
 
 install_requires = [
@@ -53,27 +65,32 @@ entry_points = {
 }
 
 setup(
+    cmdclass={'build_py': build_py},  # see above
+
     name='divprop',
     version='0.2.1',
-    description='Tools for cryptanalysis (division property)',
-    long_description=None,
+    packages=packages,
+
+    url=None,
+    license="MIT",
+
     author='Aleksei Udovenko',
     author_email="aleksei@affine.group",
     maintainer=None,
     maintainer_email=None,
-    url=None,
-    license="MIT",
-    package_dir=package_dir,
-    packages=packages,
-    package_data=package_data,
-    install_requires=install_requires,
-    entry_points=entry_points,
+
+    description='Tools for cryptanalysis (division property)',
+    long_description=None,
+
     python_requires='>=3.7,<4.0',
+    install_requires=install_requires,
+
+    package_dir=package_dir,
+    package_data=package_data,
+    entry_points=entry_points,
     ext_modules=[
-        # interaction between extensions is messy
-        # so let's put everything in one...
         Extension(
-            "subsets._lib",
+            "divprop._divprop",
             include_dirs=[
                 "./src/",
                 "./src/sbox/",
@@ -84,6 +101,8 @@ setup(
             depends=[
                 "./src/divprop/divprop/DivCore.hpp",
                 "./src/sbox/Sbox.hpp",
+                SUBSETS_SO,
+                HACKYCPP_HPP,
             ],
             sources=[
                 "./src/divprop/divprop.i",
@@ -96,7 +115,7 @@ setup(
                 "-I" + SUBSETS_ROOT,
             ],
             extra_compile_args=["-std=c++2a", "-O2", "-fopenmp"],
-            extra_link_args=["-fopenmp"],
+            extra_link_args=["-fopenmp", SUBSETS_SO],
         ),
     ]
 )

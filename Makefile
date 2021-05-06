@@ -1,6 +1,6 @@
 lib:
 	python setup.py bdist_wheel
-	cp build/lib.linux-x86_64-*/subsets/*.so src/subsets/
+	cp build/lib.linux-x86_64-*/divprop/*.so src/divprop/
 	#make
 	# make test
 	
