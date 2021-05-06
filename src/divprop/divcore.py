@@ -1,10 +1,12 @@
-from collections import Counter
+from collections import Counter, defaultdict
 from queue import PriorityQueue
 
 from binteger import Bin
 
-from subsets import (
-    DenseSet,
+from subsets import DenseSet
+from subsets.WeightedSet import GrowingUpperFrozen
+
+from divprop.divprop import (
     DivCore_StrongComposition,
     DivCore_StrongComposition8,
     DivCore_StrongComposition16,
@@ -12,7 +14,6 @@ from subsets import (
     DivCore_StrongComposition64,
     Sbox,
     Sbox32,
-    GrowingUpperFrozen,
 )
 
 import divprop.logs as logging
@@ -48,55 +49,50 @@ class DivCore:
         return iter(self._set)
 
     @classmethod
-    def from_sbox(cls, sbox: Sbox, n: int = None, m: int = None,
-                  method="dense", debug=False):
-        if n is None or m is None:
-            assert isinstance(sbox, Sbox.classes)
-            n = sbox.n
-            m = sbox.m
-        if not isinstance(sbox, Sbox.classes):
-            sbox = Sbox(sbox, n, m)
+    def from_sbox(cls, sbox: Sbox, method="dense", debug=False):
+        assert isinstance(sbox, Sbox.classes)
         method = getattr(cls, "from_sbox_" + method)
         if not method:
-            raise ValueError(f"Unknown method DenseDivCore.from_sbox:{method}")
-        return method(sbox, n, m, debug)
+            raise ValueError(f"Unknown method DenseDivCore.from_sbox_{method}")
+        return method(sbox, debug)
 
     @classmethod
-    def from_sbox_dense(cls, sbox: Sbox, n: int, m: int, debug=False):
-        n = int(n)
-        m = int(m)
-
-        graph = sbox.graph_dense()
+    def from_sbox_dense(cls, sbox: Sbox, debug=False):
+        ret = sbox.graph_dense()
 
         if debug:
-            cls.log.info(f"  graph {graph}")
+            cls.log.info(f"  graph {ret}")
 
-        graph.do_Mobius()
-
-        if debug:
-            cls.log.info(f"    anf {graph}")
-
-        graph.do_MaxSet()
+        ret.do_Mobius()
 
         if debug:
-            cls.log.info(f"anf-max {graph}")
+            cls.log.info(f"    anf {ret}")
 
-        graph.do_Not()
+        ret.do_MaxSet()
 
         if debug:
-            cls.log.info(f"divcore {graph}")
+            cls.log.info(f"anf-max {ret}")
 
-        return cls(graph, n, m)
+        ret.do_Not()
+
+        if debug:
+            cls.log.info(f"divcore {ret}")
+
+        return cls(ret, sbox.n, sbox.m)
 
     @classmethod
-    def from_sbox_peekanfs(cls, sbox: Sbox, n: int, m: int, debug=False):
-        n = int(n)
-        m = int(m)
-        assert n == m, "only bijections supported yet"
-        if not isinstance(sbox, Sbox.classes):
-            sbox = Sbox(sbox, n, m)
+    def from_sbox_peekanfs(cls, sbox: Sbox, debug=False):
+        assert sbox.n == sbox.m, "only bijections supported yet"
         divcore = SboxPeekANFs(sbox).compute(debug=debug)
-        return cls(divcore, n=n, m=m)
+        return cls(divcore, n=sbox.n, m=sbox.m)
+
+    def to_propagation_map(self):
+        d = self.get_Minimal()
+        ret = defaultdict(list)
+        for uv in d.to_Bins():
+            u, v = uv.split(parts=(self.n, self.m))
+            ret[~u].append(v)
+        return ret
 
     def get_Invalid(self) -> DenseSet:
         """Set I_S from the paper"""
