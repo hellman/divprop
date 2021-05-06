@@ -1,19 +1,20 @@
+from collections import defaultdict
 from functools import reduce
 from random import shuffle, randrange
 
 from binteger import Bin
-from subsets import DenseSet, Sbox
+from subsets import DenseSet
 
+from divprop.divprop import Sbox
 from divprop.divcore import DivCore
 
 from test_sboxes import get_sboxes
 
 
 def test_DivCore():
-    s = [1, 2, 3, 4, 0, 7, 6, 5]
-    n = m = 3
-    dc = DivCore.from_sbox(s, n, m, method="dense", debug=True)
-    dc2 = DivCore.from_sbox(s, n, m, method="peekanfs", debug=True)
+    s = Sbox([1, 2, 3, 4, 0, 7, 6, 5], 3, 3)
+    dc = DivCore.from_sbox(s, method="dense", debug=True)
+    dc2 = DivCore.from_sbox(s, method="peekanfs", debug=True)
     assert dc == dc2
 
     assert dc.to_dense().info() == \
@@ -58,6 +59,7 @@ def test_Not():
 
 def test_DPPT():
     for name, sbox, n, m, dppt in get_sboxes():
+        sbox = Sbox(sbox, n, m)
         check_one_DPPT(sbox, n, m, dppt)
         check_one_relations(sbox, n, m)
 
@@ -66,16 +68,19 @@ def test_DPPT():
             m = n
             sbox = list(range(2**n))
             shuffle(sbox)
+            sbox = Sbox(sbox, n, m)
             check_one_relations(sbox, n, m)
 
     for n in range(4, 8):
         for i in range(5):
             m = n + 1
             sbox = [randrange(2**m) for _ in range(2**n)]
+            sbox = Sbox(sbox, n, m)
             check_one_relations(sbox, n, m)
 
             m = n + 4
             sbox = [randrange(2**m) for _ in range(2**n)]
+            sbox = Sbox(sbox, n, m)
             check_one_relations(sbox, n, m)
 
 
@@ -89,14 +94,14 @@ def check_one_DPPT(sbox, n, m, dppt):
             mindppt1.add((u << m) | v)
     mindppt1 = tuple(sorted(mindppt1))
 
-    dc = DivCore.from_sbox(sbox, n, m, debug=True)
+    dc = DivCore.from_sbox(sbox, debug=True)
     assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
     assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
     assert dc.FullDPPT() == dc.to_dense().UpperSet().Not(dc.mask_u)
 
 
 def check_one_relations(sbox, n, m):
-    dc = DivCore.from_sbox(sbox, n, m, debug=True)
+    dc = DivCore.from_sbox(sbox, debug=True)
 
     mid = dc.MinDPPT().Not(dc.mask_u)
     lb = dc.LB()
@@ -143,6 +148,60 @@ def test_peekanfs():
     test2 = sorted(DivCore.from_sbox(sbox, method="peekanfs").to_Bins())
     assert test1 == test2
     print("OK")
+
+
+def sbox_division(sbox, n, m):
+    """
+    Compute the reduced DPPT of n x m bit S-box
+    Optimized a bit
+    """
+    assert 1 << n == len(sbox)
+    assert max(sbox) < 1 << m
+
+    by_k = defaultdict(set)
+    # iterate over all products of coordinates
+    for u in range(2**m):
+        bf = [int(sbox[x] & u == u) for x in range(2**n)]
+        vanf = anf(bf)
+        # save the product mask per each monomial it generates
+        for k, val in enumerate(vanf):
+            if val:
+                by_k[k].add(u)
+
+    for k in by_k:
+        by_k[k] = size_reduce_set_naive(by_k[k])
+
+    by_hw = defaultdict(list)
+    for x in range(2**n):
+        by_hw[Bin(x).hw()].append(x)
+
+    # propagate info to "lower" monomials (at the input)
+    # do in levels by HW
+    for mask_hw in reversed(range(n + 1)):
+        for mask in by_hw[mask_hw]:
+            for bit in range(n):
+                if mask & (1 << bit) == 0:
+                    continue
+                by_k[mask ^ (1 << bit)] |= by_k[mask]
+
+    for k in by_k:
+        by_k[k] = size_reduce_set_naive(by_k[k])
+
+    return tuple(sorted(by_k[k]) for k in range(2**n))
+
+
+def size_reduce_set_naive(kset):
+    kset = sorted(kset, key=hw)
+    i = 0
+    while i < len(kset):
+        top = []
+        x = kset[i]
+        for y in kset[i+1:]:
+            if not covers(y, x):
+                top.append(y)
+        kset[i+1:] = top
+        i += 1
+    return set(kset)
 
 
 if __name__ == '__main__':
