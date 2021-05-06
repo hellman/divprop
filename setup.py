@@ -44,11 +44,13 @@ package_data = {
 }
 
 install_requires = [
-    'binteger>=0.7.0',
+    'binteger>=0.8.0',
     'coloredlogs>=15.0',
     'tqdm>=4.58.0',
 
     'subsets>=0.1.0',
+    'justlogs>=0.1.0',
+    'hackycpp>=0.1.0',
     # 'optisolveapi>=0.1.0',
 ]
 

@@ -1,5 +1,5 @@
 lib:
-	python setup.py bdist_wheel
+	python setup.py build
 	cp build/lib.linux-x86_64-*/divprop/*.so src/divprop/
 	#make
 	# make test
