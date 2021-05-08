@@ -41,6 +41,7 @@ class DivCore:
     def to_dense(self):
         # list because swig does not map set straightforwardly.. need a typemap
         return DenseSet(list(self._set), self.n + self.m)
+    to_DenseSet = to_dense
 
     def to_Bins(self):
         return {Bin(v, self.n+self.m) for v in self._set}
