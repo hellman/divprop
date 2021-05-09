@@ -10,6 +10,7 @@ from divprop.all_sboxes import sboxes
 from divprop.divcore import DivCore
 import divprop.logs as logging
 
+from optimodel.pool import TypeGood
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +55,8 @@ def tool_sbox2divcore():
     )
     parser.add_argument(
         "-o", "--output", type=str, default=None,
-        help="Output file (default: data/sbox_{name}/divcore) (.set will be appended)",
+        help="Output file (default: data/sbox_{name}/divcore) "
+             "(.set will be appended)",
     )
 
     parser.add_argument(
@@ -73,12 +75,13 @@ def tool_sbox2divcore():
     output = args.output or f"data/sbox_{name}/divcore"
 
     log.info(f"computing division core for '{name}', output to {output}")
-    dc = DivCore.from_sbox(sbox, n, m)
+    dc = DivCore.from_sbox(Sbox(sbox, n, m))
+    data = dc.to_dense()
 
-    log.info(f"division core: {dc.data}")
-    log.info(f"by pairs: {dc.data.str_stat_by_weight_pairs(n, m)}")
+    log.info(f"division core: {data}")
+    log.info(f"by pairs: {data.str_stat_by_weight_pairs(n, m)}")
 
-    dc.data.save_to_file(output + ".set")
+    data.save_to_file(output + ".set")
     with open(output + ".dim", "w") as f:
         print(n, m, file=f)
 
@@ -96,7 +99,8 @@ def tool_sbox2ddt():
     )
     parser.add_argument(
         "-o", "--output", type=str, default=None,
-        help="Output file (default: data/sbox_{name}/ddt) (.set will be appended)",
+        help="Output file (default: data/sbox_{name}/ddt) "
+             "(.set will be appended)",
     )
 
     parser.add_argument(
@@ -149,7 +153,8 @@ def tool_sbox2ptt():
     )
     parser.add_argument(
         "-o", "--output", type=str, default=None,
-        help="Output file (default: data/sbox_{name}/ptt) (.set will be appended)",
+        help="Output file (default: data/sbox_{name}/ptt) "
+             "(.set will be appended)",
     )
 
     parser.add_argument(
@@ -304,7 +309,7 @@ def tool_divcore2bounds():
 
             assert points_bad == dc.get_Invalid()
 
-            type_good = "upper"
+            type_good = TypeGood.UPPER
         elif typ == "ubo":
             points_good = dcup.LowerSet()
             points_bad = points_good.Complement() - lb.LowerSet()
@@ -314,7 +319,7 @@ def tool_divcore2bounds():
 
             assert points_bad == dc.get_Redundant()
 
-            type_good = "lower"
+            type_good = TypeGood.LOWER
         elif typ == "ubc":
             points_good = dcup.LowerSet()
             points_bad = points_good.Complement()
@@ -324,12 +329,12 @@ def tool_divcore2bounds():
 
             assert points_bad == dc.get_RedundantAlternative()
 
-            type_good = "lower"
+            type_good = TypeGood.LOWER
         elif typ == "full":
             points_good = mid
             points_bad = mid.Complement()
 
-            type_good = "-"
+            type_good = TypeGood.GENERIC
         else:
             assert 0
 
