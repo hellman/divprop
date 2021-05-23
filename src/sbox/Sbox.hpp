@@ -96,22 +96,6 @@ struct T_Sbox {
         data[x] = y;
         return y;
     }
-    #ifdef SWIG
-    %pythoncode %{
-        def __str__(self):
-            return self.info()
-        def __invert__(self):
-            return self.inverse()
-        def __getitem__(self, x):
-            return self.get(x)
-        def __setitem__(self, x, v):
-            return self.set(x, v)
-        def __len__(self):
-            return len(self.data)
-        def __iter__(self):
-            return iter(self.data)
-    %}
-    #endif
 
     DenseSet coordinate_product(T mask) const {
         DenseSet f(n);
@@ -219,4 +203,31 @@ struct T_Sbox {
         }
         return T_Sbox<T>(0, 0);
     }
+
+    #ifdef SWIG
+    %pythoncode %{
+        def __str__(self):
+            return self.info()
+        def __repr__(self):
+            return self.info()
+        def __invert__(self):
+            return self.inverse()
+        def __getitem__(self, x):
+            return self.get(x)
+        def __setitem__(self, x, v):
+            return self.set(x, v)
+        def __len__(self):
+            return len(self.data)
+        def __iter__(self):
+            return iter(self.data)
+
+        def __getstate__(self):
+            return self.n, self.m, list(self.data)
+
+        def __setstate__(self, st):
+            n, m, data = st
+            self.__init__(data, n, m)
+            return self
+    %}
+    #endif
 };
