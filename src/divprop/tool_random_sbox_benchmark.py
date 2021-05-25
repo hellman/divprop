@@ -13,10 +13,13 @@ import gc
 import subprocess
 import pickle
 import argparse
+import gzip
 
 from binteger import Bin
 
-from subsets import DenseSet, Sbox, Sbox32
+from subsets import DenseSet
+from .divprop import Sbox, Sbox32
+
 from divprop.divcore import DivCore, SboxPeekANFs
 
 import divprop.logs as logging
@@ -51,7 +54,7 @@ class HeavyPeeks(SboxPeekANFs):
     def get_product(self, mask, inverse):
         cur = DenseSet(self.n)
         cur.fill()
-        for i in Bin(mask, self.n).support():
+        for i in Bin(mask, self.n).support:
             cur &= self.get_coord(i, inverse)
         return cur
 
@@ -114,7 +117,7 @@ def tool_RandomSboxBenchmark():
         run_large(n, path)
     else:
         run_small(n, path)
-
+import gzip
 
 def run_large(n, path):
     filename = f"{path}/fw.sbox"
@@ -168,10 +171,10 @@ def run_large(n, path):
     pa = HeavyPeeks(n, fws, bks, cache_dir=cache_dir, memorize=True)
     res = sorted(pa.compute())
 
-    divcore_file = f"{path}/divcore.txt"
+    divcore_file = f"{path}/divcore.txt.gz"
     log.info(f"divcore: {len(res)} elements, saving to {divcore_file} ...")
 
-    with open(divcore_file, "w") as f:
+    with gzip.open(divcore_file, "wt") as f:
         print(len(res), file=f)
         for uv in res:
             print(int(uv), file=f, end=" ")
@@ -197,10 +200,10 @@ def run_small(n, path):
     log.info("sorting...")
     res = sorted(pa.compute())
 
-    divcore_file = f"{path}/divcore.txt"
+    divcore_file = f"{path}/divcore.txt.gz"
     log.info(f"divcore: {len(res)} elements, saving to {divcore_file} ...")
 
-    with open(divcore_file, "w") as f:
+    with gzip.open(divcore_file, "wt") as f:
         print(len(res), file=f)
         for uv in res:
             print(int(uv), file=f, end=" ")
