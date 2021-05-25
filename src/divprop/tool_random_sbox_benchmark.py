@@ -169,7 +169,8 @@ def run_large(n, path):
     cache_dir = f"{path}/cache/"
     os.makedirs(cache_dir, exist_ok=True)
     pa = HeavyPeeks(n, fws, bks, cache_dir=cache_dir, memorize=True)
-    res = sorted(pa.compute())
+    divcore, lb = pa.compute()
+    res = sorted(divcore)
 
     divcore_file = f"{path}/divcore.txt.gz"
     log.info(f"divcore: {len(res)} elements, saving to {divcore_file} ...")
@@ -200,21 +201,34 @@ def run_small(n, path):
     log.info("computing division core...")
     pa = SboxPeekANFs(sbox)
     log.info("sorting...")
-    res = sorted(pa.compute())
+
+    divcore, lb = pa.compute()
+    divcore = sorted(divcore)
+    lb = sorted(lb)
 
     divcore_file = f"{path}/divcore.txt.gz"
-    log.info(f"divcore: {len(res)} elements, saving to {divcore_file} ...")
+    lb_file = f"{path}/lb.txt.gz"
+    log.info(f"divcore: {len(divcore)} elements, saving to {divcore_file} ...")
+    log.info(f"lb: {len(lb)} elements, saving to {lb_file} ...")
 
     with gzip.open(divcore_file, "wt") as f:
-        print(len(res), file=f)
-        for uv in res:
+        print(len(divcore), file=f)
+        for uv in divcore:
+            print(int(uv), file=f, end=" ")
+
+    with gzip.open(lb_file, "wt") as f:
+        print(len(lb), file=f)
+        for uv in lb:
             print(int(uv), file=f, end=" ")
 
     log.info("testing...")
 
     if n <= 16:
         ans = sorted(DivCore.from_sbox(sbox).to_Bins())
-        assert res == ans
+        assert divcore == ans
+        ans = sorted(DivCore.from_sbox(sbox).get_Invalid().to_Bins())
+        assert lb == ans
+        log.info("sanity check ok! (n <= 16)")
 
     log.info("finished")
 
