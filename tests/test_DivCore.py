@@ -89,16 +89,28 @@ def check_one_DPPT(sbox, n, m, dppt):
     assert len(sbox) == 2**n
     assert 0 <= max(sbox) < 2**m
 
-    mindppt1 = set()
-    for u, vs in enumerate(dppt):
-        for v in vs:
-            mindppt1.add((u << m) | v)
-    mindppt1 = tuple(sorted(mindppt1))
+    if dppt is not None:
+        mindppt1 = set()
+        for u, vs in enumerate(dppt):
+            for v in vs:
+                mindppt1.add((u << m) | v)
+        mindppt1 = tuple(sorted(mindppt1))
 
     dc = DivCore.from_sbox(sbox, debug=True)
-    assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
-    assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
-    assert dc.FullDPPT() == dc.to_dense().UpperSet().Not(dc.mask_u)
+    if dppt is not None:
+        assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
+        assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
+        assert dc.FullDPPT() == dc.to_dense().UpperSet().Not(dc.mask_u)
+
+    reduntant = DenseSet(n+m)
+    for uv in dc.to_DenseSet().to_Bins():
+        u = uv[:n]
+        v = uv[n:]
+        for i in range(m):
+            if v[i] == 0:
+                ii = m - 1 - i
+                reduntant.add((u.int << m) | int(v | (1 << ii)))
+    assert dc.get_Redundant() == reduntant.MinSet()
 
 
 def check_one_relations(sbox, n, m):

@@ -40,7 +40,10 @@ class DivCore:
 
     def to_dense(self):
         # list because swig does not map set straightforwardly.. need a typemap
-        return DenseSet(list(self._set), self.n + self.m)
+        d = DenseSet(self.n + self.m)
+        for x in self._set:
+            d.set(x)
+        return d
     to_DenseSet = to_dense
 
     def to_Bins(self):
@@ -50,15 +53,16 @@ class DivCore:
         return iter(self._set)
 
     @classmethod
-    def from_sbox(cls, sbox: Sbox, method="dense", debug=False):
+    def from_Sbox(cls, sbox: Sbox, method="dense", debug=False):
         assert isinstance(sbox, Sbox.classes)
-        method = getattr(cls, "from_sbox_" + method)
+        method = getattr(cls, "from_Sbox_" + method)
         if not method:
-            raise ValueError(f"Unknown method DenseDivCore.from_sbox_{method}")
+            raise ValueError(f"Unknown method DenseDivCore.from_Sbox_{method}")
         return method(sbox, debug)
+    from_sbox = from_Sbox
 
     @classmethod
-    def from_sbox_dense(cls, sbox: Sbox, debug=False):
+    def from_Sbox_dense(cls, sbox: Sbox, debug=False):
         ret = sbox.graph_dense()
 
         if debug:
@@ -82,7 +86,7 @@ class DivCore:
         return cls(ret, sbox.n, sbox.m)
 
     @classmethod
-    def from_sbox_peekanfs(cls, sbox: Sbox, debug=False):
+    def from_Sbox_peekanfs(cls, sbox: Sbox, debug=False):
         assert sbox.n == sbox.m, "only bijections supported yet"
         divcore = SboxPeekANFs(sbox).compute(debug=debug)
         return cls(divcore, n=sbox.n, m=sbox.m)

@@ -1,3 +1,6 @@
+from random import shuffle, randrange
+
+
 def get_sboxes():
     ret = []
 
@@ -24,4 +27,18 @@ def get_sboxes():
     sbox = [int(x + y + c >= 2) * 2 + (x ^ y ^ c) for x in range(2) for y in range(2) for c in range(2)]
     dppt = ([0], [1, 2], [1, 2], [2], [1, 2], [2], [2], [3])
     ret.append((name, sbox, n, m, dppt))
+
+    # bij
+    for n in range(5, 9):
+        for t in range(5):
+            n = m = n
+            sbox = list(range(2**n))
+            shuffle(sbox)
+            ret.append(("rand-bij", sbox, n, m, None))
+    # non-bij
+    for n in range(5, 9):
+        for m in range(n - 3, n + 3):
+            sbox = [randrange(2**m) for i in range(2**n)]
+            ret.append(("rand-nbij", sbox, n, m, None))
+
     return ret
