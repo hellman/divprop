@@ -117,7 +117,7 @@ def tool_RandomSboxBenchmark():
         run_large(n, path)
     else:
         run_small(n, path)
-import gzip
+
 
 def run_large(n, path):
     filename = f"{path}/fw.sbox"
@@ -126,7 +126,7 @@ def run_large(n, path):
 
     if not os.path.isfile(last_filename):
         log.info(f"generating {n}-bit S-box...")
-        sbox = Sbox32.GEN_random_permutation(n, 2021)
+        sbox = Sbox32.GEN_random_permutation(n, 2021)  # seed
         log.info(f"{sbox}")
 
         log.info(f"saving to {filename} ...")
@@ -179,6 +179,8 @@ def run_large(n, path):
         for uv in res:
             print(int(uv), file=f, end=" ")
 
+    log.info("finished")
+
 
 def run_small(n, path):
     assert n < 24, "are you crazy?"
@@ -208,9 +210,13 @@ def run_small(n, path):
         for uv in res:
             print(int(uv), file=f, end=" ")
 
+    log.info("testing...")
+
     if n <= 16:
         ans = sorted(DivCore.from_sbox(sbox).to_Bins())
         assert res == ans
+
+    log.info("finished")
 
 
 if __name__ == '__main__':
