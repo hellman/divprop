@@ -17,7 +17,7 @@ import gzip
 
 from binteger import Bin
 
-from subsets import DenseSet
+from subsets import DenseSet, SparseSet
 from .divprop import Sbox, Sbox32
 
 from divprop.divcore import DivCore, SboxPeekANFs
@@ -79,6 +79,24 @@ class HeavyPeeks(SboxPeekANFs):
                 pickle.dump(ret, f)
 
         return ret
+
+
+def reduntant_from_divcore(divcore, n, m):
+    from subsets.WeightedSet import WeightedSetInts
+    redundant = WeightedSetInts(n + m)
+    for v in divcore:
+        for j in range(m):
+            if v & (1 << j) == 0:
+                redundant.add(v | (1 << j))
+    log.info(f"reducing redundant: {len(divcore)} x m -> {len(redundant)}")
+    redundant.do_MinSet()
+    # ret = []
+    # for v in redundant:
+    #     if any(v.is_succ(u) for u in redundant):
+    #         continue
+    #     ret.append(v)
+    log.info(f"reduced: {len(redundant)}")
+    return list(redundant)
 
 
 def tool_RandomSboxBenchmark():
@@ -169,15 +187,24 @@ def run_large(n, path):
     cache_dir = f"{path}/cache/"
     os.makedirs(cache_dir, exist_ok=True)
     pa = HeavyPeeks(n, fws, bks, cache_dir=cache_dir, memorize=True)
+
     divcore, lb = pa.compute()
-    res = sorted(divcore)
+    divcore = sorted(divcore)
+    lb = sorted(lb)
 
     divcore_file = f"{path}/divcore.txt.gz"
-    log.info(f"divcore: {len(res)} elements, saving to {divcore_file} ...")
+    lb_file = f"{path}/lb.txt.gz"
+    log.info(f"divcore: {len(divcore)} elements, saving to {divcore_file} ...")
+    log.info(f"lb: {len(lb)} elements, saving to {lb_file} ...")
 
     with gzip.open(divcore_file, "wt") as f:
-        print(len(res), file=f)
-        for uv in res:
+        print(len(divcore), file=f)
+        for uv in divcore:
+            print(int(uv), file=f, end=" ")
+
+    with gzip.open(lb_file, "wt") as f:
+        print(len(lb), file=f)
+        for uv in lb:
             print(int(uv), file=f, end=" ")
 
     log.info("finished")
@@ -205,11 +232,14 @@ def run_small(n, path):
     divcore, lb = pa.compute()
     divcore = sorted(divcore)
     lb = sorted(lb)
+    ub = sorted(reduntant_from_divcore(divcore, n=n, m=n))
 
     divcore_file = f"{path}/divcore.txt.gz"
     lb_file = f"{path}/lb.txt.gz"
+    ub_file = f"{path}/ub.txt.gz"
     log.info(f"divcore: {len(divcore)} elements, saving to {divcore_file} ...")
     log.info(f"lb: {len(lb)} elements, saving to {lb_file} ...")
+    log.info(f"ub: {len(ub)} elements, saving to {ub_file} ...")
 
     with gzip.open(divcore_file, "wt") as f:
         print(len(divcore), file=f)
@@ -221,6 +251,11 @@ def run_small(n, path):
         for uv in lb:
             print(int(uv), file=f, end=" ")
 
+    with gzip.open(ub_file, "wt") as f:
+        print(len(ub), file=f)
+        for uv in ub:
+            print(int(uv), file=f, end=" ")
+
     log.info("testing...")
 
     if n <= 16:
@@ -228,6 +263,8 @@ def run_small(n, path):
         assert divcore == ans
         ans = sorted(DivCore.from_sbox(sbox).get_Invalid().to_Bins())
         assert lb == ans
+        ans = sorted(DivCore.from_sbox(sbox).get_Redundant().to_Bins())
+        assert ub == ans
         log.info("sanity check ok! (n <= 16)")
 
     log.info("finished")
