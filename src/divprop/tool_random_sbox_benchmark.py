@@ -191,11 +191,14 @@ def run_large(n, path):
     divcore, lb = pa.compute()
     divcore = sorted(divcore)
     lb = sorted(lb)
+    ub = sorted(reduntant_from_divcore(divcore, n=n, m=n))
 
     divcore_file = f"{path}/divcore.txt.gz"
     lb_file = f"{path}/lb.txt.gz"
+    ub_file = f"{path}/ub.txt.gz"
     log.info(f"divcore: {len(divcore)} elements, saving to {divcore_file} ...")
     log.info(f"lb: {len(lb)} elements, saving to {lb_file} ...")
+    log.info(f"ub: {len(ub)} elements, saving to {ub_file} ...")
 
     with gzip.open(divcore_file, "wt") as f:
         print(len(divcore), file=f)
@@ -205,6 +208,11 @@ def run_large(n, path):
     with gzip.open(lb_file, "wt") as f:
         print(len(lb), file=f)
         for uv in lb:
+            print(int(uv), file=f, end=" ")
+
+    with gzip.open(ub_file, "wt") as f:
+        print(len(ub), file=f)
+        for uv in ub:
             print(int(uv), file=f, end=" ")
 
     log.info("finished")

@@ -236,7 +236,7 @@ class SboxPeekANFs:
             for fset in tocheck:
                 is_maximal_lb[fset] = 1
 
-        stat = Counter()
+        # stat = Counter()
         itr = 0
         while q.qsize():
             _, inverse, fset, tocheck = q.get()
@@ -249,7 +249,7 @@ class SboxPeekANFs:
                 f"run #{itr} fset {fset} inv? {inverse}, "
                 f"queue size {q.qsize()}"
             )
-            stat[(inverse, len(fset))] += 1
+            # stat[(inverse, len(fset))] += 1
 
             mask = Bin(fset, 2*n).int
             if inverse:
@@ -273,8 +273,14 @@ class SboxPeekANFs:
                 q.put((len(fset)+1, inverse, fset2, tocheck2))
 
         divcore.do_MinSet()
+
+        stat = Counter()
+        for uv in divcore:
+            u, v = Bin(uv, 2*n).split(2)
+            stat[u.hw, v.hw] += 1
+
         statstr = " ".join(
-            f"{l}:{cnt}" for (inverse, l), cnt in sorted(stat.items())
+            f"{a},{b}:{cnt}" for (a, b), cnt in sorted(stat.items())
         )
         self.log.info(
             f"computed divcore n={n:02d} in {itr} bit-ANF calls, "
