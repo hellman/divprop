@@ -136,7 +136,7 @@ def tool_sbox2ddt():
     ddt.save_to_file(output + ".good.set")
     ddt.Complement().save_to_file(output + ".bad.set")
     with open(output + ".type_good", "w") as f:
-        print("-", file=f)
+        print(TypeGood.GENERIC.value, file=f)
 
 
 # parity transition table?
@@ -194,7 +194,7 @@ def tool_sbox2ptt():
     ptt.save_to_file(output + ".good.set")
     ptt.Complement().save_to_file(output + ".bad.set")
     with open(output + ".type_good", "w") as f:
-        print("-", file=f)
+        print(TypeGood.GENERIC.value, file=f)
 
 
 def tool_setinfo():
@@ -346,7 +346,7 @@ def tool_divcore2bounds():
         points_good.save_to_file(base + "." + typ + ".good.set")
         points_bad.save_to_file(base + "." + typ + ".bad.set")
         with open(base + "." + typ + ".type_good", "w") as f:
-            print(type_good, file=f)
+            print(type_good.value, file=f)
 
 
 if __name__ == '__main__':
