@@ -4,11 +4,13 @@ import hashlib
 import argparse
 
 from subsets import DenseSet
-from .divprop import Sbox
+from divprop.divprop import Sbox
 
 from divprop.all_sboxes import sboxes
 from divprop.divcore import DivCore
-import divprop.logs as logging
+
+import logging
+import justlogs
 
 from optimodel.pool import TypeGood
 
@@ -43,7 +45,7 @@ def parse_sbox(sbox):
 
 
 def tool_sbox2divcore():
-    logging.setup(level="INFO")
+    justlogs.setup(level="INFO")
 
     parser = argparse.ArgumentParser(
         description="Generate division core of a given S-box."
@@ -87,7 +89,7 @@ def tool_sbox2divcore():
 
 
 def tool_sbox2ddt():
-    logging.setup(level="INFO")
+    justlogs.setup(level="INFO")
 
     parser = argparse.ArgumentParser(
         description="Generate DDT support of a given S-box."
@@ -141,7 +143,7 @@ def tool_sbox2ddt():
 
 # parity transition table?
 def tool_sbox2ptt():
-    logging.setup(level="INFO")
+    justlogs.setup(level="INFO")
 
     parser = argparse.ArgumentParser(
         description="Generate Parity Transition Table (PTT) of a given S-box."
@@ -195,10 +197,31 @@ def tool_sbox2ptt():
     ptt.Complement().save_to_file(output + ".bad.set")
     with open(output + ".type_good", "w") as f:
         print(TypeGood.GENERIC.value, file=f)
+    del ptt
+
+    # save Minimal too
+    output = f"data/sbox_{name}/ndppt"
+
+    dc = DivCore.from_sbox(sbox)
+    MS = dc.get_Minimal()
+    MS.save_to_file(output + ".set")
+
+    log.info(f" minimal: {MS}")
+    log.info(f"~minimal: {MS.Complement()}")
+    log.info(f"by pairs: {MS.str_stat_by_weight_pairs(n, m)}")
+
+    MS.save_to_file(output + ".set")
+    with open(output + ".dim", "w") as f:
+        print(n, m, file=f)
+
+    MS.save_to_file(output + ".good.set")
+    MS.Complement().save_to_file(output + ".bad.set")
+    with open(output + ".type_good", "w") as f:
+        print(TypeGood.GENERIC.value, file=f)
 
 
 def tool_setinfo():
-    logging.setup(level="INFO")
+    justlogs.setup(level="INFO")
 
     parser = argparse.ArgumentParser(
         description="Print information about set (from file)."
@@ -252,7 +275,7 @@ def tool_setinfo():
 
 
 def tool_divcore2bounds():
-    logging.setup(level="INFO")
+    justlogs.setup(level="INFO")
 
     parser = argparse.ArgumentParser(
         description="Generate monotone bounds for modeling from division core."
@@ -296,7 +319,7 @@ def tool_divcore2bounds():
     dcup = mid.MaxSet()
 
     inter = (dcup.LowerSet().Complement() & dclo.UpperSet().Complement())
-    print("inter", inter)
+    print("intersection", inter)
 
     typs = args.type.lower().split(",")
     for typ in typs:
@@ -350,4 +373,4 @@ def tool_divcore2bounds():
 
 
 if __name__ == '__main__':
-    tool_sbox2divcore()
+    tool_sbox2ddt()
