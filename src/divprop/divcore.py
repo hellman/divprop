@@ -32,25 +32,25 @@ class DivCore:
     log = logging.getLogger(f"{__name__}:DivCore")
 
     def __init__(self, data, n, m):
-        self._set = set(map(int, data))
+        if isinstance(data, DenseSet):
+            self._dense = data
+        else:
+            self._dense = DenseSet(n+m, list(data))
         self.n = int(n)
         self.m = int(m)
         self.mask_u = mask(n) << m
         self.mask_v = mask(m)
 
     def to_dense(self):
-        # list because swig does not map set straightforwardly.. need a typemap
-        d = DenseSet(self.n + self.m)
-        for x in self._set:
-            d.set(x)
-        return d
+        return self._dense.copy()
+
     to_DenseSet = to_dense
 
     def to_Bins(self):
-        return {Bin(v, self.n+self.m) for v in self._set}
+        return {Bin(v, self.n+self.m) for v in self._dense}
 
     def __iter__(self):
-        return iter(self._set)
+        return iter(self._dense)
 
     @classmethod
     def from_Sbox(cls, sbox: Sbox, method="dense", debug=False):
@@ -154,7 +154,7 @@ class DivCore:
         assert isinstance(other, DivCore)
         assert self.n == other.n
         assert self.m == other.m
-        return self._set == other._set
+        return self._dense == other._dense
 
 
 class SboxPeekANFs:
