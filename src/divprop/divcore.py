@@ -131,46 +131,6 @@ class DivCore:
         ret.do_ComplementL2U()
         return ret
 
-    def LB(self) -> DenseSet:
-        """
-        Outer lower bound for MinDPPT,
-        in the form of MaxSet of invalid vectors
-        (ones that are a bit lower than vectors from divcore)
-        """
-        ret = self.to_dense()
-        ret.do_ComplementU2L()
-        return ret
-
-    def UB(self, method="redundant") -> DenseSet:
-        """
-        (note: MinDPPT here means extra "not u")
-
-        Outer upper bound for MinDPPT,
-
-        method="redundant"
-        in the form of MinSet of redundant vectors
-        (ones that are a bit upper in (v) than reduced vectors from divcore)
-
-        method="complement"
-        in the form of the complementary MinSet of the MaxSet of MinDPPT
-
-        """
-        if method == "redundant":
-            ret = self.to_dense()
-            ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
-            ret.do_MinSet()
-        else:
-            # ret = self.MinDPPT()
-            # ret.do_Not(self.mask_u)
-            ret = self.to_dense()
-            ret.do_UpperSet(self.mask_u)
-            ret.do_MinSet(self.mask_v)
-
-            ret.do_LowerSet()
-            ret.do_Complement()
-            ret.do_MinSet()
-        return ret
-
     def FullDPPT(self) -> DenseSet:
         """
         DenseSet of all valid transitions, including redundant ones.
