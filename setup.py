@@ -116,7 +116,7 @@ setup(
                 "-I" + HACKYCPP_ROOT,
                 "-I" + SUBSETS_ROOT,
             ],
-            extra_compile_args=["-std=c++2a", "-O2", "-fopenmp"],
+            extra_compile_args=["-std=c++2a", "-O3", "-fopenmp"],
             extra_link_args=["-fopenmp", SUBSETS_SO],
         ),
     ]
