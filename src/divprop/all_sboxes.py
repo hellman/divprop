@@ -1825,7 +1825,7 @@ keccak_chi_5 = []
 from binteger import Bin
 for x in range(32):
     x = Bin(x, 5).tuple
-    y = [x[i] ^ x[(i+1)%5]&x[(i+2)%5] for i in range(5)]
+    y = [x[i] ^ (1^x[(i+1)%5])&x[(i+2)%5] for i in range(5)]
     keccak_chi_5.append(Bin(y).int)
 keccak_chi_5 = SBox(keccak_chi_5)
 
