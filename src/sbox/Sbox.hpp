@@ -16,6 +16,8 @@ struct T_Sbox {
     static const uint64_t VERSION1 = 0xcbd6c2fe63066fffull;
     static const uint64_t MARKER_END = 0x143d15e3d6f4f9baull;
 
+    constexpr static uint64_t ENTRY_SIZE = sizeof(T);
+
     constexpr static bool is_Sbox_class = true;
 
 #ifdef SWIG
