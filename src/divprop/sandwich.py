@@ -1,5 +1,8 @@
 import logging
-from divprop import Sbox
+
+from binteger import Bin
+
+from divprop.divprop import Sbox, Sbox8
 from divprop.divcore import (
     DivCore_StrongComposition8,
     DivCore_StrongComposition16,
@@ -14,21 +17,35 @@ log = logging.getLogger(__name__)
 class Sandwich:
     """Computing DivCore for two S-boxes with xor key in-between."""
 
-    def __init__(self, part1: Sbox, part2: Sbox, keys=None):
+    def __init__(self, part1: Sbox, part2: Sbox, keys=None, mask=None):
+        """
+        mask identifies a single output component to analyze.
+        (full output if mask=None)
+        """
         assert type(part1).__name__.startswith("Sbox")
         assert type(part2).__name__.startswith("Sbox")
 
         assert part1.m == part2.n
         self.n = part1.n
         self.r = part1.m
-        self.m = part2.n
+        if mask is None:
+            self.m = part2.n
+        else:
+            self.m = 1
+            assert 0 <= mask < 2**part2.n
         self.part1 = part1
         if keys is None:
             self.keys = tuple(range(2**self.r))
         else:
             self.keys = tuple(map(int, keys))
             assert 0 <= min(self.keys) <= max(self.keys) < 2**self.r
-        self.part2 = part2
+
+        if mask is None:
+            self.part2 = part2
+        else:
+            mask = Bin(mask, part2.n)
+            table = [mask.scalar_bin(y) for y in part2]
+            self.part2 = Sbox8(table, part2.n, 1)
 
     def compute_divcore(self, chunk=128, filename=None):
         sz = min(self.part1.ENTRY_SIZE, self.part2.ENTRY_SIZE)
