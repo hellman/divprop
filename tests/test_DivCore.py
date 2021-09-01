@@ -22,22 +22,22 @@ def test_DivCore():
     assert dc.to_dense().get_support() == \
         (7, 11, 12, 19, 20, 25, 35, 36, 42, 49, 50, 56)
 
-    assert dc.LB().info() == \
+    assert dc.get_Invalid().info() == \
         "<DenseSet hash=9fe09c93bbcdbb87 n=6 wt=8 | 2:6 3:2>"
-    assert dc.UB(method="redundant").info() == \
+    assert dc.get_Redundant().info() == \
         "<DenseSet hash=60f7fb1d9a638a50 n=6 wt=12 | 3:6 4:6>"
-    assert dc.UB(method="complement").info() == \
+    assert dc.get_RedundantAlternative().info() == \
         "<DenseSet hash=449b201e8a75f016 n=6 wt=10 | 3:8 4:2>"
     assert dc.FullDPPT().info() == \
         "<DenseSet hash=b712d2af3b433a45 n=6 wt=43 | 0:1 1:3 2:10 3:13 4:12 5:3 6:1>"
     assert dc.MinDPPT().info() == \
         "<DenseSet hash=ff7ce5b30da61490 n=6 wt=15 | 0:1 2:7 3:3 4:3 6:1>"
 
-    assert dc.LB().get_support() == \
+    assert dc.get_Invalid().get_support() == \
         (3, 5, 6, 17, 26, 34, 41, 48)
-    assert dc.UB("redundant").get_support() == \
+    assert dc.get_Redundant().get_support() == \
         (13, 14, 21, 22, 27, 37, 38, 43, 51, 57, 58, 60)
-    assert dc.UB("complement").get_support() == \
+    assert dc.get_RedundantAlternative().get_support() == \
         (13, 14, 21, 22, 26, 37, 38, 41, 51, 60)
     assert dc.FullDPPT().get_support() == \
         (0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 27, 28, 29, 30, 31, 33, 35, 36, 37, 38, 39, 43, 44, 45, 46, 47, 51, 52, 53, 54, 55, 63)
@@ -117,9 +117,10 @@ def check_one_relations(sbox, n, m):
     dc = DivCore.from_sbox(sbox, debug=True)
 
     mid = dc.MinDPPT().Not(dc.mask_u)
-    lb = dc.LB()
-    ubr = dc.UB(method="redundant")
-    ubc = dc.UB(method="complement")
+
+    lb = dc.get_Invalid()
+    ubr = dc.get_Redundant()
+    ubc = dc.get_RedundantAlternative()
 
     assert ubr.UpperSet() <= ubc.UpperSet()
     assert not (ubr & mid)
@@ -132,8 +133,9 @@ def check_one_relations(sbox, n, m):
     assert ubc.UpperSet() == (mid.LowerSet()).Complement()
 
     print(
-        "LB", len(dc.LB()),
-        "UB", len(dc.UB()),
+        "LB", len(lb),
+        "UB", len(ubr),
+        "UB'", len(ubc),
         "MinDPPT", len(dc.MinDPPT()),
         "FullDPPT", len(dc.FullDPPT()),
     )

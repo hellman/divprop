@@ -35,7 +35,7 @@ class DivCore:
         if isinstance(data, DenseSet):
             self._dense = data
         else:
-            self._dense = DenseSet(n+m, list(data))
+            self._dense = DenseSet(n+m, list(map(int, data)))
         self.n = int(n)
         self.m = int(m)
         self.mask_u = mask(n) << m
