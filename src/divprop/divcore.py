@@ -16,7 +16,7 @@ from divprop.divprop import (
     Sbox32,
 )
 
-import divprop.logs as logging
+import logging
 
 
 def mask(m):
