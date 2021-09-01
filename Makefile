@@ -1,5 +1,5 @@
 lib:
-	python setup.py build
+	python setup.py build -f
 	cp build/lib.linux-x86_64-*/divprop/*.so src/divprop/
 	#make
 	# make test
