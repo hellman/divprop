@@ -155,13 +155,15 @@ def test_peekanfs():
     for n in range(2, 10):
         m = n
         sbox = list(range(2**n))
-    shuffle(sbox)
+        shuffle(sbox)
 
-    sbox = Sbox(sbox, n, m)
-    test1 = sorted(DivCore.from_sbox(sbox, method="dense").to_Bins())
-    test2 = sorted(DivCore.from_sbox(sbox, method="peekanfs").to_Bins())
-    assert test1 == test2
-    print("OK")
+        print(Sbox, Sbox.classes)
+        print(type(sbox), sbox)
+        sbox = Sbox(sbox, n, m)
+        test1 = sorted(DivCore.from_sbox(sbox, method="dense").to_Bins())
+        test2 = sorted(DivCore.from_sbox(sbox, method="peekanfs").to_Bins())
+        assert test1 == test2
+        print("OK")
 
 
 # ===========================================
