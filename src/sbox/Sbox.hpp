@@ -228,9 +228,9 @@ struct T_Sbox {
         def __invert__(self):
             return self.inverse()
         def __getitem__(self, x):
-            return self.get(x)
+            return self.get(int(x))
         def __setitem__(self, x, v):
-            return self.set(x, v)
+            return self.set(int(x), int(v))
         def __len__(self):
             return len(self.data)
         def __iter__(self):
