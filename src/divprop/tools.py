@@ -4,10 +4,9 @@ import hashlib
 import argparse
 
 from subsets import DenseSet
-from divprop.divprop import Sbox
 
+from divprop import Sbox, DivCore
 from divprop.all_sboxes import sboxes
-from divprop.divcore import DivCore
 
 import logging
 import justlogs

@@ -18,11 +18,11 @@ import gzip
 from binteger import Bin
 
 from subsets import DenseSet, SparseSet
-from .divprop import Sbox, Sbox32
+from divprop.lib import Sbox, Sbox32
 
 from divprop.divcore import DivCore, SboxPeekANFs
 
-import divprop.logs as logging
+import logging
 
 log = logging.getLogger(f"{__name__}:RandomSboxBenchmark")
 

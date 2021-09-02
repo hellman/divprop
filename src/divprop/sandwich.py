@@ -2,7 +2,7 @@ import logging
 
 from binteger import Bin
 
-from divprop.divprop import Sbox, Sbox8
+from divprop.lib import Sbox, Sbox8
 from divprop.divcore import (
     DivCore_StrongComposition8,
     DivCore_StrongComposition16,

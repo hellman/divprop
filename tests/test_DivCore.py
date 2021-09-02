@@ -5,8 +5,7 @@ from random import shuffle, randrange
 from binteger import Bin
 from subsets import DenseSet
 
-from divprop.divprop import Sbox
-from divprop.divcore import DivCore
+from divprop import Sbox, DivCore
 
 from test_sboxes import get_sboxes
 

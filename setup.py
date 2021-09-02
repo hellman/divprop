@@ -92,7 +92,7 @@ setup(
     entry_points=entry_points,
     ext_modules=[
         Extension(
-            "divprop._divprop",
+            "divprop._lib",
             include_dirs=[
                 "./src/",
                 "./src/sbox/",
@@ -107,7 +107,7 @@ setup(
                 HACKYCPP_HPP,
             ],
             sources=[
-                "./src/divprop/divprop.i",
+                "./src/divprop/lib.i",
                 "./src/sbox/Sbox.cpp",
             ],
             swig_opts=[

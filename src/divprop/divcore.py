@@ -6,14 +6,13 @@ from binteger import Bin
 from subsets import DenseSet
 from subsets.WeightedSet import GrowingUpperFrozen
 
-from divprop.divprop import (
+from divprop.lib import (
     DivCore_StrongComposition,
     DivCore_StrongComposition8,
     DivCore_StrongComposition16,
     DivCore_StrongComposition32,
     DivCore_StrongComposition64,
     Sbox,
-    Sbox32,
 )
 
 import logging

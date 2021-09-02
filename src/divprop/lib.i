@@ -1,4 +1,4 @@
-%module(package="divprop") divprop
+%module(package="divprop") lib
 
 %include <std_vector.i>
 %include <std_string.i>
