@@ -11,6 +11,7 @@
 %template(MyVector_u32) std::vector<uint32_t>;
 %template(MyVector_u16) std::vector<uint16_t>;
 %template(MyVector_u8) std::vector<uint8_t>;
+%template(MyVectorVector_u8) std::vector<std::vector<uint8_t>>;
 %template(MyVector_int) std::vector<int>;
 %template(MySet_uint64) std::set<uint64_t>;
 %template(MyMap_PII_u64) std::map<std::pair<int,int>, uint64_t>;

@@ -139,6 +139,19 @@ struct T_Sbox {
         return func;
     }
 
+    std::vector<std::vector<uint8_t>> to_matrix() const {
+        // m x n matrix
+        std::vector<std::vector<uint8_t>> ret(m, std::vector<uint8_t>(n));
+        fori (xi, n) {
+            uint64_t y = (uint64_t)data[1ull << (n - 1 - xi)];
+            rfori(yi, m) {
+                ret[yi][xi] = y & 1;
+                y >>= 1;
+            }
+        }
+        return ret;
+    }
+
     static T_Sbox<T> GEN_random_permutation(int n, uint64_t seed=-1ull) {
         ensure(1 <= n && n <= 62);
         if (seed == -1ull) {
