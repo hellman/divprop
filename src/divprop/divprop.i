@@ -43,9 +43,31 @@
 %template(Sbox16) T_Sbox<uint16_t>;
 %template(Sbox32) T_Sbox<uint32_t>;
 %template(Sbox64) T_Sbox<uint64_t>;
+
 %pythoncode %{
-Sbox = Sbox64
-Sbox.classes = Sbox8, Sbox16, Sbox32, Sbox64
+class Sbox(Sbox64):
+    classes = Sbox8, Sbox16, Sbox32, Sbox64
+
+    def __new__(cls, data, n=None, m=None):
+        if n is None:
+            n = len(data)
+        if m is None:
+            m = int(max(data)).bit_length()
+
+        assert len(data) == 1 << n
+        assert 0 <= min(data) <= max(data) < 1 << m
+
+        if m <= 8:
+            cls = Sbox8
+        elif m <= 16:
+            cls = Sbox16
+        elif m <= 32:
+            cls = Sbox32
+        elif m <= 64:
+            cls = Sbox64
+        else:
+            raise TypeError("too large values")
+        return cls(data, n, m)
 %}
 
 %template(DivCore_StrongComposition8) T_DivCore_StrongComposition<uint8_t>;
