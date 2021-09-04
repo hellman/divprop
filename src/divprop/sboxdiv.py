@@ -81,16 +81,18 @@ class SboxDivision:
         """
         (unique/non-redundant) closures of ANFs of components
         """
+        n = self.sbox.n
+        m = self.sbox.m
         # linear-time build all components
         cs = list(self.sbox.coordinates())
-        xors = [DenseSet(16)] + [None] * (2**16-1)
-        for i in range(16):
+        xors = [DenseSet(n)] + [None] * (2**m-1)
+        for i in range(m):
             for j in range(2**i):
-                xors[j + 2**i] = xors[j] ^ cs[15 - i]
+                xors[j + 2**i] = xors[j] ^ cs[m - 1 - i]
 
         # ANF closures
         anfs_full = {
-            mask: xor.Mobius().UpperSet()
+            mask: xor.Mobius().LowerSet()
             for mask, xor in enumerate(xors)
         }
         anfs_max = {
@@ -98,12 +100,12 @@ class SboxDivision:
             for mask, anf in anfs_full.items()
         }
         del xors
-        assert len(anfs_full) == 2**16
+        assert len(anfs_full) == 2**m
 
         if remove_dups_by_maxset:
             unique = []
             seen = {}
-            for mask in range(1, 2**16):
+            for mask in range(1, 2**m):
                 mx = anfs_max[mask]
                 h = mx.get_hash()
                 if h in seen:
@@ -113,8 +115,8 @@ class SboxDivision:
                 seen[h] = mx
                 unique.append(mask)
             del seen
-            self.log.debug(f"unique masks {len(unique)}")
             anfs_full = {mask: anfs_full[mask] for mask in unique}
+            self.log.debug(f"unique masks {len(anfs_full)}")
 
         if only_minimal:
             minimal = []
@@ -127,6 +129,7 @@ class SboxDivision:
                 else:
                     minimal.append(mask1)
             anfs_full = {mask: anfs_full[mask] for mask in minimal}
+            self.log.debug(f"minimal masks {len(anfs_full)}")
         return anfs_full
 
     def inverse(self):
