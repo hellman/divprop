@@ -15,6 +15,7 @@ from divprop.lib import (
     DivCore_StrongComposition32,
     DivCore_StrongComposition64,
 )
+from divprop.divcore_peekanfs import SboxPeekANFs
 
 
 def make_mask(m):
