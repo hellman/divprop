@@ -3,11 +3,13 @@ import logging
 from optisolveapi.sat import ConvexFormula
 from optisolveapi.vector import Vector
 
+from subsets import DenseSet
+
 from divprop import DivCore, Sbox
 from divprop.utils import cached_method
 
 
-class DivBounds:
+class SboxDivision:
     log = logging.getLogger()
 
     def __init__(self, sbox, divcore=None):
@@ -30,16 +32,19 @@ class DivBounds:
     @cached_method
     def lb(self):
         return self.divcore.get_Invalid()
+    Invalid = lb
 
     @property
     @cached_method
     def ub(self):
         return self.divcore.get_Redundant()
+    Redundant = ub
 
     @property
     @cached_method
     def ub2(self):
         return self.divcore.get_RedundantAlternative()
+    RedundantAlternative = ub2
 
     @property
     @cached_method
@@ -53,6 +58,13 @@ class DivBounds:
     @cached_method
     def hull(self):
         return self.divcore.get_Minimal()
+    Minimal = hull
+
+    @property
+    @cached_method
+    def hull_max(self):
+        return self.hull.MaxSet()
+    hull_min = divcore
 
     @property
     @cached_method
@@ -64,7 +76,64 @@ class DivBounds:
     def dppt_min(self):
         return self.divcore.MinDPPT()
 
+    @cached_method
+    def components_anf_closures(self, remove_dups_by_maxset=True, only_minimal=True):
+        """
+        (unique/non-redundant) closures of ANFs of components
+        """
+        # linear-time build all components
+        cs = list(self.sbox.coordinates())
+        xors = [DenseSet(16)] + [None] * (2**16-1)
+        for i in range(16):
+            for j in range(2**i):
+                xors[j + 2**i] = xors[j] ^ cs[15 - i]
+
+        # ANF closures
+        anfs_full = {
+            mask: xor.Mobius().UpperSet()
+            for mask, xor in enumerate(xors)
+        }
+        anfs_max = {
+            mask: anf.MaxSet()
+            for mask, anf in anfs_full.items()
+        }
+        del xors
+        assert len(anfs_full) == 2**16
+
+        if remove_dups_by_maxset:
+            unique = []
+            seen = {}
+            for mask in range(1, 2**16):
+                mx = anfs_max[mask]
+                h = mx.get_hash()
+                if h in seen:
+                    # check that it's not a hash collision
+                    assert seen[h] == mx
+                    continue
+                seen[h] = mx
+                unique.append(mask)
+            del seen
+            self.log.debug(f"unique masks {len(unique)}")
+            anfs_full = {mask: anfs_full[mask] for mask in unique}
+
+        if only_minimal:
+            minimal = []
+            for mask1 in anfs_full:
+                for mask2 in anfs_full:
+                    if mask1 == mask2:
+                        continue
+                    if is_max_preceq_full(anfs_max[mask2], anfs_full[mask1]):
+                        break
+                else:
+                    minimal.append(mask1)
+            anfs_full = {mask: anfs_full[mask] for mask in minimal}
+        return anfs_full
+
+    def inverse(self):
+        return SboxDivision(sbox=self.sbox.inverse())
+
     # CONSTRAINTS
+    # ======================================
 
     @property
     @cached_method
@@ -121,10 +190,18 @@ class DivBounds:
         solver.apply(self.cnf_ubest, Vector(-xs).concat(ys))
 
 
+def is_max_preceq_full(s1: DenseSet, s2: DenseSet):
+    """Faster variant. s2 must be lower-closed"""
+    for u in s1:
+        if u not in s2:
+            return False
+    return True
+
+
 if __name__ == '__main__':
     import justlogs
     justlogs.setup(level="DEBUG")
 
-    db = DivBounds(Sbox([1, 2, 3, 0], 2, 2))
+    db = SboxDivision(Sbox([1, 2, 3, 0], 2, 2))
     print(db.divcore._dense)
     print(db.box_ub([2, 2]))
