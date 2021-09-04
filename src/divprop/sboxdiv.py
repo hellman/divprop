@@ -23,16 +23,39 @@ def make_mask(m):
 
 
 class SboxDivision:
+    CACHE = None
+
     log = logging.getLogger()
 
-    def __init__(self, sbox, divcore=None):
+    def __init__(self, sbox: Sbox):
         self.sbox = sbox
-        self.cache_key = "%016X" % sbox.get_hash()
+        self.cache_key = "sbox%016X" % sbox.get_hash()  # too small hash?
 
         self.n = int(sbox.n)
         self.m = int(sbox.m)
         self.mask_u = make_mask(self.n) << self.m
         self.mask_v = make_mask(self.m)
+
+    @classmethod
+    def from_divcore(cls, divcore: DenseSet, n, m=None):
+        assert isinstance(divcore, DenseSet)
+
+        if m is None:
+            m = divcore.n - n
+
+        self = super().__new__(cls)
+
+        self.n = int(n)
+        self.m = int(m)
+        assert divcore.n == self.n + self.m
+        self.mask_u = make_mask(self.n) << self.m
+        self.mask_v = make_mask(self.m)
+
+        self.cache_key = "divcore%016X" % divcore.get_hash()  # too small hash?
+        f = cls.divcore.fget
+        f._cache[f._calc_key(self)] = divcore
+        assert self.divcore == divcore
+        return self
 
     @property
     @cached_method

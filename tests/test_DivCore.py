@@ -143,6 +143,18 @@ def check_one_relations(sbox, n, m):
     # print("---")
 
 
+def test_SboxDivision_from_divcore():
+    for name, sbox, n, m, dppt in get_sboxes():
+        sd1 = SboxDivision(Sbox(sbox, n, m))
+        sd2 = SboxDivision.from_divcore(sd1.divcore, n, m)
+
+        for attr in (
+            "divcore", "lb", "ub", "minimal", "invalid_max", "redundant_min",
+            "propagation_map", "min_dppt", "full_dppt"
+        ):
+            assert getattr(sd1, attr) == getattr(sd2, attr)
+
+
 def form_partition(*sets):
     for s in sets:
         break
@@ -169,6 +181,8 @@ def test_peekanfs():
 
 def test_component_anf():
     for name, sbox, n, m, dppt in get_sboxes():
+        if n >= 7:
+            continue
         sbox = Sbox(sbox, n, m)
         if sbox.is_invertible():
             # test remark

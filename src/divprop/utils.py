@@ -14,9 +14,7 @@ NotFound = object()
 
 
 def cached_method(method):
-    if not hasattr(method, "_cache"):
-        method._cache = {}
-        assert hasattr(method, "_cache")
+    cache = {}
 
     def calc_key(self, *args, **kwargs):
         cls_name = type(self).__name__
@@ -29,6 +27,7 @@ def cached_method(method):
 
     @wraps(method)
     def call(self, *args, **kwargs):
+        nonlocal cache, calc_key
         log = getattr(self, "log", DEFAULT_LOGGER)
         CACHE = getattr(self, "CACHE", DEFAULT_CACHE)
         if CACHE:
@@ -43,7 +42,7 @@ def cached_method(method):
 
         key = calc_key(self, *args, **kwargs)
 
-        ret = method._cache.get(key, NotFound)
+        ret = cache.get(key, NotFound)
         if ret is not NotFound:
             return copy.deepcopy(ret)
 
@@ -57,20 +56,21 @@ def cached_method(method):
                 pass
 
             if ret is not NotFound:
-                method._cache[key] = ret
+                cache[key] = ret
                 return copy.deepcopy(ret)
 
         log.info(f"computing {key}")
 
         ret = method(self, *args, **kwargs)
-        method._cache[key] = ret
+        cache[key] = ret
 
         if self.CACHE:
             pickle.dump(ret, open(cache_filename, "wb"))
             log.info(f"save {cache_filename} succeeded")
         return copy.deepcopy(ret)
 
-        call.calc_key = calc_key
+    call._calc_key = calc_key
+    call._cache = cache
     return call
 
 
@@ -81,10 +81,13 @@ def cached_func(method=None, CACHE=DEFAULT_CACHE, log=DEFAULT_LOGGER):
         if CACHE:
             CACHE = Path(CACHE)
             if not CACHE.is_dir():
-                log.warning(f"cache folder {CACHE} does not exist, disabling cache")
+                log.warning(
+                    f"cache folder {CACHE} does not exist, "
+                    "disabling file cache"
+                )
                 CACHE = None
         else:
-            log.warning("cache disabled")
+            log.warning("file cache disabled")
             CACHE = None
 
         @wraps(method)
