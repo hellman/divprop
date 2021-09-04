@@ -121,7 +121,7 @@ class SboxDivision:
         ret = [list() for _ in range(2**self.n)]
         for uv in self.min_dppt.to_Bins():
             u, v = uv.split(ns=(self.n, self.m))
-            ret[(~u).int].append(v.int)
+            ret[u.int].append(v.int)
         return ret
 
     @cached_method
