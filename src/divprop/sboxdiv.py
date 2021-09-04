@@ -5,8 +5,20 @@ from optisolveapi.vector import Vector
 
 from subsets import DenseSet
 
-from divprop import DivCore, Sbox
+from divprop import Sbox
 from divprop.utils import cached_method
+
+from divprop.lib import (
+    DivCore_StrongComposition,
+    DivCore_StrongComposition8,
+    DivCore_StrongComposition16,
+    DivCore_StrongComposition32,
+    DivCore_StrongComposition64,
+)
+
+
+def make_mask(m):
+    return (1 << m) - 1
 
 
 class SboxDivision:
@@ -16,65 +28,100 @@ class SboxDivision:
         self.sbox = sbox
         self.cache_key = "%016X" % sbox.get_hash()
 
-        self._divcore = divcore
+        self.n = int(sbox.n)
+        self.m = int(sbox.m)
+        self.mask_u = make_mask(self.n) << self.m
+        self.mask_v = make_mask(self.m)
 
     @property
     @cached_method
     def divcore(self):
-        return DivCore.from_sbox(self.sbox)
+        ret = self.sbox.graph_dense()
+        ret.do_Mobius()
+        ret.do_MaxSet()
+        ret.do_Not()
+        return ret
 
     @property
     @cached_method
-    def full(self):
+    def divcore_heavy(self):
+        pass
+
+    @property
+    @cached_method
+    def valid(self):
         return self.divcore.UpperSet()
+    valid_min = divcore
 
     @property
     @cached_method
-    def lb(self):
-        return self.divcore.get_Invalid()
-    Invalid = lb
+    def invalid_max(self):
+        return self.divcore.ComplementU2L()
+    lb = invalid_max  # complementary lower bound
 
     @property
     @cached_method
-    def ub(self):
-        return self.divcore.get_Redundant()
-    Redundant = ub
+    def redundant_min(self):
+        ret = self.divcore.copy()
+        ret.do_UpperSet_Up1(True, self.mask_v)  # is_minset=true
+        ret.do_MinSet()
+        return ret
+    ub = redundant_min  # complementary upper bound
 
     @property
     @cached_method
-    def ub2(self):
-        return self.divcore.get_RedundantAlternative()
-    RedundantAlternative = ub2
+    def redundant_alternative_min(self):
+        return self.minimal_max.ComplementL2U()
+    ub2 = redundant_alternative_min  # complementary upper bound (alternative)
 
     @property
     @cached_method
-    def ubest(self):
+    def redundant_best_min(self):
         """best of ub and ub2"""
         if self.ub.get_weight() < self.ub2.get_weight():
             return self.ub
         return self.ub2
+    ubest = redundant_best_min  # smallest (by extremes) upper bound
 
     @property
     @cached_method
-    def hull(self):
-        return self.divcore.get_Minimal()
-    Minimal = hull
+    def minimal(self):
+        ret = self.divcore.copy()
+        ret.do_UpperSet(self.mask_u)
+        ret.do_MinSet(self.mask_v)
+        return ret
 
     @property
     @cached_method
-    def hull_max(self):
-        return self.hull.MaxSet()
-    hull_min = divcore
+    def minimal_max(self):
+        return self.minimal.MaxSet()
+    minimal_min = divcore
 
     @property
     @cached_method
-    def dppt_full(self):
-        return self.divcore.FullDPPT()
+    def full_dppt(self):
+        ret = self.divcore.copy()
+        ret.do_UpperSet()
+        ret.do_Not(self.mask_u)
+        return ret
 
     @property
     @cached_method
-    def dppt_min(self):
-        return self.divcore.MinDPPT()
+    def min_dppt(self):
+        ret = self.divcore.copy()
+        ret.do_UpperSet(self.mask_u)
+        ret.do_MinSet(self.mask_v)
+        ret.do_Not(self.mask_u)
+        return ret
+
+    @property
+    @cached_method
+    def propagation_map(self):
+        ret = [list() for _ in range(2**self.n)]
+        for uv in self.min_dppt.to_Bins():
+            u, v = uv.split(ns=(self.n, self.m))
+            ret[(~u).int].append(v.int)
+        return ret
 
     @cached_method
     def components_anf_closures(self, remove_dups_by_maxset=True, only_minimal=True):
@@ -161,8 +208,7 @@ class SboxDivision:
     @cached_method
     def box(self, dimensions):
         assert sum(dimensions) == self.sbox.n + self.sbox.m
-        print(self.hull)
-        return self.hull.to_DenseBox(dimensions)
+        return self.minimal.to_DenseBox(dimensions)
 
     @cached_method
     def box_lb(self, dimensions):
@@ -206,5 +252,5 @@ if __name__ == '__main__':
     justlogs.setup(level="DEBUG")
 
     db = SboxDivision(Sbox([1, 2, 3, 0], 2, 2))
-    print(db.divcore._dense)
+    print(db.divcore)
     print(db.box_ub([2, 2]))

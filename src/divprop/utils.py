@@ -1,3 +1,4 @@
+import copy
 import pickle
 import logging
 
@@ -9,8 +10,22 @@ DEFAULT_CACHE = Path(".cache/")
 DEFAULT_LOGGER = logging.getLogger()
 
 
+NotFound = object()
+
+
 def cached_method(method):
-    method._cache = {}
+    if not hasattr(method, "_cache"):
+        method._cache = {}
+        assert hasattr(method, "_cache")
+
+    def calc_key(self, *args, **kwargs):
+        cls_name = type(self).__name__
+        meth_name = method.__name__
+
+        args_key = str((args, sorted(kwargs.items())))
+        args_key = sha256(args_key.encode()).hexdigest().upper()
+        key = f"{cls_name}.{meth_name}.self_{self.cache_key}.args_{args_key}"
+        return key
 
     @wraps(method)
     def call(self, *args, **kwargs):
@@ -26,18 +41,11 @@ def cached_method(method):
             log.warning("cache disabled")
             self.CACHE = None
 
-        cls_name = type(self).__name__
-        meth_name = method.__name__
+        key = calc_key(self, *args, **kwargs)
 
-        args_key = str((args, sorted(kwargs.items())))
-        # print("ARGS_KEY", str(args_key)[:500])
-        args_key = sha256(args_key.encode()).hexdigest().upper()
-        key = f"{cls_name}.{meth_name}.self_{self.cache_key}.args_{args_key}"
-        # print("FULL KEY", key)
-
-        ret = method._cache.get(key)
-        if ret:
-            return ret
+        ret = method._cache.get(key, NotFound)
+        if ret is not NotFound:
+            return copy.deepcopy(ret)
 
         if self.CACHE:
             cache_filename = self.CACHE / key
@@ -48,9 +56,9 @@ def cached_method(method):
                 log.warning(f"load {cache_filename} failed: {err}")
                 pass
 
-            if ret is not None:
+            if ret is not NotFound:
                 method._cache[key] = ret
-                return ret
+                return copy.deepcopy(ret)
 
         log.info(f"computing {key}")
 
@@ -60,7 +68,9 @@ def cached_method(method):
         if self.CACHE:
             pickle.dump(ret, open(cache_filename, "wb"))
             log.info(f"save {cache_filename} succeeded")
-        return ret
+        return copy.deepcopy(ret)
+
+        call.calc_key = calc_key
     return call
 
 
@@ -85,9 +95,9 @@ def cached_func(method=None, CACHE=DEFAULT_CACHE, log=DEFAULT_LOGGER):
             args_key = sha256(args_key.encode()).hexdigest().upper()
             key = f"{meth_name}.args_{args_key}"
 
-            ret = method._cache.get(key)
-            if ret:
-                return ret
+            ret = method._cache.get(key, NotFound)
+            if ret is not NotFound:
+                return copy.deepcopy(ret)
 
             if CACHE:
                 cache_filename = CACHE / key
@@ -98,9 +108,9 @@ def cached_func(method=None, CACHE=DEFAULT_CACHE, log=DEFAULT_LOGGER):
                     log.warning(f"load {cache_filename} failed: {err}")
                     pass
 
-                if ret is not None:
+                if ret is not NotFound:
                     method._cache[key] = ret
-                    return ret
+                    return copy.deepcopy(ret)
 
             log.info(f"computing {key}")
 
@@ -110,7 +120,7 @@ def cached_func(method=None, CACHE=DEFAULT_CACHE, log=DEFAULT_LOGGER):
             if CACHE:
                 pickle.dump(ret, open(cache_filename, "wb"))
                 log.info(f"save {cache_filename} succeeded")
-            return ret
+            return copy.deepcopy(ret)
         return call
     if method is None:
         return deco
