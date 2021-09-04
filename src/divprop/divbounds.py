@@ -23,6 +23,11 @@ class DivBounds:
 
     @property
     @cached_method
+    def full(self):
+        return self.divcore.UpperSet()
+
+    @property
+    @cached_method
     def lb(self):
         return self.divcore.get_Invalid()
 
@@ -48,6 +53,18 @@ class DivBounds:
     @cached_method
     def hull(self):
         return self.divcore.get_Minimal()
+
+    @property
+    @cached_method
+    def dppt_full(self):
+        return self.divcore.FullDPPT()
+
+    @property
+    @cached_method
+    def dppt_min(self):
+        return self.divcore.MinDPPT()
+
+    # CONSTRAINTS
 
     @property
     @cached_method
