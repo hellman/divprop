@@ -143,12 +143,13 @@ class SboxDivision:
             mask: xor.Mobius().LowerSet()
             for mask, xor in enumerate(xors)
         }
+        del anfs_full[0]
         anfs_max = {
             mask: anf.MaxSet()
             for mask, anf in anfs_full.items()
         }
         del xors
-        assert len(anfs_full) == 2**m
+        assert len(anfs_full) == 2**m - 1
 
         if remove_dups_by_maxset:
             unique = []
