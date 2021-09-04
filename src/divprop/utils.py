@@ -62,3 +62,56 @@ def cached_method(method):
             log.info(f"save {cache_filename} succeeded")
         return ret
     return call
+
+
+def cached_func(method=None, CACHE=DEFAULT_CACHE, log=DEFAULT_LOGGER):
+    def deco(method):
+        nonlocal CACHE, log
+        method._cache = {}
+        if CACHE:
+            CACHE = Path(CACHE)
+            if not CACHE.is_dir():
+                log.warning(f"cache folder {CACHE} does not exist, disabling cache")
+                CACHE = None
+        else:
+            log.warning("cache disabled")
+            CACHE = None
+
+        @wraps(method)
+        def call(*args, **kwargs):
+            meth_name = method.__name__
+
+            args_key = str((args, sorted(kwargs.items())))
+            args_key = sha256(args_key.encode()).hexdigest().upper()
+            key = f"{meth_name}.args_{args_key}"
+
+            ret = method._cache.get(key)
+            if ret:
+                return ret
+
+            if CACHE:
+                cache_filename = CACHE / key
+                try:
+                    ret = pickle.load(open(cache_filename, "rb"))
+                    log.info(f"load {cache_filename} succeeded")
+                except Exception as err:
+                    log.warning(f"load {cache_filename} failed: {err}")
+                    pass
+
+                if ret is not None:
+                    method._cache[key] = ret
+                    return ret
+
+            log.info(f"computing {key}")
+
+            ret = method(*args, **kwargs)
+            method._cache[key] = ret
+
+            if CACHE:
+                pickle.dump(ret, open(cache_filename, "wb"))
+                log.info(f"save {cache_filename} succeeded")
+            return ret
+        return call
+    if method is None:
+        return deco
+    return deco(method)
