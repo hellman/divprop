@@ -5,7 +5,7 @@ import argparse
 
 from subsets import DenseSet
 
-from divprop import Sbox, DivCore
+from divprop import Sbox, SboxDivision
 from divprop.all_sboxes import sboxes
 
 import logging
@@ -76,8 +76,7 @@ def tool_sbox2divcore():
     output = args.output or f"data/sbox_{name}/divcore"
 
     log.info(f"computing division core for '{name}', output to {output}")
-    dc = DivCore.from_sbox(Sbox(sbox, n, m))
-    data = dc.to_dense()
+    data = SboxDivision(Sbox(sbox, n, m)).divcore
 
     log.info(f"division core: {data}")
     log.info(f"by pairs: {data.str_stat_by_weight_pairs(n, m)}")
@@ -201,8 +200,7 @@ def tool_sbox2ptt():
     # save Minimal too
     output = f"data/sbox_{name}/ndppt"
 
-    dc = DivCore.from_sbox(sbox)
-    MS = dc.get_Minimal()
+    MS = SboxDivision(sbox).minimal
     MS.save_to_file(output + ".set")
 
     log.info(f" minimal: {MS}")
@@ -303,16 +301,16 @@ def tool_divcore2bounds():
     log.info(divcore_data)
     log.info(f"n = {n}, m = {m}")
 
-    dc = DivCore(data=divcore_data, n=n, m=m)
+    dc = SboxDivision.from_divcore(divcore=divcore_data, n=n, m=m)
 
     log.info("generating bounds...")
 
-    mid = dc.MinDPPT()
+    mid = dc.min_dppt
     log.info(f"min-dppt: {mid}")
     mid.do_Not(dc.mask_u)
     log.info(f"     M_S: {mid}")
 
-    lb = dc.LB()
+    lb = dc.lb
     assert mid.UpperSet().Complement().MaxSet() == lb
     dclo = divcore_data  # = mid.MinSet()
     dcup = mid.MaxSet()
@@ -329,7 +327,7 @@ def tool_divcore2bounds():
             points_good = dclo
             points_bad = lb
 
-            assert points_bad == dc.get_Invalid()
+            assert points_bad == dc.invalid_max
 
             type_good = TypeGood.UPPER
         elif typ == "ubo":
@@ -339,7 +337,7 @@ def tool_divcore2bounds():
             points_good = points_good.MaxSet()
             points_bad = points_bad.MinSet()
 
-            assert points_bad == dc.get_Redundant()
+            assert points_bad == dc.redundant_min
 
             type_good = TypeGood.LOWER
         elif typ == "ubc":
@@ -349,7 +347,7 @@ def tool_divcore2bounds():
             points_good = points_good.MaxSet()
             points_bad = points_bad.MinSet()
 
-            assert points_bad == dc.get_RedundantAlternative()
+            assert points_bad == dc.redundant_alternative_min()
 
             type_good = TypeGood.LOWER
         elif typ == "full":

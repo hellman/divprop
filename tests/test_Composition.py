@@ -1,6 +1,6 @@
 import logging
 
-from divprop import Sbox, DivCore, DivCore_StrongComposition
+from divprop import Sbox, SboxDivision, DivCore_StrongComposition
 
 from test_sboxes import get_sboxes
 
@@ -31,15 +31,15 @@ def check_one_DPPT(sbox, n, m, dppt):
     test2 = DivCore_StrongComposition(n, n, n, sbox, id)
     test1.process()
     test2.process()
-    ans = DivCore.from_sbox(Sbox(sbox, n, m))
-    assert test1.divcore == test2.divcore == ans.to_dense()
+    ans = SboxDivision(Sbox(sbox, n, m))
+    assert test1.divcore == test2.divcore == ans.divcore
 
     test = DivCore_StrongComposition(n, n, n, sbox, sbox)
     test.set_keys([0])
     test.process()
     sbox2 = [sbox[y] for y in sbox]
-    ans = DivCore.from_sbox(Sbox(sbox2, n, m))
-    assert test.divcore == ans.to_dense()
+    ans = SboxDivision(Sbox(sbox2, n, m))
+    assert test.divcore == ans.divcore
 
 
 if __name__ == '__main__':

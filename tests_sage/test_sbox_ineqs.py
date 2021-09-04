@@ -1,11 +1,8 @@
-from divprop.sbox_ineqs import get_sbox, get_sbox_sizes
-from divprop.divcore import DivCore
-from optimodel import satisfy
 from binteger import Bin
 from glob import glob
 
 
-def test_ineqs():
+def Xtest_ineqs():
     todo = (
         "present",
         "rectangle",
@@ -92,7 +89,3 @@ def check_sbox_full(name, sbox, n, m):
                 print("bad point kept", p)
                 # assert False, p
                 break
-
-
-if __name__ == '__main__':
-    test_ineqs()

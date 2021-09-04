@@ -35,10 +35,10 @@ def cached_method(method):
             self.CACHE = Path(CACHE)
 
             if not CACHE.is_dir():
-                log.warning(f"cache folder {self.CACHE} does not exist, disabling cache")
+                log.debug(f"cache folder {self.CACHE} does not exist, disabling cache")
                 self.CACHE = None
         else:
-            log.warning("cache disabled")
+            log.debug("cache disabled")
             self.CACHE = None
 
         key = calc_key(self, *args, **kwargs)
@@ -53,7 +53,7 @@ def cached_method(method):
                 ret = pickle.load(open(cache_filename, "rb"))
                 log.info(f"load {cache_filename} succeeded")
             except Exception as err:
-                log.warning(f"load {cache_filename} failed: {err}")
+                log.debug(f"load {cache_filename} failed: {err}")
                 pass
 
             if ret is not NotFound:

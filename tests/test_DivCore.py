@@ -5,42 +5,44 @@ from random import shuffle, randrange
 from binteger import Bin
 from subsets import DenseSet
 
-from divprop import Sbox, DivCore
+from divprop import Sbox, SboxDivision, SboxPeekANFs
 
 from test_sboxes import get_sboxes
+
+SboxDivision.CACHE = None
 
 
 def test_DivCore():
     s = Sbox([1, 2, 3, 4, 0, 7, 6, 5], 3, 3)
-    dc = DivCore.from_sbox(s, method="dense", debug=True)
-    dc2 = DivCore.from_sbox(s, method="peekanfs", debug=True)
-    assert dc == dc2
+    dc = SboxDivision(sbox=s)
+    dc2_bins, ub2 = SboxPeekANFs(s).compute()
+    assert set(dc.divcore.to_Bins()) == dc2_bins
 
-    assert dc.to_dense().info() == \
+    assert dc.divcore.info() == \
         "<DenseSet hash=dfa780cfc382387a n=6 wt=12 | 2:3 3:9>"
-    assert dc.to_dense().get_support() == \
+    assert dc.divcore.get_support() == \
         (7, 11, 12, 19, 20, 25, 35, 36, 42, 49, 50, 56)
 
-    assert dc.get_Invalid().info() == \
+    assert dc.invalid_max.info() == \
         "<DenseSet hash=9fe09c93bbcdbb87 n=6 wt=8 | 2:6 3:2>"
-    assert dc.get_Redundant().info() == \
+    assert dc.redundant_min.info() == \
         "<DenseSet hash=60f7fb1d9a638a50 n=6 wt=12 | 3:6 4:6>"
-    assert dc.get_RedundantAlternative().info() == \
+    assert dc.redundant_alternative_min.info() == \
         "<DenseSet hash=449b201e8a75f016 n=6 wt=10 | 3:8 4:2>"
-    assert dc.FullDPPT().info() == \
+    assert dc.full_dppt.info() == \
         "<DenseSet hash=b712d2af3b433a45 n=6 wt=43 | 0:1 1:3 2:10 3:13 4:12 5:3 6:1>"
-    assert dc.MinDPPT().info() == \
+    assert dc.min_dppt.info() == \
         "<DenseSet hash=ff7ce5b30da61490 n=6 wt=15 | 0:1 2:7 3:3 4:3 6:1>"
 
-    assert dc.get_Invalid().get_support() == \
+    assert dc.invalid_max.get_support() == \
         (3, 5, 6, 17, 26, 34, 41, 48)
-    assert dc.get_Redundant().get_support() == \
+    assert dc.redundant_min.get_support() == \
         (13, 14, 21, 22, 27, 37, 38, 43, 51, 57, 58, 60)
-    assert dc.get_RedundantAlternative().get_support() == \
+    assert dc.redundant_alternative_min.get_support() == \
         (13, 14, 21, 22, 26, 37, 38, 41, 51, 60)
-    assert dc.FullDPPT().get_support() == \
+    assert dc.full_dppt.get_support() == \
         (0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 27, 28, 29, 30, 31, 33, 35, 36, 37, 38, 39, 43, 44, 45, 46, 47, 51, 52, 53, 54, 55, 63)
-    assert dc.MinDPPT().get_support() == \
+    assert dc.min_dppt.get_support() == \
         (0, 9, 10, 12, 18, 20, 27, 28, 33, 36, 43, 44, 51, 52, 63)
 
 
@@ -95,31 +97,31 @@ def check_one_DPPT(sbox, n, m, dppt):
                 mindppt1.add((u << m) | v)
         mindppt1 = tuple(sorted(mindppt1))
 
-    dc = DivCore.from_sbox(sbox, debug=True)
+    dc = SboxDivision(sbox=sbox)
     if dppt is not None:
-        assert tuple(dc.MinDPPT()) == dc.MinDPPT().get_support() == mindppt1
-        assert len(dc.MinDPPT()) == dc.MinDPPT().get_weight() == len(mindppt1)
-        assert dc.FullDPPT() == dc.to_dense().UpperSet().Not(dc.mask_u)
+        assert tuple(dc.min_dppt) == dc.min_dppt.get_support() == mindppt1
+        assert len(dc.min_dppt) == dc.min_dppt.get_weight() == len(mindppt1)
+        assert dc.full_dppt == dc.divcore.UpperSet().Not(dc.mask_u)
 
     reduntant = DenseSet(n+m)
-    for uv in dc.to_DenseSet().to_Bins():
+    for uv in dc.divcore.to_Bins():
         u = uv[:n]
         v = uv[n:]
         for i in range(m):
             if v[i] == 0:
                 ii = m - 1 - i
                 reduntant.add((u.int << m) | int(v | (1 << ii)))
-    assert dc.get_Redundant() == reduntant.MinSet()
+    assert dc.redundant_min == reduntant.MinSet()
 
 
 def check_one_relations(sbox, n, m):
-    dc = DivCore.from_sbox(sbox, debug=True)
+    dc = SboxDivision(sbox=sbox)
 
-    mid = dc.MinDPPT().Not(dc.mask_u)
+    mid = dc.min_dppt.Not(dc.mask_u)
 
-    lb = dc.get_Invalid()
-    ubr = dc.get_Redundant()
-    ubc = dc.get_RedundantAlternative()
+    lb = dc.invalid_max
+    ubr = dc.redundant_min
+    ubc = dc.redundant_alternative_min
 
     assert ubr.UpperSet() <= ubc.UpperSet()
     assert not (ubr & mid)
@@ -131,14 +133,14 @@ def check_one_relations(sbox, n, m):
     assert ubr.UpperSet() == (mid.LowerSet() | lb.LowerSet()).Complement()
     assert ubc.UpperSet() == (mid.LowerSet()).Complement()
 
-    print(
-        "LB", len(lb),
-        "UB", len(ubr),
-        "UB'", len(ubc),
-        "MinDPPT", len(dc.MinDPPT()),
-        "FullDPPT", len(dc.FullDPPT()),
-    )
-    print("---")
+    # print(
+    #     "LB", len(lb),
+    #     "UB", len(ubr),
+    #     "UB'", len(ubc),
+    #     "MinDPPT", len(dc.min_dppt),
+    #     "FullDPPT", len(dc.full_dppt),
+    # )
+    # print("---")
 
 
 def form_partition(*sets):
@@ -159,10 +161,54 @@ def test_peekanfs():
         print(Sbox, Sbox.classes)
         print(type(sbox), sbox)
         sbox = Sbox(sbox, n, m)
-        test1 = sorted(DivCore.from_sbox(sbox, method="dense").to_Bins())
-        test2 = sorted(DivCore.from_sbox(sbox, method="peekanfs").to_Bins())
+        test1 = sorted(SboxDivision(sbox).divcore.to_Bins())
+        test2 = sorted(SboxPeekANFs(sbox).compute()[0])
         assert test1 == test2
         print("OK")
+
+
+def test_component_anf():
+    for name, sbox, n, m, dppt in get_sboxes():
+        sbox = Sbox(sbox, n, m)
+        if sbox.is_invertible():
+            # test remark
+            anfs_full = SboxDivision(~sbox).components_anf_closures(
+                remove_dups_by_maxset=False,
+                only_minimal=False,
+            )
+
+            assert len(anfs_full) == 2**m-1
+            for mask in range(1, 2**m):
+                f = DenseSet(m)
+                for x, y in enumerate(sbox):
+                    if Bin(x).scalar_bin(mask):
+                        f.flip(y)
+                f.do_Mobius()
+                f.do_LowerSet()
+                assert anfs_full[mask] == f
+
+        anfs_full = SboxDivision(sbox).components_anf_closures(
+            remove_dups_by_maxset=False,
+            only_minimal=False,
+        )
+        for mask in range(1, 2**m):
+            f = DenseSet(n)
+            for x, y in enumerate(sbox):
+                if Bin(y).scalar_bin(mask):
+                    f.flip(x)
+            f.do_Mobius()
+            f.do_LowerSet()
+            assert anfs_full[mask] == f
+
+        maxterms1 = {tuple(anf.MaxSet()) for mask, anf in anfs_full.items()}
+
+        anfs_full2 = SboxDivision(sbox).components_anf_closures(
+            remove_dups_by_maxset=True,
+            only_minimal=False,
+        )
+
+        maxterms2 = {tuple(anf.MaxSet()) for mask, anf in anfs_full2.items()}
+        assert maxterms1 == maxterms2
 
 
 # ===========================================
@@ -172,8 +218,10 @@ def test_peekanfs():
 
 def check_propagation_map(sbox):
     mp1 = sbox_division(sbox, sbox.n, sbox.m)
-    divcore = DivCore.from_sbox(sbox, method="dense")
-    mp2 = divcore.to_propagation_map()
+    divcore = SboxDivision(sbox)
+    mp2 = divcore.propagation_map
+    print(mp1[0])
+    print(mp2[0])
     assert tuple(mp1) == tuple(mp2)
 
 
@@ -260,3 +308,4 @@ if __name__ == '__main__':
     test_DivCore()
     test_DPPT()
     test_peekanfs()
+    print("Ok!")

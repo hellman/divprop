@@ -17,10 +17,10 @@ import gzip
 
 from binteger import Bin
 
-from subsets import DenseSet, SparseSet
+from subsets import DenseSet
 from divprop.lib import Sbox, Sbox32
 
-from divprop.divcore import DivCore, SboxPeekANFs
+from divprop import SboxDivision, SboxPeekANFs
 
 import logging
 
@@ -267,11 +267,11 @@ def run_small(n, path):
     log.info("testing...")
 
     if n <= 16:
-        ans = sorted(DivCore.from_sbox(sbox).to_Bins())
+        ans = sorted(SboxDivision(sbox).divcore.to_Bins())
         assert divcore == ans
-        ans = sorted(DivCore.from_sbox(sbox).get_Invalid().to_Bins())
+        ans = sorted(SboxDivision(sbox).invalid_max.to_Bins())
         assert lb == ans
-        ans = sorted(DivCore.from_sbox(sbox).get_Redundant().to_Bins())
+        ans = sorted(SboxDivision(sbox).redundant_min.to_Bins())
         assert ub == ans
         log.info("sanity check ok! (n <= 16)")
 
