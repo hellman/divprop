@@ -152,6 +152,22 @@ struct T_Sbox {
         return ret;
     }
 
+    bool is_invertible() const {
+        if (m != n) {
+            return false;
+        }
+        vector<bool> seen(1ull << m);
+        fori (x, 1ull << n) {
+            seen[data[x]] = 1;
+        }
+        fori (y, 1ull << m) {
+            if (!seen[y]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     static T_Sbox<T> GEN_random_permutation(int n, uint64_t seed=-1ull) {
         ensure(1 <= n && n <= 62);
         if (seed == -1ull) {
