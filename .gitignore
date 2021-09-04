@@ -11,4 +11,4 @@ results/
 logs/
 data/
 divcore_random/
-src/divprop/divprop.py
+src/divprop/lib.py

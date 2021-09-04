@@ -1015,6 +1015,9 @@ class Sbox8(object):
     def to_matrix(self):
         return _lib.Sbox8_to_matrix(self)
 
+    def is_invertible(self):
+        return _lib.Sbox8_is_invertible(self)
+
     @staticmethod
     def GEN_random_permutation(*args):
         return _lib.Sbox8_GEN_random_permutation(*args)
@@ -1116,6 +1119,9 @@ class Sbox16(object):
 
     def to_matrix(self):
         return _lib.Sbox16_to_matrix(self)
+
+    def is_invertible(self):
+        return _lib.Sbox16_is_invertible(self)
 
     @staticmethod
     def GEN_random_permutation(*args):
@@ -1219,6 +1225,9 @@ class Sbox32(object):
     def to_matrix(self):
         return _lib.Sbox32_to_matrix(self)
 
+    def is_invertible(self):
+        return _lib.Sbox32_is_invertible(self)
+
     @staticmethod
     def GEN_random_permutation(*args):
         return _lib.Sbox32_GEN_random_permutation(*args)
@@ -1320,6 +1329,9 @@ class Sbox64(object):
 
     def to_matrix(self):
         return _lib.Sbox64_to_matrix(self)
+
+    def is_invertible(self):
+        return _lib.Sbox64_is_invertible(self)
 
     @staticmethod
     def GEN_random_permutation(*args):
