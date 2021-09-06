@@ -133,6 +133,8 @@ def check_one_relations(sbox, n, m):
     assert ubr.UpperSet() == (mid.LowerSet() | lb.LowerSet()).Complement()
     assert ubc.UpperSet() == (mid.LowerSet()).Complement()
 
+    assert len(ubr) <= m * len(dc.divcore)
+
     # print(
     #     "LB", len(lb),
     #     "UB", len(ubr),
