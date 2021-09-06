@@ -29,11 +29,11 @@ def cached_method(method):
     def call(self, *args, **kwargs):
         nonlocal cache, calc_key
         log = getattr(self, "log", DEFAULT_LOGGER)
-        CACHE = getattr(self, "CACHE", DEFAULT_CACHE)
-        if CACHE:
-            self.CACHE = Path(CACHE)
+        self.CACHE = getattr(self, "CACHE", DEFAULT_CACHE)
+        if self.CACHE:
+            self.CACHE = Path(self.CACHE)
 
-            if not CACHE.is_dir():
+            if not self.CACHE.is_dir():
                 log.debug(f"cache folder {self.CACHE} does not exist, disabling cache")
                 self.CACHE = None
         else:
