@@ -293,7 +293,7 @@ def tool_divcore2bounds():
             points_good = points_good.MaxSet()
             points_bad = points_bad.MinSet()
 
-            assert points_bad == dc.redundant_alternative_min()
+            assert points_bad == dc.redundant_alternative_min
 
             type_good = TypeGood.LOWER
         elif typ == "full":
