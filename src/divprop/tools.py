@@ -198,7 +198,7 @@ def tool_sbox2ptt():
     del ptt
 
     # save Minimal too
-    output = f"data/sbox_{name}/ndppt"
+    output = f"data/sbox_{name}/division_minimal"
 
     MS = SboxDivision(sbox).minimal
     MS.save_to_file(output + ".set")
