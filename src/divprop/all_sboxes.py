@@ -58,12 +58,10 @@ if 0:
         y = [x[i] ^ (1^x[(i+1)%5])&x[(i+2)%5] for i in range(5)]
         keccak_chi_5.append(Bin(y).int)
     del x, y
-    keccak_chi_5 = (keccak_chi_5)
 
 # Dictionary of all available SBoxes
 sboxes = {}
-for k in dir(sys.modules[__name__]):
-    v = getattr(sys.modules[__name__], k)
+for k, v in list(globals().items()):
     if isinstance(v, list):
         sboxes[k] = tuple(v)
         if __name__ == '__main__':
