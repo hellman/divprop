@@ -113,7 +113,12 @@ class SSB_SKINNY64(SSB16):
         return [(a << 8) | 0x20 for a in range(16 * 16)]
 
 
-class SSB_NOKEY_SKINNY64(SSB_SKINNY64):
+class SSB_ZEROKEY_SKINNY64(SSB_SKINNY64):
+    def get_keys(self):
+        return [0]
+
+
+class SSB_ZEROKEY_LED(SSB_LED):
     def get_keys(self):
         return [0]
 
@@ -166,8 +171,9 @@ class SSB_NOKEY_SKINNY64(SSB_SKINNY64):
 ciphers = {
     cls.__name__.lower(): cls
     for cls in (
-        SSB_Midori64, SSB_LED,
-        SSB_SKINNY64, SSB_NOKEY_SKINNY64,
+        SSB_Midori64,
+        SSB_LED, SSB_ZEROKEY_LED,
+        SSB_SKINNY64, SSB_ZEROKEY_SKINNY64,
         # MISTY_FI,
     )
 }
