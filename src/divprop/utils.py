@@ -15,6 +15,7 @@ NotFound = object()
 
 def cached_method(method):
     cache = {}
+    disabled_shown = False
 
     def calc_key(self, *args, **kwargs):
         cls_name = type(self).__name__
@@ -27,7 +28,7 @@ def cached_method(method):
 
     @wraps(method)
     def call(self, *args, **kwargs):
-        nonlocal cache, calc_key
+        nonlocal cache, calc_key, disabled_shown
         log = getattr(self, "log", DEFAULT_LOGGER)
         self.CACHE = getattr(self, "CACHE", DEFAULT_CACHE)
         if self.CACHE:
@@ -37,7 +38,9 @@ def cached_method(method):
                 log.debug(f"cache folder {self.CACHE} does not exist, disabling cache")
                 self.CACHE = None
         else:
-            log.debug("cache disabled")
+            if not disabled_shown:
+                log.debug("cache disabled")
+                disabled_shown = True
             self.CACHE = None
 
         key = calc_key(self, *args, **kwargs)
@@ -59,7 +62,7 @@ def cached_method(method):
                 cache[key] = ret
                 return copy.deepcopy(ret)
 
-        log.info(f"computing {key}")
+            log.info(f"computing {key}")
 
         ret = method(self, *args, **kwargs)
         cache[key] = ret
