@@ -167,18 +167,20 @@ def form_partition(*sets):
 
 
 def test_peekanfs():
-    for n in range(2, 10):
-        m = n
-        sbox = list(range(2**n))
-        shuffle(sbox)
+    for n in range(2, 13):
+        n_iter = max(1, 2**10 // 2**n)
+        for i in range(n_iter):
+            m = n
+            sbox = list(range(2**n))
+            shuffle(sbox)
 
-        print(Sbox, Sbox.classes)
-        print(type(sbox), sbox)
-        sbox = Sbox(sbox, n, m)
-        test1 = sorted(SboxDivision(sbox).divcore.to_Bins())
-        test2 = sorted(SboxPeekANFs(sbox).compute()[0])
-        assert test1 == test2
-        print("OK")
+            print(Sbox, Sbox.classes)
+            print(type(sbox), sbox)
+            sbox = Sbox(sbox, n, m)
+            test1 = sorted(SboxDivision(sbox).divcore.to_Bins(), key=lambda b: b.int)
+            test2 = sorted(SboxPeekANFs(sbox).compute()[0], key=lambda b: b.int)
+            assert test1 == test2
+            print("OK")
 
 
 def test_component_anf():
