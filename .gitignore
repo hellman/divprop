@@ -12,3 +12,4 @@ logs/
 data/
 divcore_random/
 src/divprop/lib.py
+.cache
