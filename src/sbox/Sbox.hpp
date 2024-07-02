@@ -3,7 +3,7 @@
 #include <random>
 #include <chrono>
 
-#include "common.hpp"
+#include "hackycpp.hpp"
 #include "DenseSet.hpp"
 
 template<typename T>
@@ -113,7 +113,7 @@ struct T_Sbox {
         DenseSet graph(n + m);
         fori (x, 1ull << n) {
             uint64_t y = (uint64_t)data[x];
-            graph.add((u64(x) << m) | y);
+            graph.add((uint64_t(x) << m) | y);
         }
         return graph;
     }

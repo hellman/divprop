@@ -3,8 +3,7 @@
 #include <random>
 #include <algorithm>
 
-#include "hackycpp.h"
-
+#include "hackycpp.hpp"
 #include "DenseSet.hpp"
 
 #ifdef SWIG
