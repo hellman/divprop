@@ -70,7 +70,7 @@ setup(
     cmdclass={'build_py': build_py},  # see above
 
     name='divprop',
-    version='0.2.1',
+    version='0.2.3',
     packages=packages,
 
     url=None,
@@ -83,12 +83,15 @@ setup(
 
     description='Tools for cryptanalysis (division property)',
     long_description=None,
+    project_urls={"Source": "https://github.com/CryptoExperts/AC21-DivProp-Convexity"},
 
     python_requires='>=3.7,<4.0',
     install_requires=install_requires,
 
     package_dir=package_dir,
     package_data=package_data,
+    include_package_data=True,
+
     entry_points=entry_points,
     ext_modules=[
         Extension(
@@ -113,6 +116,7 @@ setup(
             swig_opts=[
                 "-c++",
                 "-DSWIGWORDSIZE64",  # https://github.com/swig/swig/issues/568
+                "-I./src/sbox/",
                 "-I" + HACKYCPP_ROOT,
                 "-I" + SUBSETS_ROOT,
             ],

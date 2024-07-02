@@ -20,15 +20,21 @@ class SboxPeekANFs:
     by computing backward and forward ANFs of products
     """
     log = logging.getLogger(f"{__name__}:SboxPeekANFs")
+    n_queries = 0
 
     def __init__(self, sbox: Sbox, isbox: Sbox = None):
         assert isinstance(sbox, Sbox.classes)
         self.n = int(sbox.n)
         self.sbox = sbox
         self.isbox = ~sbox if isbox is None else isbox
-        self.n_queries = 0
 
     def compute(self, debug=False):
+        """
+        Returns:
+            divcore (set(Bin))
+            invalid_max (set(Bin))
+        """
+
         n = self.n
 
         # initialize set of parity1 vectors (possibly redundant)
@@ -58,7 +64,7 @@ class SboxPeekANFs:
             invalid_max.add(fset)
 
         # initialize the exploration queue with (e_i, e_j) pairs
-        q = PriorityQueue()
+        self.queue = q = PriorityQueue()
         for i in range(n):
             for j in range(n):
                 fset = frozenset((i, n+j))

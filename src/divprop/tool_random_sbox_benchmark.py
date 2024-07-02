@@ -19,10 +19,12 @@ from binteger import Bin
 
 from subsets import DenseSet
 from divprop.lib import Sbox, Sbox32
+from divprop.WeightedSetInts import WeightedSetInts
 
 from divprop import SboxDivision, SboxPeekANFs
 
 import logging
+import justlogs
 
 log = logging.getLogger(f"{__name__}:RandomSboxBenchmark")
 
@@ -59,6 +61,7 @@ class HeavyPeeks(SboxPeekANFs):
         return cur
 
     def run_mask(self, mask, inverse=False):
+        self.n_queries += 1
         if self.cache_dir is not None:
             str_mask = f"{mask:x}".zfill((self.n + 3) // 4)
             filename = os.path.join(
@@ -72,6 +75,11 @@ class HeavyPeeks(SboxPeekANFs):
                         log.warning(f"cache error: file {filename} err {err}")
                         pass
 
+        self.log.debug(
+            f"run #{self.n_queries} mask {Bin(mask, self.n).support} "
+            f"inv? {inverse} "
+            f"queue ({self.queue.qsize()})"
+        )
         ret = super().run_mask(mask, inverse)
 
         if self.cache_dir is not None:
@@ -82,7 +90,6 @@ class HeavyPeeks(SboxPeekANFs):
 
 
 def reduntant_from_divcore(divcore, n, m):
-    from subsets.WeightedSet import WeightedSetInts
     redundant = WeightedSetInts(n + m)
     for v in divcore:
         for j in range(m):
@@ -115,6 +122,10 @@ def tool_RandomSboxBenchmark():
         help="Large S-box (use extensive caching and files)",
     )
     parser.add_argument(
+        "-s", "--seed", type=str, default="2021",
+        help="Seed for S-box generation",
+    )
+    parser.add_argument(
         "-o", "--output", type=str, default="divcore_random",
         help="Base directory for files (logs, cache, divcore, etc.)",
     )
@@ -122,29 +133,30 @@ def tool_RandomSboxBenchmark():
     args = parser.parse_args()
 
     n = args.n
+    seed = int(args.seed)
 
     path = os.path.join(args.output, f"{n:02d}")
     os.makedirs(path, exist_ok=True)
 
-    logging.addFileHandler(f"{path}/log")
-    logging.setup(level="DEBUG")
+    justlogs.addFileHandler(f"{path}/log")
+    justlogs.setup(level="DEBUG")
 
     log.info(f"{args}")
 
     if args.large:
-        run_large(n, path)
+        run_large(n, path, seed)
     else:
-        run_small(n, path)
+        run_small(n, path, seed)
 
 
-def run_large(n, path):
+def run_large(n, path, seed):
     filename = f"{path}/fw.sbox"
     ifilename = f"{path}/bk.sbox"
     last_filename = f"{path}/bk{n-1}.set"
 
     if not os.path.isfile(last_filename):
         log.info(f"generating {n}-bit S-box...")
-        sbox = Sbox32.GEN_random_permutation(n, 2021)  # seed
+        sbox = Sbox32.GEN_random_permutation(n, seed)  # seed
         log.info(f"{sbox}")
 
         log.info(f"saving to {filename} ...")
@@ -179,6 +191,9 @@ def run_large(n, path):
             coord = isbox.coordinate(i)
             coord.save_to_file(f"{path}/bk{i}.set")
             log.info(f"coord {i}/{n} saved")
+
+        del isbox
+        gc.collect()
 
     log.info("heavy peeks")
     fws = [f"{path}/fw{i}.set" for i in range(n)]
@@ -218,11 +233,11 @@ def run_large(n, path):
     log.info("finished")
 
 
-def run_small(n, path):
+def run_small(n, path, seed):
     assert n < 24, "are you crazy?"
 
     log.info(f"generating {n}-bit S-box...")
-    sbox = Sbox32.GEN_random_permutation(n, 1)
+    sbox = Sbox32.GEN_random_permutation(n, seed)
     log.info(f"{sbox}")
 
     filename = f"{path}/fw.sbox"

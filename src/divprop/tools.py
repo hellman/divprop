@@ -2,6 +2,7 @@ import os
 import ast
 import hashlib
 import argparse
+from enum import Enum
 
 from subsets import DenseSet
 
@@ -11,9 +12,14 @@ from divprop.all_sboxes import sboxes
 import logging
 import justlogs
 
-from optimodel.pool import TypeGood
-
 log = logging.getLogger(__name__)
+
+
+# for optimodel package
+class TypeGood(Enum):
+    LOWER = "lower"
+    UPPER = "upper"
+    GENERIC = "-"
 
 
 def get_sbox(name):
