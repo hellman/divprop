@@ -40,7 +40,7 @@ upload:
 	echo "Upload version? or Ctrl+C"
 	python -m setuptools_scm
 	read confirm
-	twine upload --repository subsets  dist/divprop-*.tar.gz
+	twine upload --repository divprop  dist/divprop-*.tar.gz
 
 scm:
 	python -m setuptools_scm
