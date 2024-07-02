@@ -33,3 +33,6 @@ venv:
 	echo `pwd`/src >.envsage/lib/python*/site-packages/divprop.pth
 	ln -sf .envsage/bin/activate ./activate
 
+upload:
+	python -m build
+	twine upload --repository subsets  dist/divprop-*.tar.gz
