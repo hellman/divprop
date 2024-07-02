@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=64", "swig", "subsets", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+
+[project]
+name = "divprop"
+dynamic = ["version"]
+dependencies = [
+  "binteger>=0.8.0",
+  "coloredlogs>=15.0",
+  "tqdm>=4.58.0",
+
+  "subsets>=1.1.1",
+  "justlogs>=0.1.0",
+]
+requires-python = ">=3.7"
+authors = [
+  {name = "Aleksei Udovenko", email = "aleksei@affine.group"}
+]
+description = "Division property cryptanalysis tools"
+readme = "README.md"
+license = {text = "MIT License"}
+keywords = ["cryptanalysis", "s-boxes", "division property", "integral cryptanalysis"]
+
+[project.urls]
+# Homepage = "https://example.com"
+#Documentation = "https://readthedocs.org"
+Repository = "https://github.com/hellman/divprop"
+
+[project.scripts]
+"divprop.divcore2bounds" = "divprop.tools:tool_divcore2bounds"
+"divprop.sbox2divcore" = "divprop.tools:tool_sbox2divcore"
+"divprop.sbox2ptt" = "divprop.tools:tool_sbox2ptt"
+"divprop.sbox2ddt" = "divprop.tools:tool_sbox2ddt"
+"divprop.random_sbox_benchmark" = "divprop.tool_random_sbox_benchmark:tool_RandomSboxBenchmark"
