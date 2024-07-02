@@ -34,5 +34,16 @@ venv:
 	ln -sf .envsage/bin/activate ./activate
 
 upload:
+	python -m setuptools_scm
 	python -m build
+	echo
+	echo "Upload version? or Ctrl+C"
+	python -m setuptools_scm
+	read confirm
 	twine upload --repository subsets  dist/divprop-*.tar.gz
+
+scm:
+	python -m setuptools_scm
+
+dev:
+	pip install --no-build-isolation -e .
