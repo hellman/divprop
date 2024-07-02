@@ -12,7 +12,7 @@ dependencies = [
   "coloredlogs>=15.0",
   "tqdm>=4.58.0",
 
-  "subsets>=1.1.1",
+  "subsets>=1.1.2",
   "justlogs>=0.1.0",
 ]
 requires-python = ">=3.7"
