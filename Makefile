@@ -34,6 +34,7 @@ venv:
 	ln -sf .envsage/bin/activate ./activate
 
 upload:
+	rm -f dist/*
 	python -m setuptools_scm
 	python -m build
 	echo
