@@ -11,28 +11,17 @@ except ImportError:
     sys.exit(1)
 
 setup(
-    # packages=["divprop"],
-
-    python_requires='>=3.7,<4.0',
-
-    # package_dir={'': 'src'},
-    # package_data={
-    #     # '': ['*'],
-    #     'divprop': ['*.so', '*.hpp'],
-    # },
-    # include_package_data=True,
-
     ext_modules=[
         Extension(
             "divprop._lib",
             include_dirs=[
                 "./src/",
                 "./src/sbox/",
-                "./src/divprop/divprop/",
+                "./src/divprop/",
                 SUBSETS_ROOT,
             ],
             depends=[
-                "./src/divprop/divprop/DivCore.hpp",
+                "./src/divprop/DivCore.hpp",
                 "./src/sbox/Sbox.hpp",
                 "./src/hackycpp.hpp",
                 SUBSETS_SO,
