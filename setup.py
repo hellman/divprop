@@ -11,18 +11,16 @@ except ImportError:
     sys.exit(1)
 
 setup(
-    name='divprop',
-    version='0.2.3',
-    packages=["divprop"],
+    # packages=["divprop"],
 
     python_requires='>=3.7,<4.0',
 
-    package_dir={'': 'src'},
-    package_data={
-        # '': ['*'],
-        'divprop': ['*.so', '*.hpp'],
-    },
-    include_package_data=True,
+    # package_dir={'': 'src'},
+    # package_data={
+    #     # '': ['*'],
+    #     'divprop': ['*.so', '*.hpp'],
+    # },
+    # include_package_data=True,
 
     ext_modules=[
         Extension(
