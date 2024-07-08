@@ -24,7 +24,6 @@ setup(
                 "./src/divprop/DivCore.hpp",
                 "./src/sbox/Sbox.hpp",
                 "./src/hackycpp.hpp",
-                SUBSETS_SO,  # ?
             ],
             sources=[
                 "./src/divprop/lib.i",

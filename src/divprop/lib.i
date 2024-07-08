@@ -27,14 +27,11 @@
     }
 }
 
+%import(package="subsets") "subsets.i"
+
 %{
-#include "DenseSet.hpp"
 #include "DivCore.hpp"
 #include "Sbox.hpp"
-%}
-
-%pythoncode %{
-	from subsets.subsets import DenseSet
 %}
 
 %include "DivCore.hpp"
